@@ -51,7 +51,7 @@ const LandingPage = () => {
               Submit invoices, track budgets, and get paid — all from your phone. Built for the field.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Button
                 size="lg"
                 className="gradient-primary text-primary-foreground font-display text-lg px-8 py-6 rounded-xl shadow-lg hover:opacity-90 transition-opacity"
@@ -61,13 +61,16 @@ const LandingPage = () => {
                 I'm a Subcontractor
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
+            </div>
+
+            <div className="flex justify-center mt-2">
               <Button
-                size="lg"
-                variant="outline"
-                className="border-secondary-foreground/20 text-secondary-foreground font-display text-lg px-8 py-6 rounded-xl hover:bg-secondary-foreground/5 transition-colors"
+                size="sm"
+                variant="ghost"
+                className="text-secondary-foreground/40 font-body text-sm hover:text-secondary-foreground/60 transition-colors"
                 onClick={() => { setRole('admin'); setMode('login'); }}
               >
-                <Building2 className="w-5 h-5 mr-2" />
+                <Building2 className="w-4 h-4 mr-1" />
                 Admin Login
               </Button>
             </div>
