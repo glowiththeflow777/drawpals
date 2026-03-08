@@ -1,0 +1,133 @@
+import type { Project, Invoice, BudgetLineItem, User } from '@/types/budget';
+
+export const mockUser: User = {
+  id: '1',
+  name: "Gloria's Crew",
+  email: 'gloria@spacecowboy.com',
+  phone: '512-555-0123',
+  role: 'subcontractor',
+  crewName: "Gloria's Crew",
+};
+
+export const mockAdminUser: User = {
+  id: '2',
+  name: 'Jake Mitchell',
+  email: 'jake@spacecowboy.com',
+  phone: '512-555-0100',
+  role: 'admin',
+};
+
+export const mockProjects: Project[] = [
+  {
+    id: '1',
+    name: 'Beckett Dr. Build-Out',
+    address: '7008 Beckett Dr., Austin TX',
+    totalBudget: 45200,
+    amountInvoiced: 18350,
+    amountPaid: 12600,
+    status: 'active',
+  },
+  {
+    id: '2',
+    name: 'Willy Nelson Suite',
+    address: '1204 S Congress Ave, Austin TX',
+    totalBudget: 62000,
+    amountInvoiced: 31000,
+    amountPaid: 24500,
+    status: 'active',
+  },
+  {
+    id: '3',
+    name: 'Cosmic Lounge Renovation',
+    address: '450 E 6th St, Austin TX',
+    totalBudget: 28500,
+    amountInvoiced: 28500,
+    amountPaid: 28500,
+    status: 'completed',
+  },
+];
+
+export const mockBudgetLineItems: BudgetLineItem[] = [
+  { id: '1', projectId: '1', lineItemNo: 1, costGroup: 'Interior Build-Out - Main House', costItemName: 'Furniture Receiving, Unpacking, Assembly, and Placement', description: 'Property buildout and setup labor', quantity: 1503, unit: 'Square Feet', extendedCost: 3156.30, costType: 'Labor', costCode: '3000 Furnishings' },
+  { id: '2', projectId: '1', lineItemNo: 2, costGroup: 'Interior Build-Out - Main House', costItemName: 'Artwork and wall decor install', description: 'Hang framed artwork, posters, signs, shelves', quantity: 12, unit: 'Each', extendedCost: 420.00, costType: 'Labor', costCode: '2200 Specialty Finishes' },
+  { id: '3', projectId: '1', lineItemNo: 3, costGroup: 'Interior Build-Out - Main House', costItemName: 'Ceiling fixture install', description: 'Replace ceiling fixtures at existing junction boxes', quantity: 2, unit: 'Each', extendedCost: 150.00, costType: 'Labor', costCode: '1000 Electrical' },
+  { id: '4', projectId: '1', lineItemNo: 5, costGroup: 'Interior Build-Out - Main House', costItemName: 'Window treatment install - Curtains', description: 'Install rods, hang curtains, final alignment', quantity: 19, unit: 'Each', extendedCost: 950.00, costType: 'Labor', costCode: '2200 Specialty Finishes' },
+  { id: '5', projectId: '1', lineItemNo: 7, costGroup: 'Interior Build-Out - Main House', costItemName: 'Wallpaper install', description: 'Wallpaper install, accent walls', quantity: 451.25, unit: 'Square Feet', extendedCost: 1669.63, costType: 'Labor', costCode: '2200 Specialty Finishes' },
+  { id: '6', projectId: '1', lineItemNo: 8, costGroup: 'Interior Build-Out - Main House', costItemName: 'Interior paint', description: 'Interior paint, accent walls', quantity: 2613.67, unit: 'Square Feet', extendedCost: 2613.67, costType: 'Labor', costCode: '2300 Painting' },
+];
+
+export const mockInvoices: Invoice[] = [
+  {
+    id: '1',
+    projectId: '1',
+    crewName: "Gloria's Crew",
+    projectAddress: '7008 Beckett Dr.',
+    payrollDrawDate: '2026-03-02',
+    lineItems: [
+      { id: '1', lineItemNo: 1, description: 'Sliding door remove, new 36 inch exterior door', contractPrice: 950, percentComplete: 100, drawAmount: 950 },
+      { id: '2', lineItemNo: 2, description: 'Remove 48 inch door, install 32 inch in swing door', contractPrice: 650, percentComplete: 100, drawAmount: 650 },
+      { id: '3', lineItemNo: 11, description: 'Bathroom 1, relocate plumbing in slab', contractPrice: 1650, percentComplete: 100, drawAmount: 1650 },
+      { id: '4', lineItemNo: 19, description: 'Bathroom 2, new shower drain in slab', contractPrice: 1450, percentComplete: 100, drawAmount: 1450 },
+      { id: '5', lineItemNo: 24, description: 'Garage, add can lights', contractPrice: 580, percentComplete: 100, drawAmount: 580 },
+    ],
+    dayLabor: [],
+    reimbursements: [],
+    changeOrders: [
+      { quantity: 1, description: 'Replace bathroom door', amount: 75 },
+      { quantity: 1, description: 'Paint bathroom door', amount: 65 },
+      { quantity: 1, description: 'Paint for wallpaper prep', amount: 300 },
+    ],
+    credits: [
+      { quantity: 1, description: 'Prepaid labor', amount: -1000 },
+    ],
+    attachments: [],
+    status: 'approved',
+    submittedAt: '2026-03-02T08:00:00Z',
+    submittedBy: '1',
+    totals: { sowDraw: 7278, dayRateLabor: 0, reimbursement: 0, changeOrders: 440, credits: -1000, total: 6718 },
+  },
+  {
+    id: '2',
+    projectId: '1',
+    crewName: "Gloria's Crew",
+    projectAddress: '7008 Beckett Dr.',
+    payrollDrawDate: '2026-03-09',
+    lineItems: [
+      { id: '6', description: 'Interior Install - Willy', contractPrice: 8783, percentComplete: 20, drawAmount: 1756.60 },
+      { id: '7', description: 'Exterior Install - Willy', contractPrice: 1950, percentComplete: 100, drawAmount: 1950 },
+    ],
+    dayLabor: [
+      { day: 'Tuesday', crewMembers: '3-7 waiting on table dropoff', amount: 100, hours: 4 },
+    ],
+    reimbursements: [],
+    changeOrders: [],
+    credits: [],
+    attachments: [],
+    status: 'pending',
+    submittedAt: '2026-03-09T10:00:00Z',
+    submittedBy: '1',
+    totals: { sowDraw: 3706.60, dayRateLabor: 100, reimbursement: 0, changeOrders: 0, credits: 0, total: 3806.60 },
+  },
+  {
+    id: '3',
+    projectId: '2',
+    crewName: "Gloria's Crew",
+    projectAddress: '1204 S Congress Ave',
+    payrollDrawDate: '2026-03-09',
+    lineItems: [
+      { id: '8', description: 'Wallpaper install - main suite', contractPrice: 4200, percentComplete: 50, drawAmount: 2100 },
+    ],
+    dayLabor: [],
+    reimbursements: [
+      { date: '2026-03-07', store: 'Home Depot', description: 'Wallpaper adhesive', amount: 85 },
+    ],
+    changeOrders: [],
+    credits: [],
+    attachments: [],
+    status: 'rejected',
+    submittedAt: '2026-03-09T09:00:00Z',
+    submittedBy: '1',
+    rejectionNotes: 'Please attach receipt photo for wallpaper adhesive and confirm % complete with site photos.',
+    totals: { sowDraw: 2100, dayRateLabor: 0, reimbursement: 85, changeOrders: 0, credits: 0, total: 2185 },
+  },
+];
