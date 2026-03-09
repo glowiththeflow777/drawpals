@@ -15,6 +15,7 @@ interface MemberForm {
   email: string;
   phone: string;
   role: TeamRole;
+  crew_name: string;
 }
 
 const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'project-manager' };
