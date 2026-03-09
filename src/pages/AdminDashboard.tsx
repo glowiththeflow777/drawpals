@@ -1,26 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp, BarChart3 } from 'lucide-react';
+import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockInvoices, mockProjects, mockBudgetLineItems } from '@/data/mockData';
+import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const CHART_COLORS = ['hsl(32,90%,50%)', 'hsl(160,40%,45%)', 'hsl(210,70%,50%)', 'hsl(45,93%,47%)'];
 
 const AdminDashboard = () => {
+  const { data: projects = [], isLoading: loadingProjects } = useProjects();
+  const { data: allBudgetItems = [] } = useBudgetLineItems();
   const [activeProject, setActiveProject] = useState<string>('all');
 
-  const filteredInvoices = activeProject === 'all'
-    ? mockInvoices
-    : mockInvoices.filter(inv => inv.projectId === activeProject);
+  const filtered = activeProject === 'all' ? projects : projects.filter(p => p.id === activeProject);
 
-  const pending = filteredInvoices.filter(i => i.status === 'pending');
-  const totalBudget = (activeProject === 'all' ? mockProjects : mockProjects.filter(p => p.id === activeProject))
-    .reduce((s, p) => s + p.totalBudget, 0);
-  const totalInvoiced = (activeProject === 'all' ? mockProjects : mockProjects.filter(p => p.id === activeProject))
-    .reduce((s, p) => s + p.amountInvoiced, 0);
-  const totalPaid = (activeProject === 'all' ? mockProjects : mockProjects.filter(p => p.id === activeProject))
-    .reduce((s, p) => s + p.amountPaid, 0);
+  const totalBudget = filtered.reduce((s, p) => s + Number(p.total_budget), 0);
+  const totalInvoiced = filtered.reduce((s, p) => s + Number(p.amount_invoiced), 0);
+  const totalPaid = filtered.reduce((s, p) => s + Number(p.amount_paid), 0);
   const remaining = totalBudget - totalInvoiced;
 
   const pieData = [
@@ -29,12 +25,23 @@ const AdminDashboard = () => {
     { name: 'Remaining', value: remaining },
   ];
 
-  const budgetItems = mockBudgetLineItems.slice(0, 5);
-  const varianceData = budgetItems.map(bi => ({
-    name: bi.costItemName.substring(0, 15) + '...',
-    budget: bi.extendedCost,
-    actual: bi.extendedCost * (0.5 + Math.random() * 0.7),
+  const budgetItems = activeProject === 'all'
+    ? allBudgetItems.slice(0, 8)
+    : allBudgetItems.filter(b => b.project_id === activeProject).slice(0, 8);
+
+  const varianceData = budgetItems.slice(0, 5).map(bi => ({
+    name: bi.cost_item_name.substring(0, 15) + '...',
+    budget: Number(bi.extended_cost),
+    actual: Number(bi.extended_cost) * (0.5 + Math.random() * 0.7),
   }));
+
+  if (loadingProjects) {
+    return (
+      <main className="max-w-6xl mx-auto px-4 py-12 flex justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
 
   return (
     <>
@@ -44,7 +51,7 @@ const AdminDashboard = () => {
           <button onClick={() => setActiveProject('all')} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
             All Projects
           </button>
-          {mockProjects.map(p => (
+          {projects.map(p => (
             <button key={p.id} onClick={() => setActiveProject(p.id)} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === p.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
               {p.name}
             </button>
@@ -97,79 +104,42 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-
-        {/* All Invoices */}
-        <div>
-          <h3 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-muted-foreground" />
-            All Invoices
-          </h3>
-          <div className="card-elevated overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Crew</th>
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Project</th>
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Draw Date</th>
-                    <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">Total</th>
-                    <th className="text-center p-3 font-display font-semibold text-muted-foreground text-xs">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInvoices.map(inv => {
-                    const project = mockProjects.find(p => p.id === inv.projectId);
-                    const statusClass = inv.status === 'approved' ? 'status-badge-approved' : inv.status === 'rejected' ? 'status-badge-rejected' : 'status-badge-pending';
-                    return (
-                      <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="p-3 font-body">{inv.crewName}</td>
-                        <td className="p-3 font-body text-muted-foreground">{project?.name}</td>
-                        <td className="p-3 font-body text-muted-foreground">{inv.payrollDrawDate}</td>
-                        <td className="p-3 text-right font-display font-semibold">${inv.totals.total.toLocaleString()}</td>
-                        <td className="p-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${statusClass}`}>{inv.status}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
         {/* Budget Line Items */}
         <div>
           <h3 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-muted-foreground" />
             Budget Line Items
           </h3>
-          <div className="card-elevated overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">#</th>
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Item</th>
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Cost Group</th>
-                    <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">Budget</th>
-                    <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {budgetItems.map(bi => (
-                    <tr key={bi.id} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="p-3 font-body">{bi.lineItemNo}</td>
-                      <td className="p-3 font-body">{bi.costItemName}</td>
-                      <td className="p-3 font-body text-muted-foreground text-xs">{bi.costGroup}</td>
-                      <td className="p-3 text-right font-display font-semibold">${bi.extendedCost.toLocaleString()}</td>
-                      <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{bi.costType}</span></td>
+          {budgetItems.length === 0 ? (
+            <p className="text-muted-foreground text-sm card-elevated p-6 text-center">No budget items yet.</p>
+          ) : (
+            <div className="card-elevated overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">#</th>
+                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Item</th>
+                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Cost Group</th>
+                      <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">Budget</th>
+                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Type</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {budgetItems.map(bi => (
+                      <tr key={bi.id} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="p-3 font-body">{bi.line_item_no}</td>
+                        <td className="p-3 font-body">{bi.cost_item_name}</td>
+                        <td className="p-3 font-body text-muted-foreground text-xs">{bi.cost_group}</td>
+                        <td className="p-3 text-right font-display font-semibold">${Number(bi.extended_cost).toLocaleString()}</td>
+                        <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{bi.cost_type}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Export */}
