@@ -8,25 +8,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { mockProjects } from '@/data/mockData';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
-
-const STEPS = [
-  { id: 1, title: 'Project', desc: 'Select project' },
-  { id: 2, title: 'Header', desc: 'Draw details' },
-  { id: 3, title: 'Line Items', desc: 'SOW draws' },
-  { id: 4, title: 'Day Labor', desc: 'Daily rates' },
-  { id: 5, title: 'Reimburse', desc: 'Receipts' },
-  { id: 6, title: 'Changes', desc: 'CO & credits' },
-  { id: 7, title: 'Attach', desc: 'Photos & files' },
-  { id: 8, title: 'Review', desc: 'Submit' },
-];
-
-const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+import { useTranslation } from 'react-i18next';
 
 const InvoiceWizard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isAdminEntry = searchParams.get('admin') === 'true';
   const preselectedProject = searchParams.get('project') || '';
+
+  const DAYS = [
+    t('invoiceWizard.days.Saturday'),
+    t('invoiceWizard.days.Sunday'),
+    t('invoiceWizard.days.Monday'),
+    t('invoiceWizard.days.Tuesday'),
+    t('invoiceWizard.days.Wednesday'),
+    t('invoiceWizard.days.Thursday'),
+    t('invoiceWizard.days.Friday')
+  ];
+
+  const STEPS = [
+    { id: 1, title: t('invoiceWizard.steps.project'), desc: t('invoiceWizard.stepDesc.project') },
+    { id: 2, title: t('invoiceWizard.steps.header'), desc: t('invoiceWizard.stepDesc.header') },
+    { id: 3, title: t('invoiceWizard.steps.lineItems'), desc: t('invoiceWizard.stepDesc.lineItems') },
+    { id: 4, title: t('invoiceWizard.steps.dayLabor'), desc: t('invoiceWizard.stepDesc.dayLabor') },
+    { id: 5, title: t('invoiceWizard.steps.reimburse'), desc: t('invoiceWizard.stepDesc.reimburse') },
+    { id: 6, title: t('invoiceWizard.steps.changes'), desc: t('invoiceWizard.stepDesc.changes') },
+    { id: 7, title: t('invoiceWizard.steps.attach'), desc: t('invoiceWizard.stepDesc.attach') },
+    { id: 8, title: t('invoiceWizard.steps.review'), desc: t('invoiceWizard.stepDesc.review') },
+  ];
 
   const [step, setStep] = useState(1);
   const [projectId, setProjectId] = useState(preselectedProject);
@@ -79,9 +89,9 @@ const InvoiceWizard = () => {
       <div className="px-4 pt-6 pb-2 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-2">
           <Link to="/dashboard" className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-1">
-            <ChevronLeft className="w-4 h-4" /> Cancel
+            <ChevronLeft className="w-4 h-4" /> {t('common.cancel')}
           </Link>
-          <span className="text-xs text-muted-foreground font-body">Step {step} of 8</span>
+          <span className="text-xs text-muted-foreground font-body">{t('invoiceWizard.stepOf', { step: step })}</span>
         </div>
         <div className="flex gap-1">
           {STEPS.map(s => (
