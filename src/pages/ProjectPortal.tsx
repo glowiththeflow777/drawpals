@@ -129,10 +129,28 @@ const ProjectPortal = () => {
     reader.readAsArrayBuffer(file);
   };
 
+  const selectedParsedItems = parsedItems.filter(i => selectedItemIds.has(i.id));
+
+  const toggleItem = (id: string) => {
+    setSelectedItemIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedItemIds.size === parsedItems.length) {
+      setSelectedItemIds(new Set());
+    } else {
+      setSelectedItemIds(new Set(parsedItems.map(i => i.id)));
+    }
+  };
+
   const handleCreateProject = () => {
     if (!newName || !newAddress) return;
-    const budgetTotal = parsedItems.length > 0
-      ? parsedItems.reduce((s, i) => s + i.extendedCost, 0)
+    const budgetTotal = selectedParsedItems.length > 0
+      ? selectedParsedItems.reduce((s, i) => s + i.extendedCost, 0)
       : Number(newBudget) || 0;
 
     const newProject: Project = {
@@ -145,7 +163,7 @@ const ProjectPortal = () => {
       status: 'active',
     };
 
-    const newBudgetItems = parsedItems.map(item => ({ ...item, projectId: newProject.id }));
+    const newBudgetItems = selectedParsedItems.map(item => ({ ...item, projectId: newProject.id }));
     setProjects([...projects, newProject]);
     setBudgetItems([...budgetItems, ...newBudgetItems]);
     setAssignments([...assignments, { projectId: newProject.id, subcontractorIds: [] }]);
