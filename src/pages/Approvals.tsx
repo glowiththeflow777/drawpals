@@ -8,23 +8,25 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { mockInvoices, mockProjects } from '@/data/mockData';
 import type { Invoice } from '@/types/budget';
+import { useTranslation } from 'react-i18next';
 
 type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected';
 
-const statusConfig = {
-  pending: { icon: Clock, label: 'Pending', className: 'bg-warning/15 text-warning' },
-  approved: { icon: CheckCircle2, label: 'Approved', className: 'bg-success/15 text-success' },
-  rejected: { icon: XCircle, label: 'Rejected', className: 'bg-destructive/15 text-destructive' },
-  draft: { icon: AlertCircle, label: 'Draft', className: 'bg-muted text-muted-foreground' },
-};
-
-const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const Approvals = () => {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<FilterStatus>('pending');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const statusConfig = {
+    pending: { icon: Clock, label: t('status.pending'), className: 'bg-warning/15 text-warning' },
+    approved: { icon: CheckCircle2, label: t('status.approved'), className: 'bg-success/15 text-success' },
+    rejected: { icon: XCircle, label: t('status.rejected'), className: 'bg-destructive/15 text-destructive' },
+    draft: { icon: AlertCircle, label: t('status.draft'), className: 'bg-muted text-muted-foreground' },
+  };
+
+  const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const invoices = filter === 'all' ? mockInvoices : mockInvoices.filter(i => i.status === filter);
   const pendingCount = mockInvoices.filter(i => i.status === 'pending').length;
@@ -48,9 +50,9 @@ const Approvals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-display font-bold">Invoice Approvals</h2>
+          <h2 className="text-2xl font-display font-bold">{t('approvals.title')}</h2>
           <p className="text-sm text-muted-foreground font-body mt-1">
-            {pendingCount} invoice{pendingCount !== 1 ? 's' : ''} awaiting review
+            {pendingCount === 1 ? t('approvals.awaitingReview_one', { count: pendingCount }) : t('approvals.awaitingReview_other', { count: pendingCount })}
           </p>
         </div>
       </div>
@@ -58,10 +60,10 @@ const Approvals = () => {
       {/* Filter chips */}
       <div className="flex gap-2">
         {([
-          { value: 'pending' as FilterStatus, label: `Pending (${mockInvoices.filter(i => i.status === 'pending').length})` },
-          { value: 'approved' as FilterStatus, label: 'Approved' },
-          { value: 'rejected' as FilterStatus, label: 'Rejected' },
-          { value: 'all' as FilterStatus, label: 'All' },
+          { value: 'pending' as FilterStatus, label: `${t('approvals.pending')} (${mockInvoices.filter(i => i.status === 'pending').length})` },
+          { value: 'approved' as FilterStatus, label: t('approvals.approved') },
+          { value: 'rejected' as FilterStatus, label: t('approvals.rejected') },
+          { value: 'all' as FilterStatus, label: t('common.all') },
         ]).map(f => (
           <button
             key={f.value}
@@ -78,7 +80,7 @@ const Approvals = () => {
       {/* Invoice list */}
       {invoices.length === 0 ? (
         <div className="card-elevated p-12 text-center text-muted-foreground font-body">
-          No invoices match this filter.
+          {t('approvals.noInvoices')}
         </div>
       ) : (
         <div className="space-y-4">

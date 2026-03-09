@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 type TeamRole = 'admin' | 'project-manager' | 'subcontractor';
 
@@ -29,6 +30,7 @@ const TeamManagement = () => {
   const deleteMember = useDeleteTeamMember();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -54,21 +56,21 @@ const TeamManagement = () => {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.email.trim()) {
-      toast({ title: 'Name and email are required', variant: 'destructive' });
+      toast({ title: t('team.nameRequired'), variant: 'destructive' });
       return;
     }
     try {
       if (editingId) {
         await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
-        toast({ title: 'Member updated' });
+        toast({ title: t('team.memberUpdated') });
       } else {
         // Send invite email via backend function (requires authenticated session)
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session?.access_token) {
           toast({
-            title: 'Please sign in first',
-            description: 'Your session expired. Sign in again, then resend the invite.',
+            title: t('team.sessionExpired'),
+            description: t('team.sessionExpiredDesc'),
             variant: 'destructive'
           });
           navigate('/');
@@ -96,21 +98,21 @@ const TeamManagement = () => {
           throw new Error(res.data.error);
         }
 
-        toast({ title: 'Invitation sent!', description: `An email has been sent to ${form.email} to set up their account.` });
+        toast({ title: t('team.inviteSent'), description: t('team.inviteDesc', { email: form.email }) });
       }
       setDialogOpen(false);
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteMember.mutateAsync(id);
-      toast({ title: 'Member removed' });
+      toast({ title: t('team.memberRemoved') });
       setDeleteConfirm(null);
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
     }
   };
 

@@ -246,9 +246,9 @@ const ProjectPortal = () => {
           {view === 'list' && (
             <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-display font-bold">Projects</h2>
+                <h2 className="text-2xl font-display font-bold">{t('projects.title')}</h2>
                 <Button onClick={() => setView('create')} className="gradient-primary text-primary-foreground font-display">
-                  <Plus className="w-4 h-4 mr-2" /> New Project
+                  <Plus className="w-4 h-4 mr-2" /> {t('projects.newProject')}
                 </Button>
               </div>
 
