@@ -57,6 +57,11 @@ const AdminDashboard = () => {
                 <FolderOpen className="w-4 h-4 mr-1" /> Projects
               </Button>
             </Link>
+            <Link to="/admin/team">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground text-xs">
+                <Users className="w-4 h-4 mr-1" /> Team
+              </Button>
+            </Link>
             <Link to="/">
               <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
                 <LogOut className="w-4 h-4" />
