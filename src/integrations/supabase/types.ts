@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      budget_line_items: {
+        Row: {
+          cost_code: string
+          cost_group: string
+          cost_item_name: string
+          cost_type: string
+          created_at: string
+          description: string
+          extended_cost: number
+          id: string
+          line_item_no: number
+          project_id: string
+          quantity: number
+          unit: string
+        }
+        Insert: {
+          cost_code?: string
+          cost_group?: string
+          cost_item_name?: string
+          cost_type?: string
+          created_at?: string
+          description?: string
+          extended_cost?: number
+          id?: string
+          line_item_no?: number
+          project_id: string
+          quantity?: number
+          unit?: string
+        }
+        Update: {
+          cost_code?: string
+          cost_group?: string
+          cost_item_name?: string
+          cost_type?: string
+          created_at?: string
+          description?: string
+          extended_cost?: number
+          id?: string
+          line_item_no?: number
+          project_id?: string
+          quantity?: number
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_line_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          team_member_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          team_member_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_assignments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_assignments_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          address: string
+          amount_invoiced: number
+          amount_paid: number
+          created_at: string
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["project_status"]
+          total_budget: number
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          amount_invoiced?: number
+          amount_paid?: number
+          created_at?: string
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["project_status"]
+          total_budget?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          amount_invoiced?: number
+          amount_paid?: number
+          created_at?: string
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["project_status"]
+          total_budget?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          crew_name: string | null
+          email: string
+          id: string
+          name: string
+          phone: string
+          role: Database["public"]["Enums"]["team_role"]
+        }
+        Insert: {
+          created_at?: string
+          crew_name?: string | null
+          email: string
+          id?: string
+          name: string
+          phone?: string
+          role: Database["public"]["Enums"]["team_role"]
+        }
+        Update: {
+          created_at?: string
+          crew_name?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          role?: Database["public"]["Enums"]["team_role"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +177,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      project_status: "active" | "on-hold" | "completed" | "archived"
+      team_role: "admin" | "project-manager" | "subcontractor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +305,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      project_status: ["active", "on-hold", "completed", "archived"],
+      team_role: ["admin", "project-manager", "subcontractor"],
+    },
   },
 } as const
