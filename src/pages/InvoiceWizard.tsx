@@ -24,9 +24,15 @@ const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'
 
 const InvoiceWizard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isAdminEntry = searchParams.get('admin') === 'true';
+  const preselectedProject = searchParams.get('project') || '';
+
   const [step, setStep] = useState(1);
-  const [projectId, setProjectId] = useState('');
-  const [crewName, setCrewName] = useState("Gloria's Crew");
+  const [projectId, setProjectId] = useState(preselectedProject);
+  const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
+  const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+  const [drawDate, setDrawDate] = useState('');
   const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([
     { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 },
