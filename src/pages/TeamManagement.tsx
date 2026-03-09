@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
-type TeamRole = 'admin' | 'project-manager';
+type TeamRole = 'admin' | 'project-manager' | 'subcontractor';
 
 interface MemberForm {
   name: string;
