@@ -219,10 +219,16 @@ const AdminDashboard = () => {
         </div>
 
         {/* Export */}
-        <div className="flex gap-3">
-          <Button variant="outline" className="font-display">Export PDF</Button>
-          <Button variant="outline" className="font-display">Export Excel</Button>
-          <Button variant="outline" className="font-display">Export to QuickBooks</Button>
+        <div className="flex gap-3 flex-wrap">
+          <Button variant="outline" className="font-display" onClick={handleExportPDF}>
+            <Download className="w-4 h-4 mr-1" /> Export PDF
+          </Button>
+          <Button variant="outline" className="font-display" onClick={handleExportExcel}>
+            <Download className="w-4 h-4 mr-1" /> Export Excel
+          </Button>
+          <Button variant="outline" className="font-display" onClick={handleExportQuickBooks}>
+            <Download className="w-4 h-4 mr-1" /> Export to QuickBooks
+          </Button>
         </div>
       </main>
     </>
