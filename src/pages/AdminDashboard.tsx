@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -47,15 +48,19 @@ const AdminDashboard = () => {
     <>
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Project Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <button onClick={() => setActiveProject('all')} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            All Projects
-          </button>
-          {projects.map(p => (
-            <button key={p.id} onClick={() => setActiveProject(p.id)} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === p.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-              {p.name}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-display font-semibold text-muted-foreground">Project</label>
+          <Select value={activeProject} onValueChange={setActiveProject}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Stats Grid */}
