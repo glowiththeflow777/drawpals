@@ -8,6 +8,7 @@ import SubcontractorDashboard from "./pages/SubcontractorDashboard";
 import InvoiceWizard from "./pages/InvoiceWizard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProjectPortal from "./pages/ProjectPortal";
+import TeamManagement from "./pages/TeamManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/invoice/new" element={<InvoiceWizard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/projects" element={<ProjectPortal />} />
+          <Route path="/admin/team" element={<TeamManagement />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
