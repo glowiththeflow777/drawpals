@@ -33,7 +33,6 @@ const InvoiceWizard = () => {
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
-  const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([
     { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 },
   ]);
