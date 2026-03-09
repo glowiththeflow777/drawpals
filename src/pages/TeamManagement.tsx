@@ -34,7 +34,7 @@ const TeamManagement = () => {
   const [filter, setFilter] = useState<'all' | TeamRole>('all');
 
   const members = allMembers.filter(
-    m => (m.role === 'admin' || m.role === 'project-manager') && (filter === 'all' || m.role === filter)
+    m => filter === 'all' || m.role === filter
   );
 
   const openCreate = () => {
