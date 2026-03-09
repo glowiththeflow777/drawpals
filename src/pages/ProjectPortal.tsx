@@ -341,15 +341,26 @@ const ProjectPortal = () => {
                 {/* Parsed Budget Items Preview */}
                 {showParsed && parsedItems.length > 0 && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-success" />
-                      <p className="text-sm font-display font-semibold">{parsedItems.length} line items parsed</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-success" />
+                        <p className="text-sm font-display font-semibold">{selectedItemIds.size} of {parsedItems.length} line items selected</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={toggleAll} className="text-xs">
+                        {selectedItemIds.size === parsedItems.length ? 'Deselect All' : 'Select All'}
+                      </Button>
                     </div>
                     <div className="border border-border rounded-lg overflow-hidden">
                       <div className="overflow-x-auto max-h-64 overflow-y-auto">
                         <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-muted">
                             <tr>
+                              <th className="p-2 w-8">
+                                <Checkbox
+                                  checked={selectedItemIds.size === parsedItems.length}
+                                  onCheckedChange={toggleAll}
+                                />
+                              </th>
                               <th className="text-left p-2 text-xs font-display">#</th>
                               <th className="text-left p-2 text-xs font-display">Item</th>
                               <th className="text-left p-2 text-xs font-display">Group</th>
@@ -358,21 +369,27 @@ const ProjectPortal = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {parsedItems.map(item => (
-                              <tr key={item.id} className="border-t border-border/50">
-                                <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
-                                <td className="p-2 font-body">{item.costItemName}</td>
-                                <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
-                                <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
-                                <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
-                              </tr>
-                            ))}
+                            {parsedItems.map(item => {
+                              const isSelected = selectedItemIds.has(item.id);
+                              return (
+                                <tr key={item.id} className={`border-t border-border/50 cursor-pointer transition-colors ${isSelected ? '' : 'opacity-40'}`} onClick={() => toggleItem(item.id)}>
+                                  <td className="p-2" onClick={e => e.stopPropagation()}>
+                                    <Checkbox checked={isSelected} onCheckedChange={() => toggleItem(item.id)} />
+                                  </td>
+                                  <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
+                                  <td className="p-2 font-body">{item.costItemName}</td>
+                                  <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
+                                  <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
+                                  <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
                       <div className="border-t border-border p-3 bg-muted/50 flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground font-body">Total Budget</span>
-                        <span className="font-display font-bold text-lg">${parsedItems.reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}</span>
+                        <span className="text-sm text-muted-foreground font-body">Selected Total</span>
+                        <span className="font-display font-bold text-lg">${selectedParsedItems.reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </motion.div>
