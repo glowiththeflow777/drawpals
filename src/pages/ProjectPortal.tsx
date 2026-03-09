@@ -118,6 +118,7 @@ const ProjectPortal = () => {
         }).filter(item => item.costItemName || item.extendedCost > 0);
 
         setParsedItems(parsed);
+        setSelectedItemIds(new Set(parsed.map(i => i.id)));
         setShowParsed(true);
       } catch (err) {
         console.error('Failed to parse file:', err);
