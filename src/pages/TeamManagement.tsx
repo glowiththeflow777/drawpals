@@ -217,7 +217,7 @@ const TeamManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 
