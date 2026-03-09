@@ -20,9 +20,18 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if any auth users exist via a simple test sign-in attempt
-  // We show setup link always and let the edge function enforce the check
-  const [setupAvailable, setSetupAvailable] = useState(true);
+  // Check if setup is still available (no auth users yet)
+  const [setupAvailable, setSetupAvailable] = useState(false);
+
+  // Try to detect if setup was already done by attempting a quick check
+  useState(() => {
+    supabase.functions.invoke('setup-admin', { body: { check: true } }).then(res => {
+      // If we get 403, setup is done; otherwise it might still be available
+      if (res.error || res.data?.error?.includes('already')) {
+        setSetupAvailable(false);
+      }
+    }).catch(() => setSetupAvailable(false));
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
