@@ -21,26 +21,20 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Create a client scoped to the caller's auth to verify identity
-    const supabaseAuth = createClient(
+    // Use service role client for all operations
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    // Verify caller is authenticated
+    const { data: { user: caller }, error: callerError } = await supabaseAdmin.auth.getUser(token);
+    if (callerError || !caller) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Use service role for admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     const { email, name, role, phone, crew_name } = await req.json();
 
