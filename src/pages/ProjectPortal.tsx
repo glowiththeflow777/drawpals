@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2 } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
