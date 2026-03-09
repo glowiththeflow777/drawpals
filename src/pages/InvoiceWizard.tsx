@@ -122,7 +122,7 @@ const InvoiceWizard = () => {
           >
             {step === 1 && (
               <div className="space-y-3">
-                <p className="text-muted-foreground font-body text-sm">Which project is this draw for?</p>
+                <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step1.question')}</p>
                 {mockProjects.filter(p => p.status === 'active').map(p => (
                   <button
                     key={p.id}
@@ -131,7 +131,7 @@ const InvoiceWizard = () => {
                   >
                     <p className="font-display font-semibold">{p.name}</p>
                     <p className="text-sm text-muted-foreground">{p.address}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Budget: ${p.totalBudget.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.totalBudget.toLocaleString()}</p>
                   </button>
                 ))}
               </div>
@@ -141,15 +141,15 @@ const InvoiceWizard = () => {
               <div className="space-y-4">
                 {isAdminEntry && (
                   <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 mb-2">
-                    <p className="text-xs font-display font-semibold text-warning">Admin Entry — this invoice will be flagged as submitted by admin on behalf of subcontractor.</p>
+                    <p className="text-xs font-display font-semibold text-warning">{t('invoiceWizard.step2.adminEntry')}</p>
                   </div>
                 )}
                 {isAdminEntry && (
                   <div>
-                    <Label className="font-body">Select Subcontractor</Label>
+                    <Label className="font-body">{t('invoiceWizard.step2.selectSubcontractor')}</Label>
                     <Select value={selectedSubcontractor} onValueChange={(val) => { setSelectedSubcontractor(val); setCrewName(val); }}>
                       <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Choose a subcontractor..." />
+                        <SelectValue placeholder={t('invoiceWizard.step2.chooseSubcontractor')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Gloria's Crew">Gloria's Crew</SelectItem>
@@ -161,15 +161,15 @@ const InvoiceWizard = () => {
                   </div>
                 )}
                 <div>
-                  <Label className="font-body">Crew Name</Label>
+                  <Label className="font-body">{t('invoiceWizard.step2.crewName')}</Label>
                   <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" readOnly={isAdminEntry} />
                 </div>
                 <div>
-                  <Label className="font-body">Project Address</Label>
+                  <Label className="font-body">{t('invoiceWizard.step2.projectAddress')}</Label>
                   <Input value={project?.address || ''} readOnly className="mt-1 bg-muted" />
                 </div>
                 <div>
-                  <Label className="font-body">Payroll Draw Date</Label>
+                  <Label className="font-body">{t('invoiceWizard.step2.payrollDrawDate')}</Label>
                   <Input type="date" value={drawDate} onChange={e => setDrawDate(e.target.value)} className="mt-1" />
                 </div>
               </div>
@@ -177,11 +177,11 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
-                <p className="text-muted-foreground font-body text-sm">Add your scope of work line items</p>
+                <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step3.instruction')}</p>
                 {lineItems.map((li, idx) => (
                   <div key={idx} className="card-elevated p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="font-display font-semibold text-sm">Item {idx + 1}</span>
+                      <span className="font-display font-semibold text-sm">{t('invoiceWizard.step3.item')} {idx + 1}</span>
                       {lineItems.length > 1 && (
                         <button onClick={() => setLineItems(lineItems.filter((_, i) => i !== idx))} className="text-destructive">
                           <Trash2 className="w-4 h-4" />
@@ -189,57 +189,57 @@ const InvoiceWizard = () => {
                       )}
                     </div>
                     <div>
-                      <Label className="text-xs font-body">Line Item No. (optional)</Label>
+                      <Label className="text-xs font-body">{t('invoiceWizard.step3.lineItemNo')}</Label>
                       <Input type="number" placeholder="#" className="mt-1" onChange={e => updateLineItem(idx, 'lineItemNo', e.target.value)} />
                     </div>
                     <div>
-                      <Label className="text-xs font-body">Description</Label>
-                      <Input placeholder="e.g. Wallpaper install" className="mt-1" value={li.description || ''} onChange={e => updateLineItem(idx, 'description', e.target.value)} />
+                      <Label className="text-xs font-body">{t('common.description')}</Label>
+                      <Input placeholder={t('invoiceWizard.step3.descriptionPlaceholder')} className="mt-1" value={li.description || ''} onChange={e => updateLineItem(idx, 'description', e.target.value)} />
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <Label className="text-xs font-body">Contract $</Label>
+                        <Label className="text-xs font-body">{t('invoiceWizard.step3.contractPrice')}</Label>
                         <Input type="number" placeholder="0" className="mt-1" value={li.contractPrice || ''} onChange={e => updateLineItem(idx, 'contractPrice', Number(e.target.value))} />
                       </div>
                       <div>
-                        <Label className="text-xs font-body">% Complete</Label>
+                        <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
                         <Input type="number" placeholder="0" min="0" max="100" className="mt-1" value={li.percentComplete || ''} onChange={e => updateLineItem(idx, 'percentComplete', Number(e.target.value))} />
                       </div>
                       <div>
-                        <Label className="text-xs font-body">Draw $</Label>
+                        <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
                         <Input type="number" readOnly className="mt-1 bg-muted font-semibold" value={li.drawAmount || 0} />
                       </div>
                     </div>
                   </div>
                 ))}
                 <Button variant="outline" className="w-full" onClick={() => setLineItems([...lineItems, { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 }])}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Line Item
+                  <Plus className="w-4 h-4 mr-2" /> {t('invoiceWizard.step3.addLineItem')}
                 </Button>
-                <div className="text-right font-display font-bold text-lg">SOW Total: ${sowTotal.toLocaleString()}</div>
+                <div className="text-right font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</div>
               </div>
             )}
 
             {step === 4 && (
               <div className="space-y-3">
-                <p className="text-muted-foreground font-body text-sm">Log daily labor for this week</p>
+                <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step4.instruction')}</p>
                 {dayLabor.map((dl, idx) => (
                   <div key={dl.day} className="card-elevated p-3">
                     <p className="font-display font-semibold text-sm mb-2">{dl.day}</p>
                     <div className="grid grid-cols-3 gap-2">
                       <div className="col-span-1">
-                        <Label className="text-xs font-body">Crew</Label>
-                        <Input placeholder="Members" className="mt-1 text-sm" value={dl.crewMembers} onChange={e => {
+                        <Label className="text-xs font-body">{t('invoiceWizard.step4.crew')}</Label>
+                        <Input placeholder={t('invoiceWizard.step4.crewPlaceholder')} className="mt-1 text-sm" value={dl.crewMembers} onChange={e => {
                           const u = [...dayLabor]; u[idx].crewMembers = e.target.value; setDayLabor(u);
                         }} />
                       </div>
                       <div>
-                        <Label className="text-xs font-body">$ Amount</Label>
+                        <Label className="text-xs font-body">{t('invoiceWizard.step4.dollarAmount')}</Label>
                         <Input type="number" placeholder="0" className="mt-1 text-sm" value={dl.amount || ''} onChange={e => {
                           const u = [...dayLabor]; u[idx].amount = Number(e.target.value); setDayLabor(u);
                         }} />
                       </div>
                       <div>
-                        <Label className="text-xs font-body">Hours</Label>
+                        <Label className="text-xs font-body">{t('invoiceWizard.step4.hours')}</Label>
                         <Input type="number" placeholder="0" className="mt-1 text-sm" value={dl.hours || ''} onChange={e => {
                           const u = [...dayLabor]; u[idx].hours = Number(e.target.value); setDayLabor(u);
                         }} />
@@ -247,43 +247,43 @@ const InvoiceWizard = () => {
                     </div>
                   </div>
                 ))}
-                <div className="text-right font-display font-bold text-lg">Day Labor Total: ${dayLaborTotal.toLocaleString()}</div>
+                <div className="text-right font-display font-bold text-lg">{t('invoiceWizard.step4.dayLaborTotal')}: ${dayLaborTotal.toLocaleString()}</div>
               </div>
             )}
 
             {step === 5 && (
               <div className="space-y-4">
-                <p className="text-muted-foreground font-body text-sm">Add reimbursement receipts</p>
+                <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step5.instruction')}</p>
                 {reimbursements.map((r, idx) => (
                   <div key={idx} className="card-elevated p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="font-display font-semibold text-sm">Receipt {idx + 1}</span>
+                      <span className="font-display font-semibold text-sm">{t('invoiceWizard.step5.receipt')} {idx + 1}</span>
                       <button onClick={() => setReimbursements(reimbursements.filter((_, i) => i !== idx))} className="text-destructive"><Trash2 className="w-4 h-4" /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label className="text-xs font-body">Date</Label>
+                        <Label className="text-xs font-body">{t('common.date')}</Label>
                         <Input type="date" className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].date = e.target.value; setReimbursements(u); }} />
                       </div>
                       <div>
-                        <Label className="text-xs font-body">Store</Label>
-                        <Input placeholder="Home Depot" className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].store = e.target.value; setReimbursements(u); }} />
+                        <Label className="text-xs font-body">{t('invoiceWizard.step5.store')}</Label>
+                        <Input placeholder={t('invoiceWizard.step5.storePlaceholder')} className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].store = e.target.value; setReimbursements(u); }} />
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs font-body">Description</Label>
-                      <Input placeholder="What was purchased" className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].description = e.target.value; setReimbursements(u); }} />
+                      <Label className="text-xs font-body">{t('common.description')}</Label>
+                      <Input placeholder={t('invoiceWizard.step5.purchasedPlaceholder')} className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].description = e.target.value; setReimbursements(u); }} />
                     </div>
                     <div>
-                      <Label className="text-xs font-body">$ Amount</Label>
+                      <Label className="text-xs font-body">{t('invoiceWizard.step4.dollarAmount')}</Label>
                       <Input type="number" placeholder="0" className="mt-1" onChange={e => { const u = [...reimbursements]; u[idx].amount = Number(e.target.value); setReimbursements(u); }} />
                     </div>
                   </div>
                 ))}
                 <Button variant="outline" className="w-full" onClick={() => setReimbursements([...reimbursements, { date: '', store: '', description: '', amount: 0 }])}>
-                  <Plus className="w-4 h-4 mr-2" /> Add Reimbursement
+                  <Plus className="w-4 h-4 mr-2" /> {t('invoiceWizard.step5.addReimbursement')}
                 </Button>
-                <div className="text-right font-display font-bold text-lg">Reimbursement Total: ${reimbTotal.toLocaleString()}</div>
+                <div className="text-right font-display font-bold text-lg">{t('invoiceWizard.step5.reimbTotal')}: ${reimbTotal.toLocaleString()}</div>
               </div>
             )}
 
