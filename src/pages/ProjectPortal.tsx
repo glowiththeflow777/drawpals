@@ -518,7 +518,19 @@ const ProjectPortal = () => {
                   <h2 className="text-2xl font-display font-bold">{selectedProject.name}</h2>
                   <p className="text-muted-foreground font-body">{selectedProject.address}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
+                  {/* Status Selector */}
+                  <Select value={selectedProject.status} onValueChange={(v) => updateProjectStatus(selectedProject.id, v as ProjectStatus)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="on-hold">On Hold</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button onClick={() => navigate(`/invoice/new?project=${selectedProject.id}&admin=true`)} className="gradient-primary text-primary-foreground font-display">
                     <Plus className="w-4 h-4 mr-1" /> Submit Invoice for Sub
                   </Button>
@@ -538,6 +550,80 @@ const ProjectPortal = () => {
                     <p className="text-xl font-display font-bold">${stat.value.toLocaleString()}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Assigned Admins & Project Managers */}
+              <div className="card-elevated p-5 space-y-5">
+                <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                  Team Assignment
+                </h3>
+                
+                {/* Admins */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <Label className="font-display font-semibold text-sm">Admins</Label>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {availableManagers.filter(m => m.role === 'admin').map(manager => {
+                      const isAssigned = (selectedProject.assignedAdmins || []).includes(manager.id);
+                      return (
+                        <button
+                          key={manager.id}
+                          onClick={() => toggleManagerAssignment(selectedProject.id, manager.id, 'admin')}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                            isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
+                            isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {manager.name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-medium text-sm truncate">{manager.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{manager.email}</p>
+                          </div>
+                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Project Managers */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserCog className="w-4 h-4 text-accent-foreground" />
+                    <Label className="font-display font-semibold text-sm">Project Managers</Label>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {availableManagers.filter(m => m.role === 'project-manager').map(manager => {
+                      const isAssigned = (selectedProject.assignedPMs || []).includes(manager.id);
+                      return (
+                        <button
+                          key={manager.id}
+                          onClick={() => toggleManagerAssignment(selectedProject.id, manager.id, 'pm')}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                            isAssigned ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
+                            isAssigned ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {manager.name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-medium text-sm truncate">{manager.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{manager.email}</p>
+                          </div>
+                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-accent-foreground flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Assigned Subcontractors */}
