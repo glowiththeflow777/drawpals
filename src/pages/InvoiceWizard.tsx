@@ -383,7 +383,7 @@ const InvoiceWizard = () => {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
