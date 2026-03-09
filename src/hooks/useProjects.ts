@@ -1,0 +1,118 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+
+export type DbProject = Tables<'projects'>;
+export type DbBudgetLineItem = Tables<'budget_line_items'>;
+export type DbTeamMember = Tables<'team_members'>;
+export type DbProjectAssignment = Tables<'project_assignments'>;
+
+export function useProjects() {
+  return useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as DbProject[];
+    },
+  });
+}
+
+export function useBudgetLineItems(projectId?: string) {
+  return useQuery({
+    queryKey: ['budget_line_items', projectId],
+    queryFn: async () => {
+      let query = supabase.from('budget_line_items').select('*');
+      if (projectId) query = query.eq('project_id', projectId);
+      const { data, error } = await query.order('line_item_no');
+      if (error) throw error;
+      return data as DbBudgetLineItem[];
+    },
+  });
+}
+
+export function useTeamMembers() {
+  return useQuery({
+    queryKey: ['team_members'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('team_members').select('*').order('name');
+      if (error) throw error;
+      return data as DbTeamMember[];
+    },
+  });
+}
+
+export function useProjectAssignments(projectId?: string) {
+  return useQuery({
+    queryKey: ['project_assignments', projectId],
+    queryFn: async () => {
+      let query = supabase.from('project_assignments').select('*, team_members(*)');
+      if (projectId) query = query.eq('project_id', projectId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (project: TablesInsert<'projects'>) => {
+      const { data, error } = await supabase.from('projects').insert(project).select().single();
+      if (error) throw error;
+      return data as DbProject;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  });
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<DbProject> & { id: string }) => {
+      const { data, error } = await supabase.from('projects').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      return data as DbProject;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
+  });
+}
+
+export function useInsertBudgetLineItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: TablesInsert<'budget_line_items'>[]) => {
+      const { data, error } = await supabase.from('budget_line_items').insert(items).select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budget_line_items'] }),
+  });
+}
+
+export function useToggleAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, teamMemberId }: { projectId: string; teamMemberId: string }) => {
+      // Check if assignment exists
+      const { data: existing } = await supabase
+        .from('project_assignments')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('team_member_id', teamMemberId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase.from('project_assignments').delete().eq('id', existing.id);
+        if (error) throw error;
+        return { action: 'removed' as const };
+      } else {
+        const { error } = await supabase.from('project_assignments').insert({ project_id: projectId, team_member_id: teamMemberId });
+        if (error) throw error;
+        return { action: 'added' as const };
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
+  });
+}
