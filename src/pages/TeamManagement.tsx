@@ -206,8 +206,16 @@ const TeamManagement = () => {
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="project-manager">Project Manager</SelectItem>
+                  <SelectItem value="subcontractor">Subcontractor</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            {form.role === 'subcontractor' && (
+              <div>
+                <label className="text-sm font-medium font-body mb-1.5 block">Crew Name</label>
+                <Input value={form.crew_name} onChange={e => setForm(f => ({ ...f, crew_name: e.target.value }))} placeholder="e.g. Gloria's Crew" />
+              </div>
+            )}
             </div>
           </div>
           <DialogFooter>
