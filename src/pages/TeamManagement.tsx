@@ -98,7 +98,7 @@ const TeamManagement = () => {
 
         {/* Filter chips */}
         <div className="flex gap-2">
-          {(['all', 'admin', 'project-manager'] as const).map(f => (
+          {(['all', 'admin', 'project-manager', 'subcontractor'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -106,7 +106,7 @@ const TeamManagement = () => {
                 filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : 'Project Managers'}
+              {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : f === 'subcontractor' ? 'Subcontractors' : 'Project Managers'}
             </button>
           ))}
         </div>
