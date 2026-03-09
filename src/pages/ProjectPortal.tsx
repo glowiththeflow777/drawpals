@@ -467,25 +467,105 @@ const ProjectPortal = () => {
               </button>
 
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-display font-bold">{selectedProject.name}</h2>
-                  <p className="text-muted-foreground font-body">{selectedProject.address}</p>
-                </div>
+                {editingProject ? (
+                  <div className="space-y-2 flex-1">
+                    <Input
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      className="text-2xl font-display font-bold h-auto py-1"
+                      placeholder="Project Name"
+                    />
+                    <Input
+                      value={editAddress}
+                      onChange={e => setEditAddress(e.target.value)}
+                      className="text-sm h-auto py-1"
+                      placeholder="Project Address"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-display whitespace-nowrap">Total Budget $</Label>
+                      <Input
+                        type="number"
+                        value={editBudget}
+                        onChange={e => setEditBudget(e.target.value)}
+                        className="w-40 h-auto py-1"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-2xl font-display font-bold">{selectedProject.name}</h2>
+                    <p className="text-muted-foreground font-body">{selectedProject.address}</p>
+                  </div>
+                )}
                 <div className="flex items-center gap-3">
-                  <Select value={selectedProject.status} onValueChange={(v) => updateProjectStatus(selectedProject.id, v as ProjectStatus)}>
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="on-hold">On Hold</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="archived">Archived</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={() => navigate(`/invoice/new?project=${selectedProject.id}&admin=true`)} className="gradient-primary text-primary-foreground font-display">
-                    <Plus className="w-4 h-4 mr-1" /> Submit Invoice for Sub
-                  </Button>
+                  {editingProject ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingProject(false)}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="gradient-primary text-primary-foreground"
+                        disabled={updateProject.isPending}
+                        onClick={async () => {
+                          try {
+                            await updateProject.mutateAsync({
+                              id: selectedProject.id,
+                              name: editName,
+                              address: editAddress,
+                              total_budget: Number(editBudget) || 0,
+                            });
+                            setSelectedProject(prev => prev ? {
+                              ...prev,
+                              name: editName,
+                              address: editAddress,
+                              total_budget: Number(editBudget) || 0,
+                            } : prev);
+                            setEditingProject(false);
+                            toast({ title: 'Project updated' });
+                          } catch {
+                            toast({ title: 'Error', description: 'Failed to update project', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        {updateProject.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditName(selectedProject.name);
+                          setEditAddress(selectedProject.address);
+                          setEditBudget(String(selectedProject.total_budget));
+                          setEditingProject(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4 mr-1" /> Edit
+                      </Button>
+                      <Select value={selectedProject.status} onValueChange={(v) => updateProjectStatus(selectedProject.id, v as ProjectStatus)}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="on-hold">On Hold</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={() => navigate(`/invoice/new?project=${selectedProject.id}&admin=true`)} className="gradient-primary text-primary-foreground font-display">
+                        <Plus className="w-4 h-4 mr-1" /> Submit Invoice for Sub
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
