@@ -7,7 +7,6 @@ import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
 
 const LandingPage = () => {
   const [mode, setMode] = useState<'landing' | 'login' | 'setup'>('landing');
