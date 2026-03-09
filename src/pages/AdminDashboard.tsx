@@ -219,7 +219,7 @@ const AdminDashboard = () => {
           <Button variant="outline" className="font-display">Export to QuickBooks</Button>
         </div>
       </main>
-    </div>
+    </>
   );
 };
 

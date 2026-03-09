@@ -681,7 +681,7 @@ const ProjectPortal = () => {
           )}
         </AnimatePresence>
       </main>
-    </div>
+    </>
   );
 };
 
