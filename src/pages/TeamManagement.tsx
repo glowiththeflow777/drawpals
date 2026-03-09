@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 type TeamRole = 'admin' | 'project-manager' | 'subcontractor';
 
@@ -27,6 +28,7 @@ const TeamManagement = () => {
   const updateMember = useUpdateTeamMember();
   const deleteMember = useDeleteTeamMember();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,9 +62,23 @@ const TeamManagement = () => {
         await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member updated' });
       } else {
-        // Send invite email via edge function
+        // Send invite email via backend function (requires authenticated session)
         const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          toast({
+            title: 'Please sign in first',
+            description: 'Your session expired. Sign in again, then resend the invite.',
+            variant: 'destructive'
+          });
+          navigate('/');
+          return;
+        }
+
         const res = await supabase.functions.invoke('invite-member', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: {
             email: form.email,
             name: form.name,
@@ -71,16 +87,15 @@ const TeamManagement = () => {
             crew_name: form.role === 'subcontractor' ? form.crew_name : null,
           },
         });
-        
+
         if (res.error) {
           throw new Error(res.error.message || 'Failed to send invitation');
         }
 
-        // If the edge function didn't create the team member, create it directly
         if (res.data?.error) {
           throw new Error(res.data.error);
         }
-        
+
         toast({ title: 'Invitation sent!', description: `An email has been sent to ${form.email} to set up their account.` });
       }
       setDialogOpen(false);
