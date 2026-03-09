@@ -284,60 +284,109 @@ const ProjectPortal = () => {
                 </Button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map(project => {
-                  const assignedSubs = getAssignedSubs(project.id);
-                  const projectBudgetItems = budgetItems.filter(b => b.projectId === project.id);
-                  return (
-                    <motion.div
-                      key={project.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="card-elevated p-5 cursor-pointer hover:shadow-lg transition-shadow"
-                      onClick={() => { setSelectedProject(project); setView('detail'); }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-display font-semibold text-lg">{project.name}</h3>
-                          <p className="text-xs text-muted-foreground font-body">{project.address}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${project.status === 'active' ? 'status-badge-approved' : 'status-badge-pending'}`}>
-                          {project.status}
-                        </span>
-                      </div>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectStatus | 'all')} className="w-full">
+                <TabsList className="w-full justify-start overflow-x-auto">
+                  {statusTabs.map(tab => (
+                    <TabsTrigger key={tab.value} value={tab.value} className="font-display capitalize">
+                      {tab.label}
+                      <span className="ml-2 text-xs bg-muted rounded-full px-1.5 py-0.5">
+                        {tab.value === 'all' ? projects.length : projects.filter(p => p.status === tab.value).length}
+                      </span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
 
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground font-body">Budget</span>
-                          <span className="font-display font-semibold">${project.totalBudget.toLocaleString()}</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${Math.min(100, (project.amountInvoiced / project.totalBudget) * 100)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>${project.amountInvoiced.toLocaleString()} invoiced</span>
-                          <span>${(project.totalBudget - project.amountInvoiced).toLocaleString()} remaining</span>
-                        </div>
-                      </div>
+                <TabsContent value={activeTab} className="mt-4">
+                  {filteredProjects.length === 0 ? (
+                    <div className="card-elevated p-8 text-center">
+                      <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground font-body">No {activeTab === 'all' ? '' : activeTab} projects found.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredProjects.map(project => {
+                        const assignedSubs = getAssignedSubs(project.id);
+                        const projectBudgetItems = budgetItems.filter(b => b.projectId === project.id);
+                        const assignedAdmins = getAssignedManagers(project, 'admin');
+                        const assignedPMs = getAssignedManagers(project, 'pm');
+                        const statusBadgeClass = {
+                          active: 'status-badge-approved',
+                          'on-hold': 'bg-amber-500/10 text-amber-600',
+                          completed: 'status-badge-pending',
+                          archived: 'bg-muted text-muted-foreground',
+                        }[project.status];
+                        return (
+                          <motion.div
+                            key={project.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card-elevated p-5 cursor-pointer hover:shadow-lg transition-shadow"
+                            onClick={() => { setSelectedProject(project); setView('detail'); }}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h3 className="font-display font-semibold text-lg">{project.name}</h3>
+                                <p className="text-xs text-muted-foreground font-body">{project.address}</p>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${statusBadgeClass}`}>
+                                {project.status}
+                              </span>
+                            </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <FileSpreadsheet className="w-3 h-3" />
-                          <span>{projectBudgetItems.length} line items</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Users className="w-3 h-3" />
-                          <span>{assignedSubs.length} subs</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                            <div className="space-y-2 mb-4">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground font-body">Budget</span>
+                                <span className="font-display font-semibold">${project.totalBudget.toLocaleString()}</span>
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all"
+                                  style={{ width: `${Math.min(100, (project.amountInvoiced / project.totalBudget) * 100)}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>${project.amountInvoiced.toLocaleString()} invoiced</span>
+                                <span>${(project.totalBudget - project.amountInvoiced).toLocaleString()} remaining</span>
+                              </div>
+                            </div>
+
+                            {/* Assigned Managers Preview */}
+                            {(assignedAdmins.length > 0 || assignedPMs.length > 0) && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {assignedAdmins.slice(0, 2).map(m => (
+                                  <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                    <Shield className="w-3 h-3" /> {m.name.split(' ')[0]}
+                                  </span>
+                                ))}
+                                {assignedPMs.slice(0, 2).map(m => (
+                                  <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-accent/50 text-accent-foreground px-2 py-0.5 rounded-full">
+                                    <UserCog className="w-3 h-3" /> {m.name.split(' ')[0]}
+                                  </span>
+                                ))}
+                                {(assignedAdmins.length + assignedPMs.length) > 4 && (
+                                  <span className="text-xs text-muted-foreground">+{assignedAdmins.length + assignedPMs.length - 4} more</span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <FileSpreadsheet className="w-3 h-3" />
+                                <span>{projectBudgetItems.length} line items</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Users className="w-3 h-3" />
+                                <span>{assignedSubs.length} subs</span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </motion.div>
           )}
 
