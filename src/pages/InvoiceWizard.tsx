@@ -74,20 +74,15 @@ const InvoiceWizard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="gradient-dark px-4 py-3 sticky top-0 z-50">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <Link to="/dashboard" className="text-secondary-foreground/50 hover:text-secondary-foreground text-sm flex items-center gap-1">
+    <>
+      {/* Progress */}
+      <div className="px-4 pt-6 pb-2 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-2">
+          <Link to="/dashboard" className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-1">
             <ChevronLeft className="w-4 h-4" /> Cancel
           </Link>
-          <h1 className="font-display font-bold text-secondary-foreground text-sm">New Invoice</h1>
-          <span className="text-secondary-foreground/50 text-xs font-body">{step}/8</span>
+          <span className="text-xs text-muted-foreground font-body">Step {step} of 8</span>
         </div>
-      </header>
-
-      {/* Progress */}
-      <div className="px-4 pt-4 pb-2 max-w-2xl mx-auto">
         <div className="flex gap-1">
           {STEPS.map(s => (
             <div
@@ -388,7 +383,7 @@ const InvoiceWizard = () => {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

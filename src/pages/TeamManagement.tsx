@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, LogOut, FolderOpen, Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Link } from 'react-router-dom';
 import { useTeamMembers, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember, DbTeamMember } from '@/hooks/useProjects';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -83,39 +82,7 @@ const TeamManagement = () => {
   const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : 'bg-accent/15 text-accent';
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="gradient-dark px-4 py-4 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-secondary-foreground text-sm">Budget Builder</h1>
-              <p className="text-secondary-foreground/50 text-xs">Team Control Center</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link to="/admin/projects">
-              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground text-xs">
-                <FolderOpen className="w-4 h-4 mr-1" /> Projects
-              </Button>
-            </Link>
-            <Link to="/admin">
-              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground text-xs">
-                Dashboard
-              </Button>
-            </Link>
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Title + Add */}
         <div className="flex items-center justify-between">
@@ -250,7 +217,7 @@ const TeamManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 };
 

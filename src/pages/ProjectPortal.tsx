@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2 } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
@@ -231,34 +231,7 @@ const ProjectPortal = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="gradient-dark px-4 py-4 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-secondary-foreground text-sm">Budget Builder</h1>
-              <p className="text-secondary-foreground/50 text-xs">Project Management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link to="/admin">
-              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground text-xs">
-                Dashboard
-              </Button>
-            </Link>
-            <Link to="/">
-              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
+    <>
       <main className="max-w-6xl mx-auto px-4 py-6">
         <AnimatePresence mode="wait">
           {/* ===== PROJECT LIST ===== */}
@@ -708,7 +681,7 @@ const ProjectPortal = () => {
           )}
         </AnimatePresence>
       </main>
-    </div>
+    </>
   );
 };
 
