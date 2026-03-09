@@ -216,7 +216,6 @@ const TeamManagement = () => {
                 <Input value={form.crew_name} onChange={e => setForm(f => ({ ...f, crew_name: e.target.value }))} placeholder="e.g. Gloria's Crew" />
               </div>
             )}
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
