@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTeamMembers, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember, DbTeamMember } from '@/hooks/useProjects';
@@ -8,16 +8,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
-type TeamRole = 'admin' | 'project-manager';
+type TeamRole = 'admin' | 'project-manager' | 'subcontractor';
 
 interface MemberForm {
   name: string;
   email: string;
   phone: string;
   role: TeamRole;
+  crew_name: string;
 }
 
-const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'project-manager' };
+const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'subcontractor', crew_name: '' };
 
 const TeamManagement = () => {
   const { data: allMembers = [], isLoading } = useTeamMembers();
@@ -33,7 +34,7 @@ const TeamManagement = () => {
   const [filter, setFilter] = useState<'all' | TeamRole>('all');
 
   const members = allMembers.filter(
-    m => (m.role === 'admin' || m.role === 'project-manager') && (filter === 'all' || m.role === filter)
+    m => filter === 'all' || m.role === filter
   );
 
   const openCreate = () => {
@@ -44,7 +45,7 @@ const TeamManagement = () => {
 
   const openEdit = (m: DbTeamMember) => {
     setEditingId(m.id);
-    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole });
+    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole, crew_name: m.crew_name || '' });
     setDialogOpen(true);
   };
 
@@ -55,10 +56,10 @@ const TeamManagement = () => {
     }
     try {
       if (editingId) {
-        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role });
+        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member updated' });
       } else {
-        await createMember.mutateAsync({ name: form.name, email: form.email, phone: form.phone, role: form.role });
+        await createMember.mutateAsync({ name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member added' });
       }
       setDialogOpen(false);
@@ -77,9 +78,9 @@ const TeamManagement = () => {
     }
   };
 
-  const roleIcon = (role: string) => role === 'admin' ? <Shield className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />;
-  const roleLabel = (role: string) => role === 'admin' ? 'Admin' : 'Project Manager';
-  const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : 'bg-accent/15 text-accent';
+  const roleIcon = (role: string) => role === 'admin' ? <Shield className="w-4 h-4" /> : role === 'subcontractor' ? <HardHat className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />;
+  const roleLabel = (role: string) => role === 'admin' ? 'Admin' : role === 'subcontractor' ? 'Subcontractor' : 'Project Manager';
+  const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : role === 'subcontractor' ? 'bg-info/15 text-info' : 'bg-accent/15 text-accent';
 
   return (
     <>
@@ -97,7 +98,7 @@ const TeamManagement = () => {
 
         {/* Filter chips */}
         <div className="flex gap-2">
-          {(['all', 'admin', 'project-manager'] as const).map(f => (
+          {(['all', 'admin', 'project-manager', 'subcontractor'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -105,7 +106,7 @@ const TeamManagement = () => {
                 filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : 'Project Managers'}
+              {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : f === 'subcontractor' ? 'Subcontractors' : 'Project Managers'}
             </button>
           ))}
         </div>
@@ -161,6 +162,7 @@ const TeamManagement = () => {
                       <h3 className="font-display font-semibold text-base mb-1">{m.name}</h3>
                       <p className="text-sm text-muted-foreground font-body">{m.email}</p>
                       {m.phone && <p className="text-xs text-muted-foreground/70 font-body mt-0.5">{m.phone}</p>}
+                      {m.crew_name && <p className="text-xs text-muted-foreground/70 font-body mt-0.5">Crew: {m.crew_name}</p>}
                     </>
                   )}
                 </motion.div>
@@ -204,9 +206,16 @@ const TeamManagement = () => {
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="project-manager">Project Manager</SelectItem>
+                  <SelectItem value="subcontractor">Subcontractor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {form.role === 'subcontractor' && (
+              <div>
+                <label className="text-sm font-medium font-body mb-1.5 block">Crew Name</label>
+                <Input value={form.crew_name} onChange={e => setForm(f => ({ ...f, crew_name: e.target.value }))} placeholder="e.g. Gloria's Crew" />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
