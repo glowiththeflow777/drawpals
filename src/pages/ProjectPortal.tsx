@@ -35,6 +35,7 @@ const ProjectPortal = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [parsedItems, setParsedItems] = useState<BudgetLineItem[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [showParsed, setShowParsed] = useState(false);
 
   // Create project form state
