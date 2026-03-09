@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase, HardHat } from 'lucide-react';
+import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase, HardHat, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTeamMembers, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember, DbTeamMember } from '@/hooks/useProjects';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type TeamRole = 'admin' | 'project-manager' | 'subcontractor';
 
@@ -59,8 +60,28 @@ const TeamManagement = () => {
         await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member updated' });
       } else {
-        await createMember.mutateAsync({ name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
-        toast({ title: 'Member added' });
+        // Send invite email via edge function
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await supabase.functions.invoke('invite-member', {
+          body: {
+            email: form.email,
+            name: form.name,
+            role: form.role,
+            phone: form.phone,
+            crew_name: form.role === 'subcontractor' ? form.crew_name : null,
+          },
+        });
+        
+        if (res.error) {
+          throw new Error(res.error.message || 'Failed to send invitation');
+        }
+
+        // If the edge function didn't create the team member, create it directly
+        if (res.data?.error) {
+          throw new Error(res.data.error);
+        }
+        
+        toast({ title: 'Invitation sent!', description: `An email has been sent to ${form.email} to set up their account.` });
       }
       setDialogOpen(false);
     } catch (e: any) {
@@ -221,7 +242,7 @@ const TeamManagement = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={createMember.isPending || updateMember.isPending}>
               {(createMember.isPending || updateMember.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {editingId ? 'Save Changes' : 'Add Member'}
+              {editingId ? 'Save Changes' : <><Send className="w-4 h-4 mr-1" /> Send Invite</>}
             </Button>
           </DialogFooter>
         </DialogContent>

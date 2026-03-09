@@ -1,30 +1,38 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, HardHat, ArrowRight, Mail, Lock, User, Phone } from 'lucide-react';
+import { Building2, HardHat, ArrowRight, Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const LandingPage = () => {
-  const [mode, setMode] = useState<'landing' | 'login' | 'signup'>('landing');
+  const [mode, setMode] = useState<'landing' | 'login'>('landing');
   const [role, setRole] = useState<'subcontractor' | 'admin'>('subcontractor');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate(role === 'admin' ? '/admin' : '/dashboard');
-  };
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
 
-  const handleSignup = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate('/dashboard');
+    if (error) {
+      toast({ title: 'Sign in failed', description: error.message, variant: 'destructive' });
+    } else {
+      navigate(role === 'admin' ? '/admin' : '/dashboard');
+    }
   };
 
   if (mode === 'landing') {
     return (
       <div className="min-h-screen flex flex-col">
-        {/* Hero */}
         <div className="gradient-dark flex-1 flex items-center justify-center px-4 py-16 relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-primary blur-[100px]" />
@@ -71,83 +79,8 @@ const LandingPage = () => {
                 Admin Login
               </Button>
             </div>
-
-            <p className="text-secondary-foreground/30 text-sm mt-8 font-body">
-              New subcontractor?{' '}
-              <button
-                onClick={() => { setRole('subcontractor'); setMode('signup'); }}
-                className="text-primary underline underline-offset-2"
-              >
-                Create an account
-              </button>
-            </p>
           </motion.div>
         </div>
-      </div>
-    );
-  }
-
-  if (mode === 'signup') {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
-        >
-          <button onClick={() => setMode('landing')} className="text-muted-foreground text-sm mb-6 hover:text-foreground transition-colors">
-            ← Back
-          </button>
-          <div className="card-elevated p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-                <HardHat className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <h2 className="text-2xl font-display font-bold">Create Account</h2>
-            </div>
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div>
-                <Label htmlFor="name" className="font-body">Full Name</Label>
-                <div className="relative mt-1">
-                  <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="name" placeholder="John Doe" className="pl-10" required />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="crew" className="font-body">Crew Name</Label>
-                <Input id="crew" placeholder="e.g. Gloria's Crew" className="mt-1" required />
-              </div>
-              <div>
-                <Label htmlFor="email" className="font-body">Email</Label>
-                <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="email" type="email" placeholder="you@email.com" className="pl-10" required />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="phone" className="font-body">Phone</Label>
-                <div className="relative mt-1">
-                  <Phone className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="phone" type="tel" placeholder="512-555-0123" className="pl-10" required />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="password" className="font-body">Password</Label>
-                <div className="relative mt-1">
-                  <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="password" type="password" placeholder="••••••••" className="pl-10" required />
-                </div>
-              </div>
-              <Button type="submit" className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl">
-                Create Account
-              </Button>
-            </form>
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              Already have an account?{' '}
-              <button onClick={() => setMode('login')} className="text-primary font-medium">Sign in</button>
-            </p>
-          </div>
-        </motion.div>
       </div>
     );
   }
@@ -176,26 +109,49 @@ const LandingPage = () => {
               <Label htmlFor="login-email" className="font-body">Email</Label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="login-email" type="email" placeholder="you@email.com" className="pl-10" required />
+                <Input
+                  id="login-email"
+                  type="email"
+                  placeholder="you@email.com"
+                  className="pl-10"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
               </div>
             </div>
             <div>
               <Label htmlFor="login-password" className="font-body">Password</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="login-password" type="password" placeholder="••••••••" className="pl-10" required />
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-10"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
               </div>
             </div>
-            <Button type="submit" className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl">
+            <Button
+              type="submit"
+              className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
               Sign In <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>
-          {role === 'subcontractor' && (
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              New here?{' '}
-              <button onClick={() => setMode('signup')} className="text-primary font-medium">Create an account</button>
-            </p>
-          )}
+          <div className="text-center mt-4">
+            <button
+              onClick={() => navigate('/forgot-password')}
+              className="text-sm text-primary font-medium hover:underline"
+            >
+              Forgot your password?
+            </button>
+          </div>
         </div>
       </motion.div>
     </div>

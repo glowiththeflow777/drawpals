@@ -67,6 +67,41 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+          team_member_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name?: string
+          role?: string
+          team_member_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          team_member_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_assignments: {
         Row: {
           created_at: string
