@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, Trash2, Edit2, Eye, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, Trash2, Edit2, Eye, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Project, BudgetLineItem, User } from '@/types/budget';
+import type { Project, BudgetLineItem, User, ProjectStatus, ProjectManager } from '@/types/budget';
 import { mockProjects, mockBudgetLineItems } from '@/data/mockData';
 
 // Mock subcontractors available to assign
@@ -18,10 +20,27 @@ const availableSubcontractors: User[] = [
   { id: '5', name: "Austin Interiors", email: 'austin@spacecowboy.com', phone: '512-555-0321', role: 'subcontractor', crewName: "Austin Interiors" },
 ];
 
+// Mock admins and project managers
+const availableManagers: ProjectManager[] = [
+  { id: 'admin-1', name: 'Sarah Johnson', email: 'sarah@spacecowboy.com', role: 'admin' },
+  { id: 'admin-2', name: 'Mike Chen', email: 'mike@spacecowboy.com', role: 'admin' },
+  { id: 'pm-1', name: 'Alex Rodriguez', email: 'alex@spacecowboy.com', role: 'project-manager' },
+  { id: 'pm-2', name: 'Jordan Smith', email: 'jordan@spacecowboy.com', role: 'project-manager' },
+  { id: 'pm-3', name: 'Taylor Williams', email: 'taylor@spacecowboy.com', role: 'project-manager' },
+];
+
 type ProjectAssignment = {
   projectId: string;
   subcontractorIds: string[];
 };
+
+const statusTabs: { value: ProjectStatus | 'all'; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'on-hold', label: 'On Hold' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: 'All Projects' },
+];
 
 const ProjectPortal = () => {
   const navigate = useNavigate();
@@ -31,6 +50,7 @@ const ProjectPortal = () => {
     { projectId: '1', subcontractorIds: ['1', '3'] },
     { projectId: '2', subcontractorIds: ['1'] },
   ]);
+  const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
 
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -43,6 +63,32 @@ const ProjectPortal = () => {
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
+
+  const filteredProjects = activeTab === 'all' 
+    ? projects 
+    : projects.filter(p => p.status === activeTab);
+
+  const toggleManagerAssignment = (projectId: string, managerId: string, type: 'admin' | 'pm') => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      const field = type === 'admin' ? 'assignedAdmins' : 'assignedPMs';
+      const current = p[field] || [];
+      const has = current.includes(managerId);
+      return {
+        ...p,
+        [field]: has ? current.filter(id => id !== managerId) : [...current, managerId],
+      };
+    }));
+  };
+
+  const updateProjectStatus = (projectId: string, status: ProjectStatus) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status } : p));
+  };
+
+  const getAssignedManagers = (project: Project, type: 'admin' | 'pm') => {
+    const ids = type === 'admin' ? (project.assignedAdmins || []) : (project.assignedPMs || []);
+    return availableManagers.filter(m => ids.includes(m.id));
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
