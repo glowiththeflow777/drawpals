@@ -45,7 +45,7 @@ const TeamManagement = () => {
 
   const openEdit = (m: DbTeamMember) => {
     setEditingId(m.id);
-    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole });
+    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole, crew_name: m.crew_name || '' });
     setDialogOpen(true);
   };
 
