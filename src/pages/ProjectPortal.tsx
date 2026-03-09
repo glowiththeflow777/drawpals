@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as XLSX from 'xlsx';
 import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, Trash2, Edit2, Eye, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,19 +47,61 @@ const ProjectPortal = () => {
     if (!file) return;
     setUploadedFileName(file.name);
 
-    // Simulate parsing an Excel budget file into line items
-    const simulatedParsed: BudgetLineItem[] = [
-      { id: `new-1`, projectId: 'pending', lineItemNo: 1, costGroup: 'Interior Build-Out', costItemName: 'Furniture Receiving & Placement', description: 'Property buildout and setup labor', quantity: 1503, unit: 'SF', extendedCost: 3156.30, costType: 'Labor', costCode: '3000' },
-      { id: `new-2`, projectId: 'pending', lineItemNo: 2, costGroup: 'Interior Build-Out', costItemName: 'Artwork & Wall Decor Install', description: 'Hang framed artwork, posters, signs', quantity: 12, unit: 'Each', extendedCost: 420.00, costType: 'Labor', costCode: '2200' },
-      { id: `new-3`, projectId: 'pending', lineItemNo: 3, costGroup: 'Interior Build-Out', costItemName: 'Ceiling Fixture Install', description: 'Replace ceiling fixtures at junction boxes', quantity: 2, unit: 'Each', extendedCost: 150.00, costType: 'Labor', costCode: '1000' },
-      { id: `new-4`, projectId: 'pending', lineItemNo: 5, costGroup: 'Interior Build-Out', costItemName: 'Window Treatment - Curtains', description: 'Install rods, hang curtains', quantity: 19, unit: 'Each', extendedCost: 950.00, costType: 'Labor', costCode: '2200' },
-      { id: `new-5`, projectId: 'pending', lineItemNo: 7, costGroup: 'Interior Build-Out', costItemName: 'Wallpaper Install', description: 'Wallpaper install, accent walls', quantity: 451, unit: 'SF', extendedCost: 1669.63, costType: 'Labor', costCode: '2200' },
-      { id: `new-6`, projectId: 'pending', lineItemNo: 8, costGroup: 'Exterior', costItemName: 'Interior Paint', description: 'Interior paint, accent walls', quantity: 2613, unit: 'SF', extendedCost: 2613.67, costType: 'Labor', costCode: '2300' },
-      { id: `new-7`, projectId: 'pending', lineItemNo: 10, costGroup: 'Exterior', costItemName: 'Exterior Paint Touch-up', description: 'Touch-up exterior paint on trim', quantity: 1, unit: 'Lot', extendedCost: 800.00, costType: 'Labor', costCode: '2300' },
-      { id: `new-8`, projectId: 'pending', lineItemNo: 12, costGroup: 'Plumbing', costItemName: 'Bathroom Plumbing Relocation', description: 'Relocate plumbing in slab for bathroom', quantity: 1, unit: 'Each', extendedCost: 1650.00, costType: 'Subcontract', costCode: '1500' },
-    ];
-    setParsedItems(simulatedParsed);
-    setShowParsed(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (rows.length === 0) {
+          setParsedItems([]);
+          setShowParsed(true);
+          return;
+        }
+
+        // Map spreadsheet columns to BudgetLineItem fields using flexible header matching
+        const headers = Object.keys(rows[0]);
+        const find = (keywords: string[]) => headers.find(h => keywords.some(k => h.toLowerCase().includes(k))) || '';
+
+        const colLineNo = find(['line', '#', 'no', 'number', 'item #']);
+        const colGroup = find(['group', 'category', 'division']);
+        const colName = find(['name', 'item', 'title']);
+        const colDesc = find(['desc', 'description', 'scope']);
+        const colQty = find(['qty', 'quantity']);
+        const colUnit = find(['unit', 'uom']);
+        const colCost = find(['cost', 'amount', 'total', 'price', 'extended', 'ext']);
+        const colType = find(['type', 'cost type']);
+        const colCode = find(['code', 'cost code']);
+
+        const parsed: BudgetLineItem[] = rows.map((row, idx) => {
+          const cost = parseFloat(String(row[colCost]).replace(/[^0-9.-]/g, '')) || 0;
+          return {
+            id: `parsed-${idx}`,
+            projectId: 'pending',
+            lineItemNo: Number(row[colLineNo]) || idx + 1,
+            costGroup: String(row[colGroup] || ''),
+            costItemName: String(row[colName] || row[colDesc] || `Item ${idx + 1}`),
+            description: String(row[colDesc] || ''),
+            quantity: parseFloat(String(row[colQty]).replace(/[^0-9.-]/g, '')) || 0,
+            unit: String(row[colUnit] || 'Each'),
+            extendedCost: cost,
+            costType: String(row[colType] || 'Labor'),
+            costCode: String(row[colCode] || ''),
+          };
+        }).filter(item => item.costItemName || item.extendedCost > 0);
+
+        setParsedItems(parsed);
+        setShowParsed(true);
+      } catch (err) {
+        console.error('Failed to parse file:', err);
+        setParsedItems([]);
+        setShowParsed(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   const handleCreateProject = () => {
