@@ -20,18 +20,8 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if setup is still available (no auth users yet)
-  const [setupAvailable, setSetupAvailable] = useState(false);
-
-  // Try to detect if setup was already done by attempting a quick check
-  useState(() => {
-    supabase.functions.invoke('setup-admin', { body: { check: true } }).then(res => {
-      // If we get 403, setup is done; otherwise it might still be available
-      if (res.error || res.data?.error?.includes('already')) {
-        setSetupAvailable(false);
-      }
-    }).catch(() => setSetupAvailable(false));
-  });
+  // Initial setup is a one-time action; avoid background setup checks that trigger 403s.
+  const [setupAvailable] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
