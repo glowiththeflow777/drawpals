@@ -140,7 +140,7 @@ const LandingPage = () => {
               </Button>
             </div>
 
-            {needsSetup && (
+            {setupAvailable && (
               <p className="text-secondary-foreground/30 text-sm mt-8 font-body">
                 First time?{' '}
                 <button onClick={() => setMode('setup')} className="text-primary underline underline-offset-2">
