@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, LogOut, FileText, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp, BarChart3, Users } from 'lucide-react';
+import { Building2, LogOut, FileText, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp, BarChart3, Users, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { mockInvoices, mockProjects, mockBudgetLineItems } from '@/data/mockData';
