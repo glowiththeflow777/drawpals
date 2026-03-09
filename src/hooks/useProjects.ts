@@ -91,6 +91,44 @@ export function useInsertBudgetLineItems() {
   });
 }
 
+export function useCreateTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (member: TablesInsert<'team_members'>) => {
+      const { data, error } = await supabase.from('team_members').insert(member).select().single();
+      if (error) throw error;
+      return data as DbTeamMember;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team_members'] }),
+  });
+}
+
+export function useUpdateTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<DbTeamMember> & { id: string }) => {
+      const { data, error } = await supabase.from('team_members').update(updates).eq('id', id).select().single();
+      if (error) throw error;
+      return data as DbTeamMember;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['team_members'] }),
+  });
+}
+
+export function useDeleteTeamMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('team_members').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team_members'] });
+      qc.invalidateQueries({ queryKey: ['project_assignments'] });
+    },
+  });
+}
+
 export function useToggleAssignment() {
   const qc = useQueryClient();
   return useMutation({

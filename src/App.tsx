@@ -25,6 +25,7 @@ const App = () => (
           <Route path="/invoice/new" element={<InvoiceWizard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/projects" element={<ProjectPortal />} />
+          <Route path="/admin/team" element={<TeamManagement />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
