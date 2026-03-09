@@ -48,15 +48,19 @@ const AdminDashboard = () => {
     <>
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Project Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <button onClick={() => setActiveProject('all')} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-            All Projects
-          </button>
-          {projects.map(p => (
-            <button key={p.id} onClick={() => setActiveProject(p.id)} className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === p.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-              {p.name}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-display font-semibold text-muted-foreground">Project</label>
+          <Select value={activeProject} onValueChange={setActiveProject}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Projects</SelectItem>
+              {projects.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Stats Grid */}
