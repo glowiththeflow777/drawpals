@@ -26,6 +26,8 @@ export const mockProjects: Project[] = [
     amountInvoiced: 18350,
     amountPaid: 12600,
     status: 'active',
+    assignedAdmins: ['admin-1'],
+    assignedPMs: ['pm-1'],
   },
   {
     id: '2',
@@ -35,6 +37,8 @@ export const mockProjects: Project[] = [
     amountInvoiced: 31000,
     amountPaid: 24500,
     status: 'active',
+    assignedAdmins: ['admin-2'],
+    assignedPMs: ['pm-2', 'pm-3'],
   },
   {
     id: '3',
@@ -44,6 +48,30 @@ export const mockProjects: Project[] = [
     amountInvoiced: 28500,
     amountPaid: 28500,
     status: 'completed',
+    assignedAdmins: ['admin-1'],
+    assignedPMs: ['pm-1'],
+  },
+  {
+    id: '4',
+    name: 'East Side Warehouse',
+    address: '2100 E Cesar Chavez, Austin TX',
+    totalBudget: 95000,
+    amountInvoiced: 0,
+    amountPaid: 0,
+    status: 'on-hold',
+    assignedAdmins: [],
+    assignedPMs: [],
+  },
+  {
+    id: '5',
+    name: 'Downtown Loft',
+    address: '800 Congress Ave #501, Austin TX',
+    totalBudget: 35000,
+    amountInvoiced: 35000,
+    amountPaid: 35000,
+    status: 'archived',
+    assignedAdmins: ['admin-1'],
+    assignedPMs: ['pm-2'],
   },
 ];
 
