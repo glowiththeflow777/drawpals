@@ -134,9 +134,30 @@ const InvoiceWizard = () => {
 
             {step === 2 && (
               <div className="space-y-4">
+                {isAdminEntry && (
+                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/20 mb-2">
+                    <p className="text-xs font-display font-semibold text-warning">Admin Entry — this invoice will be flagged as submitted by admin on behalf of subcontractor.</p>
+                  </div>
+                )}
+                {isAdminEntry && (
+                  <div>
+                    <Label className="font-body">Select Subcontractor</Label>
+                    <Select value={selectedSubcontractor} onValueChange={(val) => { setSelectedSubcontractor(val); setCrewName(val); }}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Choose a subcontractor..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Gloria's Crew">Gloria's Crew</SelectItem>
+                        <SelectItem value="Beckett's Team">Beckett's Team</SelectItem>
+                        <SelectItem value="Rio Finishers">Rio Finishers</SelectItem>
+                        <SelectItem value="Austin Interiors">Austin Interiors</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div>
                   <Label className="font-body">Crew Name</Label>
-                  <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" />
+                  <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" readOnly={isAdminEntry} />
                 </div>
                 <div>
                   <Label className="font-body">Project Address</Label>
