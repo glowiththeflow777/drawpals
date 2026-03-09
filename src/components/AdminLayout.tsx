@@ -1,4 +1,4 @@
-import { Building2, LogOut, BarChart3, FolderOpen, Users } from 'lucide-react';
+import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 const tabs = [
   { label: 'Dashboard', path: '/admin', icon: BarChart3 },
   { label: 'Projects', path: '/admin/projects', icon: FolderOpen },
+  { label: 'Approvals', path: '/admin/approvals', icon: ClipboardCheck },
   { label: 'Team', path: '/admin/team', icon: Users },
 ];
 
