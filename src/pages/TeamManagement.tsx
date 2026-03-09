@@ -78,9 +78,9 @@ const TeamManagement = () => {
     }
   };
 
-  const roleIcon = (role: string) => role === 'admin' ? <Shield className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />;
-  const roleLabel = (role: string) => role === 'admin' ? 'Admin' : 'Project Manager';
-  const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : 'bg-accent/15 text-accent';
+  const roleIcon = (role: string) => role === 'admin' ? <Shield className="w-4 h-4" /> : role === 'subcontractor' ? <HardHat className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />;
+  const roleLabel = (role: string) => role === 'admin' ? 'Admin' : role === 'subcontractor' ? 'Subcontractor' : 'Project Manager';
+  const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : role === 'subcontractor' ? 'bg-info/15 text-info' : 'bg-accent/15 text-accent';
 
   return (
     <>
