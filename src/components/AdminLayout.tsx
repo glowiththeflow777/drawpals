@@ -2,16 +2,19 @@ import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck } from 
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-
-const tabs = [
-  { label: 'Dashboard', path: '/admin', icon: BarChart3 },
-  { label: 'Projects', path: '/admin/projects', icon: FolderOpen },
-  { label: 'Approvals', path: '/admin/approvals', icon: ClipboardCheck },
-  { label: 'Team', path: '/admin/team', icon: Users },
-];
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const { t } = useTranslation();
+
+  const tabs = [
+    { label: t('nav.dashboard'), path: '/admin', icon: BarChart3 },
+    { label: t('nav.projectsNav'), path: '/admin/projects', icon: FolderOpen },
+    { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
+    { label: t('nav.team'), path: '/admin/team', icon: Users },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,15 +25,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Building2 className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-secondary-foreground text-sm">Budget Builder</h1>
-              <p className="text-secondary-foreground/50 text-xs">Admin Portal</p>
+              <h1 className="font-display font-bold text-secondary-foreground text-sm">{t('common.appName')}</h1>
+              <p className="text-secondary-foreground/50 text-xs">{t('nav.adminPortal')}</p>
             </div>
           </div>
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="flex items-center gap-1">
+            <LanguageSwitcher />
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
         <nav className="max-w-6xl mx-auto flex gap-1">
           {tabs.map(t => {
