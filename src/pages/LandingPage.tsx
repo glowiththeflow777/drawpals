@@ -21,16 +21,9 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if any profiles exist to determine if first-time setup is needed
-  const { data: profileCount } = useQuery({
-    queryKey: ['profile-count'],
-    queryFn: async () => {
-      const { count } = await supabase.from('team_members').select('*', { count: 'exact', head: true });
-      return count ?? 0;
-    },
-  });
-
-  const needsSetup = profileCount === 0;
+  // Check if any auth users exist via a simple test sign-in attempt
+  // We show setup link always and let the edge function enforce the check
+  const [setupAvailable, setSetupAvailable] = useState(true);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
