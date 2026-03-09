@@ -14,6 +14,75 @@ const AdminDashboard = () => {
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: allBudgetItems = [] } = useBudgetLineItems();
   const [activeProject, setActiveProject] = useState<string>('all');
+  const { toast } = useToast();
+
+  const getExportData = useCallback(() => {
+    const items = activeProject === 'all'
+      ? allBudgetItems
+      : allBudgetItems.filter(b => b.project_id === activeProject);
+    const projectName = activeProject === 'all'
+      ? 'All Projects'
+      : projects.find(p => p.id === activeProject)?.name || 'Project';
+    return { items, projectName };
+  }, [activeProject, allBudgetItems, projects]);
+
+  const handleExportPDF = () => {
+    window.print();
+    toast({ title: 'PDF export', description: 'Use the print dialog to save as PDF.' });
+  };
+
+  const handleExportExcel = () => {
+    const { items, projectName } = getExportData();
+    if (items.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+    const rows = items.map(bi => ({
+      'Line #': bi.line_item_no,
+      'Cost Code': bi.cost_code,
+      'Item Name': bi.cost_item_name,
+      'Description': bi.description,
+      'Cost Group': bi.cost_group,
+      'Cost Type': bi.cost_type,
+      'Quantity': bi.quantity,
+      'Unit': bi.unit,
+      'Extended Cost': Number(bi.extended_cost),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Budget');
+    XLSX.writeFile(wb, `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_budget.xlsx`);
+    toast({ title: 'Excel exported!' });
+  };
+
+  const handleExportQuickBooks = () => {
+    const { items, projectName } = getExportData();
+    if (items.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+    // QuickBooks IIF format for journal entries
+    const lines = [
+      '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!ENDTRNS',
+    ];
+    const today = new Date().toLocaleDateString('en-US');
+    items.forEach(bi => {
+      const amt = Number(bi.extended_cost);
+      lines.push(`TRNS\tGENERAL JOURNAL\t${today}\tConstruction Costs\t${bi.cost_item_name}\t${amt.toFixed(2)}\t${bi.description || bi.cost_item_name}`);
+      lines.push(`SPL\tGENERAL JOURNAL\t${today}\tAccounts Payable\t${bi.cost_item_name}\t${(-amt).toFixed(2)}\t${bi.description || bi.cost_item_name}`);
+      lines.push('ENDTRNS');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_quickbooks.iif`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'QuickBooks IIF exported!' });
+  };
 
   const filtered = activeProject === 'all' ? projects : projects.filter(p => p.id === activeProject);
 
