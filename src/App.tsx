@@ -8,6 +8,7 @@ import SubcontractorDashboard from "./pages/SubcontractorDashboard";
 import InvoiceWizard from "./pages/InvoiceWizard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProjectPortal from "./pages/ProjectPortal";
+import TeamManagement from "./pages/TeamManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
