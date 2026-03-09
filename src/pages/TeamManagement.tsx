@@ -56,10 +56,10 @@ const TeamManagement = () => {
     }
     try {
       if (editingId) {
-        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role });
+        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member updated' });
       } else {
-        await createMember.mutateAsync({ name: form.name, email: form.email, phone: form.phone, role: form.role });
+        await createMember.mutateAsync({ name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
         toast({ title: 'Member added' });
       }
       setDialogOpen(false);
