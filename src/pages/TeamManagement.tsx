@@ -28,6 +28,7 @@ const TeamManagement = () => {
   const updateMember = useUpdateTeamMember();
   const deleteMember = useDeleteTeamMember();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
