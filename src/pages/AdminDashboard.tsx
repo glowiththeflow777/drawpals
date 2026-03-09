@@ -97,46 +97,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Pending Approvals */}
-        <div>
-          <h3 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-warning" />
-            Pending Approvals ({pending.length})
-          </h3>
-          {pending.length === 0 ? (
-            <p className="text-muted-foreground text-sm card-elevated p-6 text-center">No pending invoices</p>
-          ) : (
-            <div className="space-y-3">
-              {pending.map(inv => {
-                const project = mockProjects.find(p => p.id === inv.projectId);
-                return (
-                  <motion.div key={inv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card-elevated p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-display font-semibold">{inv.crewName}</p>
-                        <p className="text-xs text-muted-foreground">{project?.name} • Draw: {inv.payrollDrawDate}</p>
-                      </div>
-                      <p className="font-display font-bold text-lg">${inv.totals.total.toLocaleString()}</p>
-                    </div>
-                    <div className="flex gap-4 text-xs text-muted-foreground mb-3">
-                      <span>SOW: ${inv.totals.sowDraw.toLocaleString()}</span>
-                      <span>Labor: ${inv.totals.dayRateLabor.toLocaleString()}</span>
-                      <span>Reimb: ${inv.totals.reimbursement.toLocaleString()}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="flex-1 bg-success text-success-foreground hover:bg-success/90 font-display">
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/5 font-display">
-                        <XCircle className="w-4 h-4 mr-1" /> Reject
-                      </Button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
         {/* All Invoices */}
         <div>
