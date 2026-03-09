@@ -242,7 +242,7 @@ const TeamManagement = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={createMember.isPending || updateMember.isPending}>
               {(createMember.isPending || updateMember.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {editingId ? 'Save Changes' : 'Add Member'}
+              {editingId ? 'Save Changes' : <><Send className="w-4 h-4 mr-1" /> Send Invite</>}
             </Button>
           </DialogFooter>
         </DialogContent>
