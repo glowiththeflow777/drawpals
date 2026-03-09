@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/hooks/use-toast';
 
 const CHART_COLORS = ['hsl(32,90%,50%)', 'hsl(160,40%,45%)', 'hsl(210,70%,50%)', 'hsl(45,93%,47%)'];
 
