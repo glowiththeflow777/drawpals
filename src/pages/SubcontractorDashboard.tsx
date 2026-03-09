@@ -4,17 +4,19 @@ import { FileText, Plus, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucid
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { mockInvoices, mockProjects, mockUser } from '@/data/mockData';
-
-const statusConfig = {
-  pending: { icon: Clock, label: 'Pending', className: 'status-badge-pending' },
-  approved: { icon: CheckCircle2, label: 'Approved', className: 'status-badge-approved' },
-  rejected: { icon: XCircle, label: 'Rejected', className: 'status-badge-rejected' },
-  draft: { icon: AlertCircle, label: 'Draft', className: 'status-badge-pending' },
-};
+import { useTranslation } from 'react-i18next';
 
 const SubcontractorDashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [activeProject, setActiveProject] = useState<string>('all');
+
+  const statusConfig = {
+    pending: { icon: Clock, label: t('status.pending'), className: 'status-badge-pending' },
+    approved: { icon: CheckCircle2, label: t('status.approved'), className: 'status-badge-approved' },
+    rejected: { icon: XCircle, label: t('status.rejected'), className: 'status-badge-rejected' },
+    draft: { icon: AlertCircle, label: t('status.draft'), className: 'status-badge-pending' },
+  };
 
   const filteredInvoices = activeProject === 'all'
     ? mockInvoices
@@ -29,11 +31,11 @@ const SubcontractorDashboard = () => {
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-3">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-4">
-            <p className="text-xs text-muted-foreground font-body">Pending</p>
+            <p className="text-xs text-muted-foreground font-body">{t('dashboard.pending')}</p>
             <p className="text-2xl font-display font-bold text-warning">${totalPending.toLocaleString()}</p>
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card-elevated p-4">
-            <p className="text-xs text-muted-foreground font-body">Approved</p>
+            <p className="text-xs text-muted-foreground font-body">{t('dashboard.approved')}</p>
             <p className="text-2xl font-display font-bold text-success">${totalApproved.toLocaleString()}</p>
           </motion.div>
         </div>
@@ -43,7 +45,7 @@ const SubcontractorDashboard = () => {
           onClick={() => navigate('/invoice/new')}
           className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl shadow-lg"
         >
-          <Plus className="w-5 h-5 mr-2" /> Submit New Invoice
+          <Plus className="w-5 h-5 mr-2" /> {t('dashboard.submitNew')}
         </Button>
 
         {/* Project Filter */}
@@ -52,7 +54,7 @@ const SubcontractorDashboard = () => {
             onClick={() => setActiveProject('all')}
             className={`px-4 py-2 rounded-full text-sm font-body whitespace-nowrap transition-colors ${activeProject === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
           >
-            All Projects
+            {t('dashboard.allProjects')}
           </button>
           {mockProjects.filter(p => p.status === 'active').map(p => (
             <button
@@ -67,7 +69,7 @@ const SubcontractorDashboard = () => {
 
         {/* Invoices */}
         <div className="space-y-3">
-          <h2 className="font-display font-semibold text-lg">Your Invoices</h2>
+          <h2 className="font-display font-semibold text-lg">{t('dashboard.yourInvoices')}</h2>
           {filteredInvoices.map((inv, i) => {
             const status = statusConfig[inv.status];
             const StatusIcon = status.icon;
@@ -83,7 +85,7 @@ const SubcontractorDashboard = () => {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="font-display font-semibold">{project?.name}</p>
-                    <p className="text-xs text-muted-foreground font-body">Draw: {inv.payrollDrawDate}</p>
+                    <p className="text-xs text-muted-foreground font-body">{t('dashboard.draw')}: {inv.payrollDrawDate}</p>
                   </div>
                   <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${status.className}`}>
                     <StatusIcon className="w-3 h-3" />
@@ -92,14 +94,14 @@ const SubcontractorDashboard = () => {
                 </div>
                 <div className="flex items-end justify-between">
                   <div className="flex gap-4 text-xs text-muted-foreground font-body">
-                    <span>{inv.lineItems.length} line items</span>
-                    {inv.dayLabor.length > 0 && <span>{inv.dayLabor.length} day labor</span>}
+                    <span>{inv.lineItems.length} {t('dashboard.lineItems')}</span>
+                    {inv.dayLabor.length > 0 && <span>{inv.dayLabor.length} {t('dashboard.dayLabor')}</span>}
                   </div>
                   <p className="font-display font-bold text-lg">${inv.totals.total.toLocaleString()}</p>
                 </div>
                 {inv.status === 'rejected' && inv.rejectionNotes && (
                   <div className="mt-3 p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                    <p className="text-xs text-destructive font-medium mb-1">Revision needed:</p>
+                    <p className="text-xs text-destructive font-medium mb-1">{t('dashboard.revisionNeeded')}</p>
                     <p className="text-xs text-destructive/80">{inv.rejectionNotes}</p>
                   </div>
                 )}

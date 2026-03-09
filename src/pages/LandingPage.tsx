@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, HardHat, ArrowRight, Mail, Lock, Loader2, User } from 'lucide-react';
+import { Building2, HardHat, ArrowRight, Mail, Lock, Loader2, User, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
 const LandingPage = () => {
+  const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<'landing' | 'login' | 'setup'>('landing');
   const [role, setRole] = useState<'subcontractor' | 'admin'>('subcontractor');
   const [email, setEmail] = useState('');
@@ -20,8 +22,13 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Initial setup is a one-time action; avoid background setup checks that trigger 403s.
   const [setupAvailable] = useState(false);
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'es' : 'en';
+    i18n.changeLanguage(newLang);
+    localStorage.setItem('lang', newLang);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +37,7 @@ const LandingPage = () => {
     setLoading(false);
 
     if (error) {
-      toast({ title: 'Sign in failed', description: error.message, variant: 'destructive' });
+      toast({ title: t('landing.signInFailed'), description: error.message, variant: 'destructive' });
     } else {
       navigate(role === 'admin' ? '/admin' : '/dashboard');
     }
@@ -39,7 +46,7 @@ const LandingPage = () => {
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (setupPassword.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+      toast({ title: t('landing.setup.passwordTooShort'), variant: 'destructive' });
       return;
     }
     setLoading(true);
@@ -49,9 +56,9 @@ const LandingPage = () => {
     setLoading(false);
 
     if (res.error || res.data?.error) {
-      toast({ title: 'Error', description: res.data?.error || res.error?.message, variant: 'destructive' });
+      toast({ title: t('common.error'), description: res.data?.error || res.error?.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Admin account created!', description: 'You can now sign in.' });
+      toast({ title: t('landing.setup.successTitle'), description: t('landing.setup.successDesc') });
       setEmail(setupEmail);
       setMode('login');
       setRole('admin');
@@ -62,40 +69,40 @@ const LandingPage = () => {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <button onClick={() => setMode('landing')} className="text-muted-foreground text-sm mb-6 hover:text-foreground transition-colors">← Back</button>
+          <button onClick={() => setMode('landing')} className="text-muted-foreground text-sm mb-6 hover:text-foreground transition-colors">{t('common.back')}</button>
           <div className="card-elevated p-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-primary-foreground" />
               </div>
-              <h2 className="text-2xl font-display font-bold">First Time Setup</h2>
+              <h2 className="text-2xl font-display font-bold">{t('landing.setup.title')}</h2>
             </div>
-            <p className="text-muted-foreground font-body text-sm mb-4">Create your admin account to get started.</p>
+            <p className="text-muted-foreground font-body text-sm mb-4">{t('landing.setup.description')}</p>
             <form onSubmit={handleSetup} className="space-y-4">
               <div>
-                <Label htmlFor="setup-name" className="font-body">Full Name</Label>
+                <Label htmlFor="setup-name" className="font-body">{t('landing.setup.fullName')}</Label>
                 <div className="relative mt-1">
                   <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="setup-name" placeholder="John Doe" className="pl-10" value={setupName} onChange={e => setSetupName(e.target.value)} required />
+                  <Input id="setup-name" placeholder={t('landing.setup.fullNamePlaceholder')} className="pl-10" value={setupName} onChange={e => setSetupName(e.target.value)} required />
                 </div>
               </div>
               <div>
-                <Label htmlFor="setup-email" className="font-body">Email</Label>
+                <Label htmlFor="setup-email" className="font-body">{t('landing.emailLabel')}</Label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="setup-email" type="email" placeholder="you@email.com" className="pl-10" value={setupEmail} onChange={e => setSetupEmail(e.target.value)} required />
+                  <Input id="setup-email" type="email" placeholder={t('landing.emailPlaceholder')} className="pl-10" value={setupEmail} onChange={e => setSetupEmail(e.target.value)} required />
                 </div>
               </div>
               <div>
-                <Label htmlFor="setup-password" className="font-body">Password</Label>
+                <Label htmlFor="setup-password" className="font-body">{t('landing.passwordLabel')}</Label>
                 <div className="relative mt-1">
                   <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                  <Input id="setup-password" type="password" placeholder="••••••••" className="pl-10" value={setupPassword} onChange={e => setSetupPassword(e.target.value)} required />
+                  <Input id="setup-password" type="password" placeholder={t('landing.passwordPlaceholder')} className="pl-10" value={setupPassword} onChange={e => setSetupPassword(e.target.value)} required />
                 </div>
               </div>
               <Button type="submit" className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl" disabled={loading}>
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-                Create Admin Account
+                {t('landing.setup.createBtn')}
               </Button>
             </form>
           </div>
@@ -108,6 +115,13 @@ const LandingPage = () => {
     return (
       <div className="min-h-screen flex flex-col">
         <div className="gradient-dark flex-1 flex items-center justify-center px-4 py-16 relative overflow-hidden">
+          {/* Language toggle - top right */}
+          <div className="absolute top-4 right-4 z-20">
+            <Button variant="ghost" size="sm" onClick={toggleLanguage} className="text-secondary-foreground/50 hover:text-secondary-foreground flex items-center gap-1">
+              <Globe className="w-4 h-4" />
+              <span className="text-xs font-medium">{i18n.language === 'en' ? 'ES' : 'EN'}</span>
+            </Button>
+          </div>
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-primary blur-[100px]" />
             <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-accent blur-[120px]" />
@@ -117,16 +131,16 @@ const LandingPage = () => {
               <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-primary-foreground" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-display font-bold text-secondary-foreground">Budget Builder</h1>
+              <h1 className="text-3xl md:text-4xl font-display font-bold text-secondary-foreground">{t('common.appName')}</h1>
             </div>
             <p className="text-secondary-foreground/50 font-body mb-10 max-w-lg mx-auto">
-              Submit invoices, track budgets, and get paid — all from your phone. Built for the field.
+              {t('landing.tagline')}
             </p>
 
             <div className="flex justify-center">
               <Button size="lg" className="gradient-primary text-primary-foreground font-display text-lg px-8 py-6 rounded-xl shadow-lg hover:opacity-90 transition-opacity" onClick={() => { setRole('subcontractor'); setMode('login'); }}>
                 <HardHat className="w-5 h-5 mr-2" />
-                I'm a Subcontractor
+                {t('landing.subcontractorBtn')}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
@@ -134,15 +148,15 @@ const LandingPage = () => {
             <div className="flex justify-center mt-2">
               <Button size="sm" variant="ghost" className="text-secondary-foreground/40 font-body text-sm hover:text-secondary-foreground/60 transition-colors" onClick={() => { setRole('admin'); setMode('login'); }}>
                 <Building2 className="w-4 h-4 mr-1" />
-                Admin Login
+                {t('landing.adminLogin')}
               </Button>
             </div>
 
             {setupAvailable && (
               <p className="text-secondary-foreground/30 text-sm mt-8 font-body">
-                First time?{' '}
+                {t('landing.firstTime')}{' '}
                 <button onClick={() => setMode('setup')} className="text-primary underline underline-offset-2">
-                  Set up your admin account
+                  {t('landing.setupLink')}
                 </button>
               </p>
             )}
@@ -155,37 +169,37 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-        <button onClick={() => setMode('landing')} className="text-muted-foreground text-sm mb-6 hover:text-foreground transition-colors">← Back</button>
+        <button onClick={() => setMode('landing')} className="text-muted-foreground text-sm mb-6 hover:text-foreground transition-colors">{t('common.back')}</button>
         <div className="card-elevated p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
               {role === 'admin' ? <Building2 className="w-5 h-5 text-primary-foreground" /> : <HardHat className="w-5 h-5 text-primary-foreground" />}
             </div>
-            <h2 className="text-2xl font-display font-bold">{role === 'admin' ? 'Admin Sign In' : 'Sign In'}</h2>
+            <h2 className="text-2xl font-display font-bold">{role === 'admin' ? t('landing.adminSignIn') : t('landing.signIn')}</h2>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <Label htmlFor="login-email" className="font-body">Email</Label>
+              <Label htmlFor="login-email" className="font-body">{t('landing.emailLabel')}</Label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="login-email" type="email" placeholder="you@email.com" className="pl-10" value={email} onChange={e => setEmail(e.target.value)} required />
+                <Input id="login-email" type="email" placeholder={t('landing.emailPlaceholder')} className="pl-10" value={email} onChange={e => setEmail(e.target.value)} required />
               </div>
             </div>
             <div>
-              <Label htmlFor="login-password" className="font-body">Password</Label>
+              <Label htmlFor="login-password" className="font-body">{t('landing.passwordLabel')}</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input id="login-password" type="password" placeholder="••••••••" className="pl-10" value={password} onChange={e => setPassword(e.target.value)} required />
+                <Input id="login-password" type="password" placeholder={t('landing.passwordPlaceholder')} className="pl-10" value={password} onChange={e => setPassword(e.target.value)} required />
               </div>
             </div>
             <Button type="submit" className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl" disabled={loading}>
               {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              Sign In <ArrowRight className="w-5 h-5 ml-2" />
+              {t('landing.signIn')} <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>
           <div className="text-center mt-4">
             <button onClick={() => navigate('/forgot-password')} className="text-sm text-primary font-medium hover:underline">
-              Forgot your password?
+              {t('landing.forgotPassword')}
             </button>
           </div>
         </div>

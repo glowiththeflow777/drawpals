@@ -2,14 +2,17 @@ import { Building2, LogOut, FileText, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-
-const tabs = [
-  { label: 'Invoices', path: '/dashboard', icon: FileText },
-  { label: 'New Invoice', path: '/invoice/new', icon: Plus },
-];
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function SubcontractorLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
+  const { t } = useTranslation();
+
+  const tabs = [
+    { label: t('nav.invoices'), path: '/dashboard', icon: FileText },
+    { label: t('nav.newInvoice'), path: '/invoice/new', icon: Plus },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -20,15 +23,18 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
               <Building2 className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-secondary-foreground text-sm">Budget Builder</h1>
-              <p className="text-secondary-foreground/50 text-xs">Subcontractor Portal</p>
+              <h1 className="font-display font-bold text-secondary-foreground text-sm">{t('common.appName')}</h1>
+              <p className="text-secondary-foreground/50 text-xs">{t('nav.subcontractorPortal')}</p>
             </div>
           </div>
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="flex items-center gap-1">
+            <LanguageSwitcher />
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
         <nav className="max-w-4xl mx-auto flex gap-1">
           {tabs.map(t => {
