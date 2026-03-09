@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, Trash2, Edit2, Eye, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Building2, LogOut, Plus, Upload, Users, FileSpreadsheet, ChevronRight, Trash2, Edit2, Eye, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link, useNavigate } from 'react-router-dom';
-import type { Project, BudgetLineItem, User } from '@/types/budget';
+import type { Project, BudgetLineItem, User, ProjectStatus, ProjectManager } from '@/types/budget';
 import { mockProjects, mockBudgetLineItems } from '@/data/mockData';
 
 // Mock subcontractors available to assign
@@ -18,10 +20,27 @@ const availableSubcontractors: User[] = [
   { id: '5', name: "Austin Interiors", email: 'austin@spacecowboy.com', phone: '512-555-0321', role: 'subcontractor', crewName: "Austin Interiors" },
 ];
 
+// Mock admins and project managers
+const availableManagers: ProjectManager[] = [
+  { id: 'admin-1', name: 'Sarah Johnson', email: 'sarah@spacecowboy.com', role: 'admin' },
+  { id: 'admin-2', name: 'Mike Chen', email: 'mike@spacecowboy.com', role: 'admin' },
+  { id: 'pm-1', name: 'Alex Rodriguez', email: 'alex@spacecowboy.com', role: 'project-manager' },
+  { id: 'pm-2', name: 'Jordan Smith', email: 'jordan@spacecowboy.com', role: 'project-manager' },
+  { id: 'pm-3', name: 'Taylor Williams', email: 'taylor@spacecowboy.com', role: 'project-manager' },
+];
+
 type ProjectAssignment = {
   projectId: string;
   subcontractorIds: string[];
 };
+
+const statusTabs: { value: ProjectStatus | 'all'; label: string }[] = [
+  { value: 'active', label: 'Active' },
+  { value: 'on-hold', label: 'On Hold' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: 'All Projects' },
+];
 
 const ProjectPortal = () => {
   const navigate = useNavigate();
@@ -31,6 +50,7 @@ const ProjectPortal = () => {
     { projectId: '1', subcontractorIds: ['1', '3'] },
     { projectId: '2', subcontractorIds: ['1'] },
   ]);
+  const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
 
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -43,6 +63,32 @@ const ProjectPortal = () => {
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
+
+  const filteredProjects = activeTab === 'all' 
+    ? projects 
+    : projects.filter(p => p.status === activeTab);
+
+  const toggleManagerAssignment = (projectId: string, managerId: string, type: 'admin' | 'pm') => {
+    setProjects(prev => prev.map(p => {
+      if (p.id !== projectId) return p;
+      const field = type === 'admin' ? 'assignedAdmins' : 'assignedPMs';
+      const current = p[field] || [];
+      const has = current.includes(managerId);
+      return {
+        ...p,
+        [field]: has ? current.filter(id => id !== managerId) : [...current, managerId],
+      };
+    }));
+  };
+
+  const updateProjectStatus = (projectId: string, status: ProjectStatus) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status } : p));
+  };
+
+  const getAssignedManagers = (project: Project, type: 'admin' | 'pm') => {
+    const ids = type === 'admin' ? (project.assignedAdmins || []) : (project.assignedPMs || []);
+    return availableManagers.filter(m => ids.includes(m.id));
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -238,60 +284,109 @@ const ProjectPortal = () => {
                 </Button>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {projects.map(project => {
-                  const assignedSubs = getAssignedSubs(project.id);
-                  const projectBudgetItems = budgetItems.filter(b => b.projectId === project.id);
-                  return (
-                    <motion.div
-                      key={project.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="card-elevated p-5 cursor-pointer hover:shadow-lg transition-shadow"
-                      onClick={() => { setSelectedProject(project); setView('detail'); }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-display font-semibold text-lg">{project.name}</h3>
-                          <p className="text-xs text-muted-foreground font-body">{project.address}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${project.status === 'active' ? 'status-badge-approved' : 'status-badge-pending'}`}>
-                          {project.status}
-                        </span>
-                      </div>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectStatus | 'all')} className="w-full">
+                <TabsList className="w-full justify-start overflow-x-auto">
+                  {statusTabs.map(tab => (
+                    <TabsTrigger key={tab.value} value={tab.value} className="font-display capitalize">
+                      {tab.label}
+                      <span className="ml-2 text-xs bg-muted rounded-full px-1.5 py-0.5">
+                        {tab.value === 'all' ? projects.length : projects.filter(p => p.status === tab.value).length}
+                      </span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
 
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground font-body">Budget</span>
-                          <span className="font-display font-semibold">${project.totalBudget.toLocaleString()}</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-primary transition-all"
-                            style={{ width: `${Math.min(100, (project.amountInvoiced / project.totalBudget) * 100)}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>${project.amountInvoiced.toLocaleString()} invoiced</span>
-                          <span>${(project.totalBudget - project.amountInvoiced).toLocaleString()} remaining</span>
-                        </div>
-                      </div>
+                <TabsContent value={activeTab} className="mt-4">
+                  {filteredProjects.length === 0 ? (
+                    <div className="card-elevated p-8 text-center">
+                      <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-muted-foreground font-body">No {activeTab === 'all' ? '' : activeTab} projects found.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredProjects.map(project => {
+                        const assignedSubs = getAssignedSubs(project.id);
+                        const projectBudgetItems = budgetItems.filter(b => b.projectId === project.id);
+                        const assignedAdmins = getAssignedManagers(project, 'admin');
+                        const assignedPMs = getAssignedManagers(project, 'pm');
+                        const statusBadgeClass = {
+                          active: 'status-badge-approved',
+                          'on-hold': 'bg-amber-500/10 text-amber-600',
+                          completed: 'status-badge-pending',
+                          archived: 'bg-muted text-muted-foreground',
+                        }[project.status];
+                        return (
+                          <motion.div
+                            key={project.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="card-elevated p-5 cursor-pointer hover:shadow-lg transition-shadow"
+                            onClick={() => { setSelectedProject(project); setView('detail'); }}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h3 className="font-display font-semibold text-lg">{project.name}</h3>
+                                <p className="text-xs text-muted-foreground font-body">{project.address}</p>
+                              </div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${statusBadgeClass}`}>
+                                {project.status}
+                              </span>
+                            </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <FileSpreadsheet className="w-3 h-3" />
-                          <span>{projectBudgetItems.length} line items</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Users className="w-3 h-3" />
-                          <span>{assignedSubs.length} subs</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                            <div className="space-y-2 mb-4">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground font-body">Budget</span>
+                                <span className="font-display font-semibold">${project.totalBudget.toLocaleString()}</span>
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all"
+                                  style={{ width: `${Math.min(100, (project.amountInvoiced / project.totalBudget) * 100)}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>${project.amountInvoiced.toLocaleString()} invoiced</span>
+                                <span>${(project.totalBudget - project.amountInvoiced).toLocaleString()} remaining</span>
+                              </div>
+                            </div>
+
+                            {/* Assigned Managers Preview */}
+                            {(assignedAdmins.length > 0 || assignedPMs.length > 0) && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {assignedAdmins.slice(0, 2).map(m => (
+                                  <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                    <Shield className="w-3 h-3" /> {m.name.split(' ')[0]}
+                                  </span>
+                                ))}
+                                {assignedPMs.slice(0, 2).map(m => (
+                                  <span key={m.id} className="inline-flex items-center gap-1 text-xs bg-accent/50 text-accent-foreground px-2 py-0.5 rounded-full">
+                                    <UserCog className="w-3 h-3" /> {m.name.split(' ')[0]}
+                                  </span>
+                                ))}
+                                {(assignedAdmins.length + assignedPMs.length) > 4 && (
+                                  <span className="text-xs text-muted-foreground">+{assignedAdmins.length + assignedPMs.length - 4} more</span>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <FileSpreadsheet className="w-3 h-3" />
+                                <span>{projectBudgetItems.length} line items</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Users className="w-3 h-3" />
+                                <span>{assignedSubs.length} subs</span>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </motion.div>
           )}
 
@@ -423,7 +518,19 @@ const ProjectPortal = () => {
                   <h2 className="text-2xl font-display font-bold">{selectedProject.name}</h2>
                   <p className="text-muted-foreground font-body">{selectedProject.address}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
+                  {/* Status Selector */}
+                  <Select value={selectedProject.status} onValueChange={(v) => updateProjectStatus(selectedProject.id, v as ProjectStatus)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="on-hold">On Hold</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button onClick={() => navigate(`/invoice/new?project=${selectedProject.id}&admin=true`)} className="gradient-primary text-primary-foreground font-display">
                     <Plus className="w-4 h-4 mr-1" /> Submit Invoice for Sub
                   </Button>
@@ -443,6 +550,80 @@ const ProjectPortal = () => {
                     <p className="text-xl font-display font-bold">${stat.value.toLocaleString()}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Assigned Admins & Project Managers */}
+              <div className="card-elevated p-5 space-y-5">
+                <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-muted-foreground" />
+                  Team Assignment
+                </h3>
+                
+                {/* Admins */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <Label className="font-display font-semibold text-sm">Admins</Label>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {availableManagers.filter(m => m.role === 'admin').map(manager => {
+                      const isAssigned = (selectedProject.assignedAdmins || []).includes(manager.id);
+                      return (
+                        <button
+                          key={manager.id}
+                          onClick={() => toggleManagerAssignment(selectedProject.id, manager.id, 'admin')}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                            isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
+                            isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {manager.name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-medium text-sm truncate">{manager.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{manager.email}</p>
+                          </div>
+                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Project Managers */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserCog className="w-4 h-4 text-accent-foreground" />
+                    <Label className="font-display font-semibold text-sm">Project Managers</Label>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {availableManagers.filter(m => m.role === 'project-manager').map(manager => {
+                      const isAssigned = (selectedProject.assignedPMs || []).includes(manager.id);
+                      return (
+                        <button
+                          key={manager.id}
+                          onClick={() => toggleManagerAssignment(selectedProject.id, manager.id, 'pm')}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                            isAssigned ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
+                            isAssigned ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {manager.name[0]}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-medium text-sm truncate">{manager.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{manager.email}</p>
+                          </div>
+                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-accent-foreground flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {/* Assigned Subcontractors */}

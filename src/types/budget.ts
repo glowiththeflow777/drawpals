@@ -11,6 +11,15 @@ export interface User {
   crewName?: string;
 }
 
+export type ProjectStatus = 'active' | 'on-hold' | 'completed' | 'archived';
+
+export interface ProjectManager {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'project-manager';
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -18,7 +27,9 @@ export interface Project {
   totalBudget: number;
   amountInvoiced: number;
   amountPaid: number;
-  status: 'active' | 'completed';
+  status: ProjectStatus;
+  assignedAdmins?: string[];
+  assignedPMs?: string[];
 }
 
 export interface BudgetLineItem {
