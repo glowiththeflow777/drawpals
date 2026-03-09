@@ -162,6 +162,7 @@ const TeamManagement = () => {
                       <h3 className="font-display font-semibold text-base mb-1">{m.name}</h3>
                       <p className="text-sm text-muted-foreground font-body">{m.email}</p>
                       {m.phone && <p className="text-xs text-muted-foreground/70 font-body mt-0.5">{m.phone}</p>}
+                      {m.crew_name && <p className="text-xs text-muted-foreground/70 font-body mt-0.5">Crew: {m.crew_name}</p>}
                     </>
                   )}
                 </motion.div>
