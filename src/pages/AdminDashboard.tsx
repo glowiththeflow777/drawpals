@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/hooks/use-toast';
 
 const CHART_COLORS = ['hsl(32,90%,50%)', 'hsl(160,40%,45%)', 'hsl(210,70%,50%)', 'hsl(45,93%,47%)'];
 
@@ -12,6 +14,75 @@ const AdminDashboard = () => {
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
   const { data: allBudgetItems = [] } = useBudgetLineItems();
   const [activeProject, setActiveProject] = useState<string>('all');
+  const { toast } = useToast();
+
+  const getExportData = useCallback(() => {
+    const items = activeProject === 'all'
+      ? allBudgetItems
+      : allBudgetItems.filter(b => b.project_id === activeProject);
+    const projectName = activeProject === 'all'
+      ? 'All Projects'
+      : projects.find(p => p.id === activeProject)?.name || 'Project';
+    return { items, projectName };
+  }, [activeProject, allBudgetItems, projects]);
+
+  const handleExportPDF = () => {
+    window.print();
+    toast({ title: 'PDF export', description: 'Use the print dialog to save as PDF.' });
+  };
+
+  const handleExportExcel = () => {
+    const { items, projectName } = getExportData();
+    if (items.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+    const rows = items.map(bi => ({
+      'Line #': bi.line_item_no,
+      'Cost Code': bi.cost_code,
+      'Item Name': bi.cost_item_name,
+      'Description': bi.description,
+      'Cost Group': bi.cost_group,
+      'Cost Type': bi.cost_type,
+      'Quantity': bi.quantity,
+      'Unit': bi.unit,
+      'Extended Cost': Number(bi.extended_cost),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Budget');
+    XLSX.writeFile(wb, `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_budget.xlsx`);
+    toast({ title: 'Excel exported!' });
+  };
+
+  const handleExportQuickBooks = () => {
+    const { items, projectName } = getExportData();
+    if (items.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+    // QuickBooks IIF format for journal entries
+    const lines = [
+      '!TRNS\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!SPL\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tMEMO',
+      '!ENDTRNS',
+    ];
+    const today = new Date().toLocaleDateString('en-US');
+    items.forEach(bi => {
+      const amt = Number(bi.extended_cost);
+      lines.push(`TRNS\tGENERAL JOURNAL\t${today}\tConstruction Costs\t${bi.cost_item_name}\t${amt.toFixed(2)}\t${bi.description || bi.cost_item_name}`);
+      lines.push(`SPL\tGENERAL JOURNAL\t${today}\tAccounts Payable\t${bi.cost_item_name}\t${(-amt).toFixed(2)}\t${bi.description || bi.cost_item_name}`);
+      lines.push('ENDTRNS');
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_quickbooks.iif`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'QuickBooks IIF exported!' });
+  };
 
   const filtered = activeProject === 'all' ? projects : projects.filter(p => p.id === activeProject);
 
@@ -148,10 +219,16 @@ const AdminDashboard = () => {
         </div>
 
         {/* Export */}
-        <div className="flex gap-3">
-          <Button variant="outline" className="font-display">Export PDF</Button>
-          <Button variant="outline" className="font-display">Export Excel</Button>
-          <Button variant="outline" className="font-display">Export to QuickBooks</Button>
+        <div className="flex gap-3 flex-wrap">
+          <Button variant="outline" className="font-display" onClick={handleExportPDF}>
+            <Download className="w-4 h-4 mr-1" /> Export PDF
+          </Button>
+          <Button variant="outline" className="font-display" onClick={handleExportExcel}>
+            <Download className="w-4 h-4 mr-1" /> Export Excel
+          </Button>
+          <Button variant="outline" className="font-display" onClick={handleExportQuickBooks}>
+            <Download className="w-4 h-4 mr-1" /> Export to QuickBooks
+          </Button>
         </div>
       </main>
     </>
