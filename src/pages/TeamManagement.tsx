@@ -117,7 +117,7 @@ const TeamManagement = () => {
   };
 
   const roleIcon = (role: string) => role === 'admin' ? <Shield className="w-4 h-4" /> : role === 'subcontractor' ? <HardHat className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />;
-  const roleLabel = (role: string) => role === 'admin' ? 'Admin' : role === 'subcontractor' ? 'Subcontractor' : 'Project Manager';
+  const roleLabel = (role: string) => role === 'admin' ? t('team.roles.admin') : role === 'subcontractor' ? t('team.roles.subcontractor') : t('team.roles.project-manager');
   const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : role === 'subcontractor' ? 'bg-info/15 text-info' : 'bg-accent/15 text-accent';
 
   return (
@@ -127,10 +127,10 @@ const TeamManagement = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6 text-primary" />
-            <h2 className="font-display font-bold text-xl">Team Members</h2>
+            <h2 className="font-display font-bold text-xl">{t('team.title')}</h2>
           </div>
           <Button onClick={openCreate} className="font-display">
-            <Plus className="w-4 h-4 mr-1" /> Add Member
+            <Plus className="w-4 h-4 mr-1" /> {t('team.addMember')}
           </Button>
         </div>
 
@@ -144,7 +144,7 @@ const TeamManagement = () => {
                 filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/70'
               }`}
             >
-              {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : f === 'subcontractor' ? 'Subcontractors' : 'Project Managers'}
+              {f === 'all' ? t('team.all') : f === 'admin' ? t('team.admins') : f === 'subcontractor' ? t('team.subcontractors') : t('team.projectManagers')}
             </button>
           ))}
         </div>
