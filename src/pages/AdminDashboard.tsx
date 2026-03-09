@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, LogOut, FileText, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp, BarChart3, Users } from 'lucide-react';
+import { Building2, LogOut, FileText, CheckCircle2, XCircle, Clock, DollarSign, TrendingUp, BarChart3, Users, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { mockInvoices, mockProjects, mockBudgetLineItems } from '@/data/mockData';
@@ -51,11 +51,18 @@ const AdminDashboard = () => {
               <p className="text-secondary-foreground/50 text-xs">Admin Dashboard</p>
             </div>
           </div>
-          <Link to="/">
-            <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/admin/projects">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground text-xs">
+                <FolderOpen className="w-4 h-4 mr-1" /> Projects
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

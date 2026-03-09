@@ -7,6 +7,7 @@ import LandingPage from "./pages/LandingPage";
 import SubcontractorDashboard from "./pages/SubcontractorDashboard";
 import InvoiceWizard from "./pages/InvoiceWizard";
 import AdminDashboard from "./pages/AdminDashboard";
+import ProjectPortal from "./pages/ProjectPortal";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/dashboard" element={<SubcontractorDashboard />} />
           <Route path="/invoice/new" element={<InvoiceWizard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/projects" element={<ProjectPortal />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
