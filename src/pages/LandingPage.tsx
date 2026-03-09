@@ -44,9 +44,6 @@ const LandingPage = () => {
                 Budget Builder
               </h1>
             </div>
-            <p className="text-lg md:text-xl text-secondary-foreground/70 font-body mb-2">
-              by Space Cowboy
-            </p>
             <p className="text-secondary-foreground/50 font-body mb-10 max-w-lg mx-auto">
               Submit invoices, track budgets, and get paid — all from your phone. Built for the field.
             </p>
