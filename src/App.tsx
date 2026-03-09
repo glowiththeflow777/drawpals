@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/invoice/new" element={<SubcontractorLayout><InvoiceWizard /></SubcontractorLayout>} />
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/projects" element={<AdminLayout><ProjectPortal /></AdminLayout>} />
+          <Route path="/admin/approvals" element={<AdminLayout><Approvals /></AdminLayout>} />
           <Route path="/admin/team" element={<AdminLayout><TeamManagement /></AdminLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
