@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
@@ -33,17 +34,18 @@ interface ParsedLineItem {
   costCode: string;
 }
 
-const statusTabs: { value: ProjectStatus | 'all'; label: string }[] = [
-  { value: 'active', label: 'Active' },
-  { value: 'on-hold', label: 'On Hold' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-  { value: 'all', label: 'All Projects' },
-];
-
 const ProjectPortal = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
+
+  const statusTabs: { value: ProjectStatus | 'all'; label: string }[] = [
+    { value: 'active', label: t('projects.status.active') },
+    { value: 'on-hold', label: t('projects.status.on-hold') },
+    { value: 'completed', label: t('projects.status.completed') },
+    { value: 'archived', label: t('projects.status.archived') },
+    { value: 'all', label: t('projects.status.all') },
+  ];
 
   // DB queries
   const { data: projects = [], isLoading: loadingProjects } = useProjects();
@@ -94,7 +96,7 @@ const ProjectPortal = () => {
       await updateProject.mutateAsync({ id: projectId, status });
       setSelectedProject(prev => prev ? { ...prev, status } : prev);
     } catch {
-      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({ title: t('common.error'), description: 'Failed to update status', variant: 'destructive' });
     }
   };
 
@@ -102,7 +104,7 @@ const ProjectPortal = () => {
     try {
       await toggleAssignment.mutateAsync({ projectId, teamMemberId });
     } catch {
-      toast({ title: 'Error', description: 'Failed to update assignment', variant: 'destructive' });
+      toast({ title: t('common.error'), description: 'Failed to update assignment', variant: 'destructive' });
     }
   };
 
