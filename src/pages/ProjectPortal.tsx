@@ -66,6 +66,12 @@ const ProjectPortal = () => {
   const [showParsed, setShowParsed] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Edit project state
+  const [editingProject, setEditingProject] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editBudget, setEditBudget] = useState('');
+
   // Create project form state
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
