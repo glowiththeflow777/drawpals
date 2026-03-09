@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, FileText, Plus, LogOut, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { mockInvoices, mockProjects, mockUser } from '@/data/mockData';
 
 const statusConfig = {
