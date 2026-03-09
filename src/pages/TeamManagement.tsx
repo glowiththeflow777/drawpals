@@ -18,7 +18,7 @@ interface MemberForm {
   crew_name: string;
 }
 
-const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'project-manager' };
+const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'subcontractor', crew_name: '' };
 
 const TeamManagement = () => {
   const { data: allMembers = [], isLoading } = useTeamMembers();
