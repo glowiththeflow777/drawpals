@@ -62,34 +62,57 @@ const ProjectPortal = () => {
           return;
         }
 
-        // Map spreadsheet columns to BudgetLineItem fields using flexible header matching
+        // Map spreadsheet columns to BudgetLineItem fields
+        // Priority: exact match on full header, then keyword fallback
         const headers = Object.keys(rows[0]);
-        const find = (keywords: string[]) => headers.find(h => keywords.some(k => h.toLowerCase().includes(k))) || '';
+        const headerLower = headers.map(h => h.toLowerCase().trim());
 
-        const colLineNo = find(['line', '#', 'no', 'number', 'item #']);
-        const colGroup = find(['group', 'category', 'division']);
-        const colName = find(['name', 'item', 'title']);
-        const colDesc = find(['desc', 'description', 'scope']);
-        const colQty = find(['qty', 'quantity']);
-        const colUnit = find(['unit', 'uom']);
-        const colCost = find(['cost', 'amount', 'total', 'price', 'extended', 'ext']);
-        const colType = find(['type', 'cost type']);
-        const colCode = find(['code', 'cost code']);
+        // Ranked patterns: first match wins per field, checked in order
+        // Each entry: [fieldKey, patterns[]] — patterns checked against full header
+        const fieldPatterns: [string, RegExp[]][] = [
+          ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
+          ['costGroup',  [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
+          ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
+          ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
+          ['quantity', [/^quantity$/i, /^qty\.?$/i]],
+          ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
+          ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
+          ['costType', [/^cost\s*type$/i, /^type$/i]],
+          ['costCode', [/^cost\s*code$/i, /^code$/i]],
+        ];
+
+        const colMap: Record<string, string> = {};
+        const usedHeaders = new Set<string>();
+
+        for (const [field, patterns] of fieldPatterns) {
+          for (const pattern of patterns) {
+            const matchIdx = headers.findIndex((h, i) => !usedHeaders.has(h) && pattern.test(h.trim()));
+            if (matchIdx !== -1) {
+              colMap[field] = headers[matchIdx];
+              usedHeaders.add(headers[matchIdx]);
+              break;
+            }
+          }
+        }
+
+        const col = (field: string) => colMap[field] || '';
 
         const parsed: BudgetLineItem[] = rows.map((row, idx) => {
-          const cost = parseFloat(String(row[colCost]).replace(/[^0-9.-]/g, '')) || 0;
+          const costRaw = String(row[col('extendedCost')] ?? '');
+          const cost = parseFloat(costRaw.replace(/[^0-9.-]/g, '')) || 0;
+          const lineNo = Number(row[col('lineItemNo')]);
           return {
             id: `parsed-${idx}`,
             projectId: 'pending',
-            lineItemNo: Number(row[colLineNo]) || idx + 1,
-            costGroup: String(row[colGroup] || ''),
-            costItemName: String(row[colName] || row[colDesc] || `Item ${idx + 1}`),
-            description: String(row[colDesc] || ''),
-            quantity: parseFloat(String(row[colQty]).replace(/[^0-9.-]/g, '')) || 0,
-            unit: String(row[colUnit] || 'Each'),
+            lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
+            costGroup: String(row[col('costGroup')] || ''),
+            costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
+            description: String(row[col('description')] || ''),
+            quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
+            unit: String(row[col('unit')] || 'Each'),
             extendedCost: cost,
-            costType: String(row[colType] || 'Labor'),
-            costCode: String(row[colCode] || ''),
+            costType: String(row[col('costType')] || 'Labor'),
+            costCode: String(row[col('costCode')] || ''),
           };
         }).filter(item => item.costItemName || item.extendedCost > 0);
 
