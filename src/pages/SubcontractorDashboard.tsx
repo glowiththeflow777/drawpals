@@ -108,7 +108,7 @@ const SubcontractorDashboard = () => {
           })}
         </div>
       </main>
-    </div>
+    </>
   );
 };
 
