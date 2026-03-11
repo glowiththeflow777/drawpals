@@ -1004,7 +1004,14 @@ const ProjectPortal = () => {
                 </div>
               </div>
 
-              {/* Budget Line Items */}
+              {/* Subcontractor Budgets */}
+              <SubcontractorBudgets
+                projectId={selectedProject.id}
+                assignedSubs={getProjectAssignments(selectedProject.id, 'subcontractor')}
+                currentUserId={currentUserId}
+              />
+
+              {/* Budget Line Items (Master - Admin Only) */}
               <div className="card-elevated p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <button
