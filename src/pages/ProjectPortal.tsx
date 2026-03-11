@@ -828,10 +828,8 @@ const ProjectPortal = () => {
 
               {/* Financial Dashboard */}
               <FinancialDashboard
+                projectId={selectedProject.id}
                 project={selectedProject}
-                budgetItems={allBudgetItems.filter(b => b.project_id === selectedProject.id)}
-                invoiceLineItems={invoiceLineItems}
-                billingHistory={billingHistory}
               />
 
               {/* Assigned Admins & Project Managers */}

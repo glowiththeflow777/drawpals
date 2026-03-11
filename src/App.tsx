@@ -97,6 +97,13 @@ const App = () => (
               </ProtectedRoute>
             </RoleProvider>
           } />
+          <Route path="/admin/projects/:projectId/financials" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><ProjectFinancials /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
           <Route path="/admin/approvals" element={
             <RoleProvider>
               <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
