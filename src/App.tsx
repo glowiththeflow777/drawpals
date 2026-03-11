@@ -13,6 +13,7 @@ import Approvals from "./pages/Approvals";
 import Invoices from "./pages/Invoices";
 import ProjectPortal from "./pages/ProjectPortal";
 import TeamManagement from "./pages/TeamManagement";
+import SubcontractorDirectory from "./pages/SubcontractorDirectory";
 import AdminLayout from "./components/AdminLayout";
 import SubcontractorLayout from "./components/SubcontractorLayout";
 import ForgotPassword from "./pages/ForgotPassword";
