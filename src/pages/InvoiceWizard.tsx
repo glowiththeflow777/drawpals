@@ -406,7 +406,7 @@ const InvoiceWizard = () => {
                     groups.get(group)!.push(item);
                   });
 
-                  const selectedIds = new Set(lineItems.map(li => li.lineItemNo));
+                  const selectedIds = new Set(lineItems.map(li => (li as any).budgetItemId));
 
                   return (
                     <div className="space-y-3">
@@ -418,8 +418,8 @@ const InvoiceWizard = () => {
                           </div>
                           <div className="divide-y divide-border/50">
                             {items.map(item => {
-                              const isSelected = selectedIds.has(item.line_item_no);
-                              const liIdx = lineItems.findIndex(li => li.lineItemNo === item.line_item_no);
+                              const isSelected = selectedIds.has(item.id);
+                              const liIdx = lineItems.findIndex(li => (li as any).budgetItemId === item.id);
 
                               return (
                                 <div key={item.id}>
@@ -427,17 +427,18 @@ const InvoiceWizard = () => {
                                     type="button"
                                     onClick={() => {
                                       if (isSelected) {
-                                        setLineItems(prev => prev.filter(li => li.lineItemNo !== item.line_item_no));
+                                        setLineItems(prev => prev.filter(li => (li as any).budgetItemId !== item.id));
                                       } else {
                                         setLineItems(prev => [
-                                          ...prev.filter(li => li.description || li.lineItemNo),
+                                          ...prev,
                                           {
+                                            budgetItemId: item.id,
                                             lineItemNo: item.line_item_no,
-                                            description: item.description || item.cost_item_name,
+                                            description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
                                             contractPrice: Number(item.extended_cost),
                                             percentComplete: 0,
                                             drawAmount: 0,
-                                          },
+                                          } as any,
                                         ]);
                                       }
                                     }}
@@ -455,12 +456,15 @@ const InvoiceWizard = () => {
                                         <span className="font-display text-sm font-medium">
                                           <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
                                           {item.cost_item_name}
+                                          {item.cost_type && (
+                                            <span className="text-xs text-muted-foreground ml-1.5">({item.cost_type})</span>
+                                          )}
                                         </span>
                                         <span className="text-xs font-display font-semibold ml-2 flex-shrink-0">
                                           ${Number(item.extended_cost).toLocaleString()}
                                         </span>
                                       </div>
-                                      {item.description && (
+                                      {item.description && item.description !== item.cost_item_name && (
                                         <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                                       )}
                                     </div>
@@ -500,7 +504,7 @@ const InvoiceWizard = () => {
                       {/* Summary */}
                       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                         <span className="font-display text-sm font-medium">
-                          {lineItems.filter(li => li.lineItemNo).length} items selected
+                          {lineItems.filter(li => (li as any).budgetItemId).length} items selected
                         </span>
                         <span className="font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</span>
                       </div>
