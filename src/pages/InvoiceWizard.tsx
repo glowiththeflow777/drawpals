@@ -124,7 +124,7 @@ const InvoiceWizard = () => {
             {step === 1 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step1.question')}</p>
-                {mockProjects.filter(p => p.status === 'active').map(p => (
+                {dbProjects.filter(p => p.status === 'active').map(p => (
                   <button
                     key={p.id}
                     onClick={() => setProjectId(p.id)}
@@ -132,7 +132,7 @@ const InvoiceWizard = () => {
                   >
                     <p className="font-display font-semibold">{p.name}</p>
                     <p className="text-sm text-muted-foreground">{p.address}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.totalBudget.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.total_budget.toLocaleString()}</p>
                   </button>
                 ))}
               </div>
