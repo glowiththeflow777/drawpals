@@ -330,10 +330,10 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                       <SelectTrigger className="h-9 text-sm">
                         <SelectValue placeholder="— Not mapped —" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-60 overflow-y-auto">
                         <SelectItem value="__none__">— Not mapped —</SelectItem>
                         {spreadsheetHeaders.map(h => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                          <SelectItem key={h} value={h} className="truncate max-w-[300px]" title={h}>{h}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
