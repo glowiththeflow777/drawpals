@@ -54,7 +54,7 @@ const InvoiceWizard = () => {
   const [changeOrders, setChangeOrders] = useState<Partial<ChangeOrderEntry>[]>([]);
   const [credits, setCredits] = useState<Partial<ChangeOrderEntry>[]>([]);
 
-  const project = mockProjects.find(p => p.id === projectId);
+  const project = dbProjects.find(p => p.id === projectId);
 
   const updateLineItem = (idx: number, field: string, value: string | number) => {
     const updated = [...lineItems];
