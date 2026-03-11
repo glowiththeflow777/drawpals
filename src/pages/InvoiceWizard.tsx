@@ -406,7 +406,7 @@ const InvoiceWizard = () => {
                     groups.get(group)!.push(item);
                   });
 
-                  const selectedIds = new Set(lineItems.map(li => li.lineItemNo));
+                  const selectedIds = new Set(lineItems.map(li => (li as any).budgetItemId));
 
                   return (
                     <div className="space-y-3">
