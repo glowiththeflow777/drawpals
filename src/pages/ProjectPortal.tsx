@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
+import FinancialDashboard from '@/components/FinancialDashboard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
   useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
+  useBillingHistory, useInvoiceLineItemsDetailed,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
@@ -70,6 +72,8 @@ const ProjectPortal = () => {
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedProject, setSelectedProject] = useState<DbProject | null>(null);
+  const { data: billingHistory = new Map() } = useBillingHistory(selectedProject?.id);
+  const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(selectedProject?.id);
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedLineItem[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -813,20 +817,13 @@ const ProjectPortal = () => {
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: 'Total Budget', value: Number(selectedProject.total_budget) },
-                  { label: 'Invoiced', value: Number(selectedProject.amount_invoiced) },
-                  { label: 'Approved', value: Number(selectedProject.amount_paid) },
-                  { label: 'Remaining', value: Number(selectedProject.total_budget) - Number(selectedProject.amount_invoiced) },
-                ].map(stat => (
-                  <div key={stat.label} className="card-elevated p-4">
-                    <p className="text-xs text-muted-foreground font-body">{stat.label}</p>
-                    <p className="text-xl font-display font-bold">${stat.value.toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
+              {/* Financial Dashboard */}
+              <FinancialDashboard
+                project={selectedProject}
+                budgetItems={allBudgetItems.filter(b => b.project_id === selectedProject.id)}
+                invoiceLineItems={invoiceLineItems}
+                billingHistory={billingHistory}
+              />
 
               {/* Assigned Admins & Project Managers */}
               <div className="card-elevated p-5 space-y-5">
