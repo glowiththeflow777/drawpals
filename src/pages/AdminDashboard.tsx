@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, CheckCircle2, DollarSign, TrendingUp, Loader2, Download } from 'lucide-react';
+import AIForecastWidget from '@/components/AIForecastWidget';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
@@ -185,6 +186,9 @@ const AdminDashboard = () => {
             <span>{t('adminDashboard.bonus.businessShare')} (70%): <strong className="text-foreground">${businessShare.toLocaleString()}</strong></span>
           </div>
         </motion.div>
+
+        {/* AI Forecast Widget */}
+        <AIForecastWidget />
 
         {/* Charts */}
         <div className="grid lg:grid-cols-2 gap-4">
