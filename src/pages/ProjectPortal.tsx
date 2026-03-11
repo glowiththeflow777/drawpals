@@ -104,6 +104,8 @@ const ProjectPortal = () => {
   const [memberDetailOpen, setMemberDetailOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<DbTeamMember | null>(null);
   const [resendingInvite, setResendingInvite] = useState(false);
+  const [newAssignStatus, setNewAssignStatus] = useState<'invited' | 'pending' | 'active'>('invited');
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
   const qc = useQueryClient();
 
