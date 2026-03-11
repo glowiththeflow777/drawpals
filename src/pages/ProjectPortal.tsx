@@ -360,12 +360,46 @@ const ProjectPortal = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setBudgetFileName(file.name);
-    parseBudgetFile(file, (items) => {
-      setBudgetParsedItems(items);
-      setBudgetSelectedIds(new Set(items.map(i => i.id)));
-      setBudgetUploadOpen(true);
-    });
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (rows.length === 0) {
+          setBudgetRawRows([]);
+          setBudgetHeaders([]);
+          setBudgetParsedItems([]);
+          setBudgetUploadOpen(true);
+          setBudgetWizardStep(1);
+          return;
+        }
+        const headers = Object.keys(rows[0]);
+        setBudgetRawRows(rows);
+        setBudgetHeaders(headers);
+        setBudgetColumnMapping(masterAutoDetectMapping(headers));
+        setBudgetWizardStep(1);
+        setBudgetUploadOpen(true);
+      } catch (err) {
+        console.error('Failed to parse file:', err);
+        toast({ title: 'Error', description: 'Failed to parse spreadsheet', variant: 'destructive' });
+      }
+    };
+    reader.readAsArrayBuffer(file);
     e.target.value = '';
+  };
+
+  const handleBudgetMappingConfirm = () => {
+    const items = masterApplyMapping(budgetRawRows, budgetColumnMapping);
+    setBudgetParsedItems(items);
+    setBudgetSelectedIds(new Set(items.map(i => i.id)));
+    setBudgetWizardStep(2);
+  };
+
+  const updateBudgetMapping = (field: MasterFieldKey, header: string) => {
+    setBudgetColumnMapping(prev => ({ ...prev, [field]: header === '__none__' ? '' : header }));
   };
 
   const handleSaveBudgetItems = async () => {
