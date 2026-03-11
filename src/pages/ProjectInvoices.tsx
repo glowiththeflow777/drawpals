@@ -59,7 +59,7 @@ export default function ProjectInvoices() {
         {[
           { label: 'Total Budget', value: project.total_budget },
           { label: 'Invoiced', value: project.amount_invoiced },
-          { label: 'Paid', value: project.amount_paid },
+          { label: 'Approved', value: project.amount_paid },
         ].map(item => (
           <div key={item.label} className="card-elevated p-4">
             <p className="text-xs text-muted-foreground font-body">{item.label}</p>

@@ -18,7 +18,7 @@
     "budget": "Budget",
     "invoiced": "Invoiced",
     "remaining": "Remaining",
-    "paid": "Paid",
+    "paid": "Approved",
     "amount": "Amount",
     "description": "Description",
     "date": "Date",
@@ -232,7 +232,7 @@
   "adminDashboard": {
     "totalBudget": "Total Budget",
     "invoiced": "Invoiced",
-    "paid": "Paid",
+    "paid": "Approved",
     "remaining": "Remaining",
     "budgetBreakdown": "Budget Breakdown",
     "budgetVsActual": "Budget vs Actual",
@@ -256,13 +256,13 @@
     "qbSuccess": "QuickBooks IIF exported!",
     "noDataExport": "No data to export",
     "pieLabels": {
-      "paid": "Paid",
-      "invoicedUnpaid": "Invoiced (Unpaid)",
+      "paid": "Approved",
+      "invoicedUnpaid": "Invoiced (Pending)",
       "remaining": "Remaining"
     },
     "bonus": {
       "title": "PM Bonus Calculator",
-      "explanation": "Project managers earn 30% of budget savings. Savings = Total Budget − Actual Cost (Amount Paid).",
+      "explanation": "Project managers earn 30% of budget savings. Savings = Total Budget − Actual Cost (Amount Approved).",
       "actualCost": "Actual Cost",
       "savings": "Budget Savings",
       "pmBonus": "PM Bonus",
@@ -307,7 +307,7 @@
       "updateStatus": "Update status",
       "budget": "Budget",
       "amountInvoiced": "Invoiced",
-      "amountPaid": "Paid",
+      "amountPaid": "Approved",
       "remaining": "Remaining",
       "budgetUtilization": "Budget utilization",
       "lineItemsTitle": "Budget Line Items",

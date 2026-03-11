@@ -18,7 +18,7 @@
     "budget": "Presupuesto",
     "invoiced": "Facturado",
     "remaining": "Restante",
-    "paid": "Pagado",
+    "paid": "Aprobado",
     "amount": "Monto",
     "description": "Descripción",
     "date": "Fecha",
@@ -232,7 +232,7 @@
   "adminDashboard": {
     "totalBudget": "Presupuesto Total",
     "invoiced": "Facturado",
-    "paid": "Pagado",
+    "paid": "Aprobado",
     "remaining": "Restante",
     "budgetBreakdown": "Desglose del Presupuesto",
     "budgetVsActual": "Presupuesto vs Real",
@@ -256,8 +256,8 @@
     "qbSuccess": "¡Archivo QuickBooks IIF exportado!",
     "noDataExport": "Sin datos para exportar",
     "pieLabels": {
-      "paid": "Pagado",
-      "invoicedUnpaid": "Facturado (Sin Pagar)",
+      "paid": "Aprobado",
+      "invoicedUnpaid": "Facturado (Pendiente)",
       "remaining": "Restante"
     },
     "bonus": {
@@ -307,7 +307,7 @@
       "updateStatus": "Actualizar estado",
       "budget": "Presupuesto",
       "amountInvoiced": "Facturado",
-      "amountPaid": "Pagado",
+      "amountPaid": "Aprobado",
       "remaining": "Restante",
       "budgetUtilization": "Uso del Presupuesto",
       "lineItemsTitle": "Partidas del Presupuesto",

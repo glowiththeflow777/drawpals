@@ -72,7 +72,7 @@ export default function SubcontractorProjects() {
                       <p className="font-display font-semibold">${Number(project.amount_invoiced).toLocaleString()}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="text-xs text-muted-foreground">Approved</p>
                       <p className="font-display font-semibold">${Number(project.amount_paid).toLocaleString()}</p>
                     </div>
                   </div>
