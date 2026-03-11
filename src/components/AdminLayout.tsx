@@ -1,4 +1,4 @@
-import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck } from 'lucide-react';
+import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
