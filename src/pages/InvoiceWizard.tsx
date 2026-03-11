@@ -59,9 +59,7 @@ const InvoiceWizard = () => {
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
-  const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([
-    { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 },
-  ]);
+  const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
     DAYS.map(d => ({ day: d, crewMembers: '', amount: 0, hours: 0 }))
   );
