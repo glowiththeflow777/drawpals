@@ -153,6 +153,60 @@ const ProjectPortal = () => {
       .filter(Boolean);
   };
 
+  // Get assignment record (with status) for a specific member in a project
+  const getAssignmentRecord = (projectId: string, teamMemberId: string) => {
+    return allAssignments.find(
+      (a: any) => a.project_id === projectId && a.team_member_id === teamMemberId
+    ) as any | undefined;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'invited':
+        return { label: 'Invited', className: 'bg-amber-500/10 text-amber-600', icon: MailCheck };
+      case 'pending':
+        return { label: 'Pending', className: 'bg-blue-500/10 text-blue-600', icon: Clock };
+      case 'active':
+      default:
+        return { label: 'Active', className: 'status-badge-approved', icon: CheckCircle2 };
+    }
+  };
+
+  const handleResendInvite = async () => {
+    if (!selectedMember || !selectedProject) return;
+    setResendingInvite(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: t('team.sessionExpired'), variant: 'destructive' });
+        return;
+      }
+
+      const res = await supabase.functions.invoke('invite-member', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: selectedMember.email,
+          name: selectedMember.name,
+          role: selectedMember.role,
+          phone: selectedMember.phone,
+          crew_name: selectedMember.crew_name,
+          project_id: selectedProject.id,
+          redirect_url: `${window.location.origin}/reset-password`,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast({ title: 'Invitation resent', description: `A new invitation was sent to ${selectedMember.email}` });
+      qc.invalidateQueries({ queryKey: ['project_assignments'] });
+    } catch (e: any) {
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } finally {
+      setResendingInvite(false);
+    }
+  };
+
   const updateProjectStatus = async (projectId: string, status: ProjectStatus) => {
     try {
       await updateProject.mutateAsync({ id: projectId, status });
