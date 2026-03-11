@@ -134,17 +134,31 @@ const InvoiceWizard = () => {
             {step === 1 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step1.question')}</p>
-                {dbProjects.filter(p => p.status === 'active').map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setProjectId(p.id)}
-                    className={`w-full text-left card-elevated p-4 transition-all ${projectId === p.id ? 'ring-2 ring-primary' : ''}`}
-                  >
-                    <p className="font-display font-semibold">{p.name}</p>
-                    <p className="text-sm text-muted-foreground">{p.address}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.total_budget.toLocaleString()}</p>
-                  </button>
-                ))}
+                {dbProjects.filter(p => p.status === 'active').map(p => {
+                  const selected = projectId === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setProjectId(p.id)}
+                      className={`w-full text-left card-elevated p-4 transition-all rounded-lg border-2 ${
+                        selected
+                          ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-md'
+                          : 'border-transparent hover:border-primary/40 hover:bg-accent/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="font-display font-semibold">{p.name}</p>
+                        {selected && (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="w-3 h-3 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{p.address}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.total_budget.toLocaleString()}</p>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
