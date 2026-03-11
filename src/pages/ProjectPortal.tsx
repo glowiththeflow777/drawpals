@@ -1027,7 +1027,7 @@ const ProjectPortal = () => {
                     </div>
                   )}
                 </div>
-                {budgetExpanded && (
+                {budgetExpanded && (() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
                   if (items.length === 0) {
                     return (
