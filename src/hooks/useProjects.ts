@@ -291,6 +291,22 @@ export function useBillingHistory(projectId?: string) {
   });
 }
 
+// Fetch detailed invoice line items for a project with invoice metadata
+export function useInvoiceLineItemsDetailed(projectId?: string) {
+  return useQuery({
+    queryKey: ['invoice_line_items_detailed', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoice_line_items' as any)
+        .select('*, invoices!inner(project_id, status, invoice_number, invoice_date, subcontractor_name)')
+        .eq('invoices.project_id', projectId);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
 export function useRemoveAssignment() {
   const qc = useQueryClient();
   return useMutation({
