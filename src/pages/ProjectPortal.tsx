@@ -21,7 +21,6 @@ import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
   useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
-  useBillingHistory, useInvoiceLineItemsDetailed,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
@@ -73,8 +72,6 @@ const ProjectPortal = () => {
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedProject, setSelectedProject] = useState<DbProject | null>(null);
-  const { data: billingHistory = new Map() } = useBillingHistory(selectedProject?.id);
-  const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(selectedProject?.id);
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [parsedItems, setParsedItems] = useState<ParsedLineItem[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
@@ -828,10 +825,8 @@ const ProjectPortal = () => {
 
               {/* Financial Dashboard */}
               <FinancialDashboard
+                projectId={selectedProject.id}
                 project={selectedProject}
-                budgetItems={allBudgetItems.filter(b => b.project_id === selectedProject.id)}
-                invoiceLineItems={invoiceLineItems}
-                billingHistory={billingHistory}
               />
 
               {/* Assigned Admins & Project Managers */}
