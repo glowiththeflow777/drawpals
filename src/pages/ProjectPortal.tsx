@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
 import FinancialDashboard from '@/components/FinancialDashboard';
+import SubcontractorBudgets from '@/components/SubcontractorBudgets';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
