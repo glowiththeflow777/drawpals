@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems } from '@/hooks/useProjects';
+import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +46,7 @@ const InvoiceWizard = () => {
 
   const [step, setStep] = useState(1);
   const [projectId, setProjectId] = useState(preselectedProject);
+  const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
@@ -279,6 +281,27 @@ const InvoiceWizard = () => {
             {step === 3 && (
               <div className="space-y-4">
                 <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step3.instruction')}</p>
+
+                {/* Search budget items */}
+                {projectBudgetItems.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-body">Search budget to add a line item</Label>
+                    <BudgetLineItemSearch
+                      budgetItems={projectBudgetItems}
+                      placeholder="Search by item #, name, or description..."
+                      onSelect={(item) => {
+                        setLineItems(prev => [...prev, {
+                          lineItemNo: item.line_item_no,
+                          description: item.description || item.cost_item_name,
+                          contractPrice: Number(item.extended_cost),
+                          percentComplete: 0,
+                          drawAmount: 0,
+                        }]);
+                      }}
+                    />
+                  </div>
+                )}
+
                 {lineItems.map((li, idx) => (
                   <div key={idx} className="card-elevated p-4 space-y-3">
                     <div className="flex items-center justify-between">
@@ -291,7 +314,7 @@ const InvoiceWizard = () => {
                     </div>
                     <div>
                       <Label className="text-xs font-body">{t('invoiceWizard.step3.lineItemNo')}</Label>
-                      <Input type="number" placeholder="#" className="mt-1" onChange={e => updateLineItem(idx, 'lineItemNo', e.target.value)} />
+                      <Input type="number" placeholder="#" className="mt-1" value={li.lineItemNo || ''} onChange={e => updateLineItem(idx, 'lineItemNo', e.target.value)} />
                     </div>
                     <div>
                       <Label className="text-xs font-body">{t('common.description')}</Label>
