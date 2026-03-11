@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory, useSubBudgetForMember } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory, useSubBudgets, useSubBudgetLineItems } from '@/hooks/useProjects';
 import { useCurrentUser, useCurrentProfile } from '@/hooks/useAuth';
 // BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
