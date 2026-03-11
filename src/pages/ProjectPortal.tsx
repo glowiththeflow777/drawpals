@@ -651,9 +651,14 @@ const ProjectPortal = () => {
 
                 {/* Admins */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    <Label className="font-display font-semibold text-sm">Admins</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <Label className="font-display font-semibold text-sm">{t('team.roles.admin')}</Label>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => openQuickInvite('admin')} className="text-xs font-display">
+                      <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
+                    </Button>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {teamMembers.filter(m => m.role === 'admin').map(member => {
@@ -680,7 +685,7 @@ const ProjectPortal = () => {
                       );
                     })}
                     {teamMembers.filter(m => m.role === 'admin').length === 0 && (
-                      <p className="text-sm text-muted-foreground col-span-2">No admins added yet. Add team members in Cloud.</p>
+                      <p className="text-sm text-muted-foreground col-span-2">{t('projects.detail.noAdmins')}</p>
                     )}
                   </div>
                 </div>
