@@ -29,6 +29,7 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <LanguageSwitcher />
             <Link to="/">
               <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
