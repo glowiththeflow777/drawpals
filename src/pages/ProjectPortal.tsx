@@ -93,6 +93,7 @@ const ProjectPortal = () => {
   const [budgetSelectedIds, setBudgetSelectedIds] = useState<Set<string>>(new Set());
   const [budgetFileName, setBudgetFileName] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
+  const [budgetExpanded, setBudgetExpanded] = useState(false);
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
