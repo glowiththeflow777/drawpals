@@ -1,4 +1,4 @@
-import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck } from 'lucide-react';
+import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const tabs = [
     { label: t('nav.dashboard'), path: '/admin', icon: BarChart3 },
     { label: t('nav.projectsNav'), path: '/admin/projects', icon: FolderOpen },
+    { label: t('nav.invoices'), path: '/admin/invoices', icon: FileText },
     { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
     { label: t('nav.team'), path: '/admin/team', icon: Users },
   ];

@@ -8,6 +8,7 @@ import SubcontractorDashboard from "./pages/SubcontractorDashboard";
 import InvoiceWizard from "./pages/InvoiceWizard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Approvals from "./pages/Approvals";
+import Invoices from "./pages/Invoices";
 import ProjectPortal from "./pages/ProjectPortal";
 import TeamManagement from "./pages/TeamManagement";
 import AdminLayout from "./components/AdminLayout";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/invoice/new" element={<SubcontractorLayout><InvoiceWizard /></SubcontractorLayout>} />
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/projects" element={<AdminLayout><ProjectPortal /></AdminLayout>} />
+          <Route path="/admin/invoices" element={<AdminLayout><Invoices /></AdminLayout>} />
           <Route path="/admin/approvals" element={<AdminLayout><Approvals /></AdminLayout>} />
           <Route path="/admin/team" element={<AdminLayout><TeamManagement /></AdminLayout>} />
           <Route path="*" element={<NotFound />} />
