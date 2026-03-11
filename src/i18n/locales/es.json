@@ -322,7 +322,16 @@
       "item": "Partida",
       "qty": "Cant.",
       "costType": "Tipo",
-      "cost": "Costo"
+      "cost": "Costo",
+      "inviteAndAdd": "Invitar y Agregar",
+      "inviteTitle": "Invitar {{role}} al Proyecto",
+      "inviteDesc": "Envía una invitación por correo. Se agregarán a este proyecto y podrán configurar su contraseña al aceptar.",
+      "inviteSendBtn": "Enviar Invitación y Agregar",
+      "assignedSubs": "Subcontratistas Asignados",
+      "toggleSubsDesc": "Activa o desactiva subcontratistas para darles acceso al portal y partidas de este proyecto.",
+      "noAdmins": "No hay administradores. Usa 'Invitar y Agregar' para comenzar.",
+      "noPMs": "No hay gerentes de proyecto. Usa 'Invitar y Agregar' para comenzar.",
+      "noSubs": "No hay subcontratistas. Usa 'Invitar y Agregar' para comenzar."
     }
   },
   "team": {
