@@ -35,27 +35,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, name, role, phone, crew_name, project_id, redirect_url } = await req.json();
+    const { email, name, role, roles, phone, crew_name, project_id, redirect_url } = await req.json();
 
-    if (!email || !name || !role) {
-      return new Response(JSON.stringify({ error: "email, name, and role are required" }), {
+    if (!email || !name || (!role && (!roles || roles.length === 0))) {
+      return new Response(JSON.stringify({ error: "email, name, and at least one role are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Determine all roles to assign
+    const allRoles: string[] = roles && roles.length > 0 ? roles : [role];
+    const primaryRole = role || allRoles[0];
+
     // Invite the user via Supabase Auth
     let inviteData = null;
     const { data: inviteResult, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { name, role },
+      data: { name, role: primaryRole },
       redirectTo: redirect_url || undefined,
     });
+
+    let userId: string | null = null;
 
     if (inviteError) {
       if (inviteError.message.includes("already been registered")) {
         console.log("User already registered, sending password reset email:", email);
-        // Use resetPasswordForEmail which actually sends the email,
-        // unlike generateLink which only generates a link server-side
         const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
           redirectTo: redirect_url || undefined,
         });
@@ -66,6 +70,10 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+        // Get the existing user's ID
+        const { data: { users } } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = users?.find(u => u.email === email);
+        userId = existingUser?.id || null;
       } else {
         return new Response(JSON.stringify({ error: inviteError.message }), {
           status: 400,
@@ -74,6 +82,17 @@ Deno.serve(async (req) => {
       }
     } else {
       inviteData = inviteResult;
+      userId = inviteResult?.user?.id || null;
+    }
+
+    // Insert roles into user_roles table
+    if (userId) {
+      for (const r of allRoles) {
+        const { error: roleError } = await supabaseAdmin
+          .from("user_roles")
+          .upsert({ user_id: userId, role: r }, { onConflict: "user_id,role" });
+        if (roleError) console.error("Role insert error:", roleError);
+      }
     }
 
     // Check if team member already exists by email
@@ -87,7 +106,7 @@ Deno.serve(async (req) => {
     if (existingMember) {
       const { data: updated, error: updateError } = await supabaseAdmin
         .from("team_members")
-        .update({ name, role, phone: phone || '', crew_name: crew_name || null })
+        .update({ name, role: primaryRole, phone: phone || '', crew_name: crew_name || null })
         .eq("id", existingMember.id)
         .select()
         .single();
@@ -96,7 +115,7 @@ Deno.serve(async (req) => {
     } else {
       const { data: inserted, error: insertError } = await supabaseAdmin
         .from("team_members")
-        .insert({ email, name, role, phone: phone || '', crew_name: crew_name || null })
+        .insert({ email, name, role: primaryRole, phone: phone || '', crew_name: crew_name || null })
         .select()
         .single();
       if (insertError) console.error("Team member insert error:", insertError);
@@ -123,7 +142,6 @@ Deno.serve(async (req) => {
           });
         if (assignError) console.error("Project assignment error:", assignError);
       } else {
-        // Update existing assignment status back to invited (resend)
         const { error: updateAssignError } = await supabaseAdmin
           .from("project_assignments")
           .update({
@@ -136,7 +154,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ message: "Invitation sent", user: inviteData?.user || null, team_member: memberData }),
+      JSON.stringify({ message: "Invitation sent", user: inviteData?.user || null, team_member: memberData, roles: allRoles }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
