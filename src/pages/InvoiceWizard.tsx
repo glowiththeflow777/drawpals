@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useProjects } from '@/hooks/useProjects';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
-import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
 
 const InvoiceWizard = () => {
