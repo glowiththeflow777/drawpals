@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, CheckCircle2, DollarSign, TrendingUp, BarChart3, Loader2, Download } from 'lucide-react';
+import { FileText, CheckCircle2, DollarSign, TrendingUp, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
@@ -212,44 +212,6 @@ const AdminDashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Budget Line Items */}
-        <div>
-          <h3 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-muted-foreground" />
-            {t('adminDashboard.budgetLineItems')}
-          </h3>
-          {budgetItems.length === 0 ? (
-            <p className="text-muted-foreground text-sm card-elevated p-6 text-center">{t('adminDashboard.noBudgetItems')}</p>
-          ) : (
-            <div className="card-elevated overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">{t('adminDashboard.lineNo')}</th>
-                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">{t('adminDashboard.item')}</th>
-                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">{t('adminDashboard.costGroup')}</th>
-                      <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">{t('common.budget')}</th>
-                      <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">{t('adminDashboard.costType')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {budgetItems.map(bi => (
-                      <tr key={bi.id} className="border-b border-border/50 hover:bg-muted/30">
-                        <td className="p-3 font-body">{bi.line_item_no}</td>
-                        <td className="p-3 font-body">{bi.cost_item_name}</td>
-                        <td className="p-3 font-body text-muted-foreground text-xs">{bi.cost_group}</td>
-                        <td className="p-3 text-right font-display font-semibold">${Number(bi.extended_cost).toLocaleString()}</td>
-                        <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{bi.cost_type}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Export */}
