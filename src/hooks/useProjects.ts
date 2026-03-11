@@ -227,14 +227,66 @@ export function useCreateInvoice() {
       credit_total: number;
       grand_total: number;
       notes: string;
+      line_items?: {
+        budget_line_item_id: string;
+        line_item_no: number;
+        description: string;
+        contract_price: number;
+        percent_complete: number;
+        draw_amount: number;
+      }[];
     }) => {
-      const { data, error } = await supabase.from('invoices').insert(invoice).select().single();
+      const { line_items, ...invoiceData } = invoice;
+      const { data, error } = await supabase.from('invoices').insert(invoiceData).select().single();
       if (error) throw error;
+
+      // Insert line items if provided
+      if (line_items && line_items.length > 0) {
+        const rows = line_items.map(li => ({
+          invoice_id: data.id,
+          budget_line_item_id: li.budget_line_item_id,
+          line_item_no: li.line_item_no,
+          description: li.description,
+          contract_price: li.contract_price,
+          percent_complete: li.percent_complete,
+          draw_amount: li.draw_amount,
+        }));
+        const { error: liError } = await supabase.from('invoice_line_items' as any).insert(rows);
+        if (liError) console.error('Line items insert error:', liError);
+      }
+
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] });
       qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['invoice_line_items_billing'] });
+    },
+  });
+}
+
+// Fetch total billed per budget line item for a project (across all approved/submitted invoices)
+export function useBillingHistory(projectId?: string) {
+  return useQuery({
+    queryKey: ['invoice_line_items_billing', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      // Get all invoice_line_items for invoices in this project
+      const { data, error } = await supabase
+        .from('invoice_line_items' as any)
+        .select('budget_line_item_id, draw_amount, invoice_id, invoices!inner(project_id, status)')
+        .eq('invoices.project_id', projectId);
+      if (error) throw error;
+
+      // Sum draw_amount per budget_line_item_id (only for non-rejected invoices)
+      const billedMap = new Map<string, number>();
+      (data as any[])?.forEach((row: any) => {
+        if (row.invoices?.status !== 'rejected') {
+          const current = billedMap.get(row.budget_line_item_id) || 0;
+          billedMap.set(row.budget_line_item_id, current + Number(row.draw_amount));
+        }
+      });
+      return billedMap;
     },
   });
 }

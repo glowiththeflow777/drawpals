@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
 // BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
@@ -56,6 +56,7 @@ const InvoiceWizard = () => {
   const [projectId, setProjectId] = useState(preselectedProject);
   const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
   const { data: projectAssignments = [] } = useProjectAssignments(projectId || undefined);
+  const { data: billingHistory = new Map() } = useBillingHistory(projectId || undefined);
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
@@ -110,6 +111,16 @@ const InvoiceWizard = () => {
         credit_total: creditTotal,
         grand_total: grandTotal,
         notes: '',
+        line_items: lineItems
+          .filter((li: any) => li.budgetItemId)
+          .map((li: any) => ({
+            budget_line_item_id: li.budgetItemId,
+            line_item_no: li.lineItemNo || 0,
+            description: li.description || '',
+            contract_price: li.contractPrice || 0,
+            percent_complete: li.percentComplete || 0,
+            draw_amount: li.drawAmount || 0,
+          })),
       });
       toast({ title: 'Invoice submitted', description: `$${grandTotal.toLocaleString()} invoice saved successfully.` });
       navigate(isAdminEntry ? '/admin/invoices' : '/dashboard');
@@ -467,6 +478,25 @@ const InvoiceWizard = () => {
                                       {item.description && item.description !== item.cost_item_name && (
                                         <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                                       )}
+                                      {(() => {
+                                        const billed = billingHistory.get(item.id) || 0;
+                                        const total = Number(item.extended_cost);
+                                        const remaining = total - billed;
+                                        if (billed > 0) {
+                                          const pctBilled = total > 0 ? Math.round((billed / total) * 100) : 0;
+                                          return (
+                                            <div className="flex items-center gap-3 mt-1">
+                                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(pctBilled, 100)}%` }} />
+                                              </div>
+                                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                ${billed.toLocaleString()} billed · ${remaining.toLocaleString()} left
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
                                   </button>
                                   {isSelected && liIdx >= 0 && (
@@ -490,6 +520,15 @@ const InvoiceWizard = () => {
                                           readOnly
                                           className="mt-1 h-8 text-sm bg-muted font-semibold"
                                           value={lineItems[liIdx]?.drawAmount || 0}
+                                        />
+                                      </div>
+                                      <div className="flex-1">
+                                        <Label className="text-xs font-body">Remaining</Label>
+                                        <Input
+                                          type="number"
+                                          readOnly
+                                          className="mt-1 h-8 text-sm bg-muted font-semibold"
+                                          value={Math.max(0, Number(item.extended_cost) - (billingHistory.get(item.id) || 0) - (lineItems[liIdx]?.drawAmount || 0))}
                                         />
                                       </div>
                                     </div>

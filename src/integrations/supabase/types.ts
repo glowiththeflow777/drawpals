@@ -157,6 +157,57 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_line_items: {
+        Row: {
+          budget_line_item_id: string
+          contract_price: number
+          created_at: string
+          description: string
+          draw_amount: number
+          id: string
+          invoice_id: string
+          line_item_no: number
+          percent_complete: number
+        }
+        Insert: {
+          budget_line_item_id: string
+          contract_price?: number
+          created_at?: string
+          description?: string
+          draw_amount?: number
+          id?: string
+          invoice_id: string
+          line_item_no?: number
+          percent_complete?: number
+        }
+        Update: {
+          budget_line_item_id?: string
+          contract_price?: number
+          created_at?: string
+          description?: string
+          draw_amount?: number
+          id?: string
+          invoice_id?: string
+          line_item_no?: number
+          percent_complete?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_budget_line_item_id_fkey"
+            columns: ["budget_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "budget_line_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           change_order_total: number
