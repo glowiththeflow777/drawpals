@@ -157,6 +157,77 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          change_order_total: number
+          created_at: string
+          credit_total: number
+          day_labor_total: number
+          grand_total: number
+          id: string
+          invoice_date: string
+          invoice_number: string
+          notes: string
+          period_end: string | null
+          period_start: string | null
+          project_id: string
+          reimbursement_total: number
+          sow_total: number
+          status: string
+          subcontractor_name: string
+          submitted_by: string
+          updated_at: string
+        }
+        Insert: {
+          change_order_total?: number
+          created_at?: string
+          credit_total?: number
+          day_labor_total?: number
+          grand_total?: number
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string
+          period_end?: string | null
+          period_start?: string | null
+          project_id: string
+          reimbursement_total?: number
+          sow_total?: number
+          status?: string
+          subcontractor_name?: string
+          submitted_by: string
+          updated_at?: string
+        }
+        Update: {
+          change_order_total?: number
+          created_at?: string
+          credit_total?: number
+          day_labor_total?: number
+          grand_total?: number
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          notes?: string
+          period_end?: string | null
+          period_start?: string | null
+          project_id?: string
+          reimbursement_total?: number
+          sow_total?: number
+          status?: string
+          subcontractor_name?: string
+          submitted_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
