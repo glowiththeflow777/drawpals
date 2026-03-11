@@ -61,25 +61,23 @@ const InvoiceWizard = () => {
   const [budgetSource, setBudgetSource] = useState<'master' | 'sub'>('sub');
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+  const [selectedSubBudgetId, setSelectedSubBudgetId] = useState<string>('');
 
-  // Resolve selected subcontractor to team_member_id
-  const selectedSubTeamMemberId = (() => {
-    if (!isAdminEntry) return profile?.team_member_id || undefined;
-    const match = teamMembers.find(m =>
-      m.role === 'subcontractor' && (m.crew_name === selectedSubcontractor || m.name === selectedSubcontractor)
-    );
-    return match?.id;
-  })();
+  // Fetch all sub budgets for this project
+  const { data: allSubBudgets = [] } = useSubBudgets(projectId || undefined);
+  const { data: selectedSubBudgetItems = [] } = useSubBudgetLineItems(selectedSubBudgetId || undefined);
 
-  const { data: subBudgetItems = [] } = useSubBudgetForMember(
-    projectId || undefined,
-    selectedSubTeamMemberId
-  );
+  // Auto-select first sub budget when project or subcontractor changes
+  useEffect(() => {
+    if (allSubBudgets.length > 0 && !selectedSubBudgetId) {
+      setSelectedSubBudgetId(allSubBudgets[0].id);
+    }
+  }, [allSubBudgets, selectedSubBudgetId]);
 
   // Determine which budget items to show in step 3
-  const activeBudgetItems = (isAdminEntry && budgetSource === 'master')
+  const activeBudgetItems = budgetSource === 'master'
     ? projectBudgetItems
-    : (subBudgetItems.length > 0 ? subBudgetItems : projectBudgetItems);
+    : selectedSubBudgetItems;
   const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
