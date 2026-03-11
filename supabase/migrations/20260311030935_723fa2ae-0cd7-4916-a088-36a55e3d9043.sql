@@ -1,0 +1,1 @@
+ALTER TABLE public.project_assignments ADD CONSTRAINT project_assignments_project_member_unique UNIQUE (project_id, team_member_id);
