@@ -1,18 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, ChevronLeft, ChevronRight, Check, Upload, Plus, Trash2 } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, Check, Upload, Plus, Trash2, UserPlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember } from '@/hooks/useProjects';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
+import { useToast } from '@/hooks/use-toast';
 
 const InvoiceWizard = () => {
   const navigate = useNavigate();
   const { data: dbProjects = [] } = useProjects();
+  const { data: teamMembers = [] } = useTeamMembers();
+  const createTeamMember = useCreateTeamMember();
+  const { toast } = useToast();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isAdminEntry = searchParams.get('admin') === 'true';
