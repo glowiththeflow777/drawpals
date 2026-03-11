@@ -839,10 +839,20 @@ const ProjectPortal = () => {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamMembers.filter(m => m.role === 'subcontractor').map(sub => {
                     const isAssigned = getProjectAssignments(selectedProject.id, 'subcontractor').some(a => a.id === sub.id);
+                    const assignment = getAssignmentRecord(selectedProject.id, sub.id);
+                    const status = assignment?.invitation_status || 'active';
+                    const badge = getStatusBadge(status);
                     return (
                       <button
                         key={sub.id}
-                        onClick={() => handleToggleAssignment(selectedProject.id, sub.id)}
+                        onClick={() => {
+                          if (isAssigned) {
+                            setSelectedMember(sub);
+                            setMemberDetailOpen(true);
+                          } else {
+                            handleToggleAssignment(selectedProject.id, sub.id);
+                          }
+                        }}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                           isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
                         }`}
@@ -856,7 +866,12 @@ const ProjectPortal = () => {
                           <p className="font-display font-medium text-sm truncate">{sub.crew_name || sub.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{sub.email}</p>
                         </div>
-                        {isAssigned && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                        {isAssigned && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
+                            <badge.icon className="w-3 h-3" />
+                            {badge.label}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
