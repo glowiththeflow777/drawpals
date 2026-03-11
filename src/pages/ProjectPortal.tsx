@@ -1125,17 +1125,18 @@ const ProjectPortal = () => {
       </Dialog>
 
       {/* Member Detail Dialog */}
-      <Dialog open={memberDetailOpen} onOpenChange={setMemberDetailOpen}>
+      <Dialog open={memberDetailOpen} onOpenChange={(open) => { setMemberDetailOpen(open); if (!open) setConfirmRemoveOpen(false); }}>
         <DialogContent className="sm:max-w-md">
           {selectedMember && selectedProject && (() => {
             const assignment = getAssignmentRecord(selectedProject.id, selectedMember.id);
+            const isAssigned = !!assignment;
             const status = assignment?.invitation_status || 'active';
             const badge = getStatusBadge(status);
             const invitedAt = assignment?.invited_at ? new Date(assignment.invited_at).toLocaleDateString() : null;
             return (
               <>
                 <DialogHeader>
-                  <DialogTitle className="font-display">Team Member Details</DialogTitle>
+                  <DialogTitle className="font-display">{isAssigned ? 'Team Member Details' : 'Add to Project'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="flex items-center gap-4">
@@ -1148,10 +1149,12 @@ const ProjectPortal = () => {
                         <p className="text-sm text-muted-foreground">{selectedMember.crew_name}</p>
                       )}
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${badge.className}`}>
-                      <badge.icon className="w-4 h-4" />
-                      {badge.label}
-                    </span>
+                    {isAssigned && (
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${badge.className}`}>
+                        <badge.icon className="w-4 h-4" />
+                        {badge.label}
+                      </span>
+                    )}
                   </div>
 
                   <div className="space-y-2 bg-muted/50 rounded-lg p-4">
@@ -1177,32 +1180,142 @@ const ProjectPortal = () => {
                     )}
                   </div>
 
-                  {status !== 'active' && (
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-sm text-amber-700 font-body">
+                  {/* Status Selector for assigned members */}
+                  {isAssigned && (
+                    <div className="space-y-2">
+                      <Label className="font-display font-semibold text-sm">Assignment Status</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['invited', 'pending', 'active'] as const).map(s => {
+                          const b = getStatusBadge(s);
+                          const isCurrent = status === s;
+                          return (
+                            <button
+                              key={s}
+                              onClick={async () => {
+                                if (isCurrent) return;
+                                try {
+                                  await updateAssignmentStatus.mutateAsync({ assignmentId: assignment.id, status: s });
+                                  toast({ title: 'Status updated', description: `${selectedMember.name} is now "${s}".` });
+                                } catch {
+                                  toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+                                }
+                              }}
+                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
+                                isCurrent
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border hover:border-muted-foreground/40'
+                              }`}
+                            >
+                              <b.icon className={`w-5 h-5 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`} />
+                              <span className={`text-xs font-display font-medium capitalize ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                {b.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Status picker for NEW assignment */}
+                  {!isAssigned && (
+                    <div className="space-y-2">
+                      <Label className="font-display font-semibold text-sm">Assign with Status</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['invited', 'pending', 'active'] as const).map(s => {
+                          const b = getStatusBadge(s);
+                          const isCurrent = newAssignStatus === s;
+                          return (
+                            <button
+                              key={s}
+                              onClick={() => setNewAssignStatus(s)}
+                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
+                                isCurrent
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border hover:border-muted-foreground/40'
+                              }`}
+                            >
+                              <b.icon className={`w-5 h-5 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`} />
+                              <span className={`text-xs font-display font-medium capitalize ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                {b.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {status !== 'active' && isAssigned && (
+                    <div className="p-3 rounded-lg bg-muted border border-border">
+                      <p className="text-sm text-muted-foreground font-body">
                         This member hasn't fully activated yet. You can resend the invitation email.
                       </p>
                     </div>
                   )}
                 </div>
                 <DialogFooter className="flex gap-2 sm:gap-2">
-                  <Button variant="outline" onClick={() => {
-                    handleToggleAssignment(selectedProject.id, selectedMember.id);
-                    setMemberDetailOpen(false);
-                  }} className="text-destructive hover:text-destructive">
-                    <X className="w-4 h-4 mr-1" />
-                    Remove
-                  </Button>
-                  {status !== 'active' && (
-                    <Button onClick={handleResendInvite} disabled={resendingInvite}>
-                      {resendingInvite ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
-                      Resend Invitation
-                    </Button>
-                  )}
-                  {status === 'active' && (
-                    <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>
-                      Close
-                    </Button>
+                  {isAssigned ? (
+                    <>
+                      {!confirmRemoveOpen ? (
+                        <Button variant="outline" onClick={() => setConfirmRemoveOpen(true)} className="text-destructive hover:text-destructive">
+                          <X className="w-4 h-4 mr-1" />
+                          Remove from Project
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2 w-full">
+                          <p className="text-sm text-destructive font-body flex-1">Are you sure?</p>
+                          <Button variant="outline" size="sm" onClick={() => setConfirmRemoveOpen(false)}>Cancel</Button>
+                          <Button variant="destructive" size="sm" onClick={async () => {
+                            try {
+                              await removeAssignment.mutateAsync({ assignmentId: assignment.id });
+                              toast({ title: 'Removed', description: `${selectedMember.name} removed from project.` });
+                              setMemberDetailOpen(false);
+                              setConfirmRemoveOpen(false);
+                            } catch {
+                              toast({ title: 'Error', description: 'Failed to remove', variant: 'destructive' });
+                            }
+                          }}>
+                            Confirm Remove
+                          </Button>
+                        </div>
+                      )}
+                      {!confirmRemoveOpen && status !== 'active' && (
+                        <Button onClick={handleResendInvite} disabled={resendingInvite}>
+                          {resendingInvite ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                          Resend Invitation
+                        </Button>
+                      )}
+                      {!confirmRemoveOpen && status === 'active' && (
+                        <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>
+                          Close
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>Cancel</Button>
+                      <Button
+                        className="gradient-primary text-primary-foreground"
+                        onClick={async () => {
+                          try {
+                            await addAssignment.mutateAsync({
+                              projectId: selectedProject.id,
+                              teamMemberId: selectedMember.id,
+                              status: newAssignStatus,
+                            });
+                            toast({ title: 'Assigned', description: `${selectedMember.name} added as "${newAssignStatus}".` });
+                            setMemberDetailOpen(false);
+                          } catch {
+                            toast({ title: 'Error', description: 'Failed to assign', variant: 'destructive' });
+                          }
+                        }}
+                        disabled={addAssignment.isPending}
+                      >
+                        {addAssignment.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+                        Add to Project
+                      </Button>
+                    </>
                   )}
                 </DialogFooter>
               </>
