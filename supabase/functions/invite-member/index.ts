@@ -45,16 +45,24 @@ Deno.serve(async (req) => {
     }
 
     // Invite the user via Supabase Auth — redirect to the reset-password page so they can set up their password
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    let inviteData = null;
+    const { data: inviteResult, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { name, role },
       redirectTo: redirect_url || undefined,
     });
 
     if (inviteError) {
-      return new Response(JSON.stringify({ error: inviteError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If user already exists, that's OK — just proceed with team member setup
+      if (inviteError.message.includes("already been registered")) {
+        console.log("User already registered, skipping invite:", email);
+      } else {
+        return new Response(JSON.stringify({ error: inviteError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      inviteData = inviteResult;
     }
 
     // Also create/update the team_members record
