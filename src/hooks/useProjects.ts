@@ -155,3 +155,43 @@ export function useToggleAssignment() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
   });
 }
+
+export function useAddAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, teamMemberId, status }: { projectId: string; teamMemberId: string; status: string }) => {
+      const { error } = await supabase.from('project_assignments').insert({
+        project_id: projectId,
+        team_member_id: teamMemberId,
+        invitation_status: status as any,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
+  });
+}
+
+export function useUpdateAssignmentStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ assignmentId, status }: { assignmentId: string; status: string }) => {
+      const { error } = await supabase
+        .from('project_assignments')
+        .update({ invitation_status: status as any })
+        .eq('id', assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
+  });
+}
+
+export function useRemoveAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ assignmentId }: { assignmentId: string }) => {
+      const { error } = await supabase.from('project_assignments').delete().eq('id', assignmentId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
+  });
+}
