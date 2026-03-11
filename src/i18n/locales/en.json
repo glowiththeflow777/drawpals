@@ -256,8 +256,8 @@
     "qbSuccess": "QuickBooks IIF exported!",
     "noDataExport": "No data to export",
     "pieLabels": {
-      "paid": "Paid",
-      "invoicedUnpaid": "Invoiced (Unpaid)",
+      "paid": "Approved",
+      "invoicedUnpaid": "Invoiced (Pending)",
       "remaining": "Remaining"
     },
     "bonus": {
