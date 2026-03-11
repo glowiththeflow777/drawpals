@@ -817,7 +817,7 @@ const ProjectPortal = () => {
                 {[
                   { label: 'Total Budget', value: Number(selectedProject.total_budget) },
                   { label: 'Invoiced', value: Number(selectedProject.amount_invoiced) },
-                  { label: 'Paid', value: Number(selectedProject.amount_paid) },
+                  { label: 'Approved', value: Number(selectedProject.amount_paid) },
                   { label: 'Remaining', value: Number(selectedProject.total_budget) - Number(selectedProject.amount_invoiced) },
                 ].map(stat => (
                   <div key={stat.label} className="card-elevated p-4">
