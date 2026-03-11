@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory, useSubBudgetForMember } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory, useSubBudgets, useSubBudgetLineItems } from '@/hooks/useProjects';
 import { useCurrentUser, useCurrentProfile } from '@/hooks/useAuth';
 // BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
@@ -61,25 +61,23 @@ const InvoiceWizard = () => {
   const [budgetSource, setBudgetSource] = useState<'master' | 'sub'>('sub');
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+  const [selectedSubBudgetId, setSelectedSubBudgetId] = useState<string>('');
 
-  // Resolve selected subcontractor to team_member_id
-  const selectedSubTeamMemberId = (() => {
-    if (!isAdminEntry) return profile?.team_member_id || undefined;
-    const match = teamMembers.find(m =>
-      m.role === 'subcontractor' && (m.crew_name === selectedSubcontractor || m.name === selectedSubcontractor)
-    );
-    return match?.id;
-  })();
+  // Fetch all sub budgets for this project
+  const { data: allSubBudgets = [] } = useSubBudgets(projectId || undefined);
+  const { data: selectedSubBudgetItems = [] } = useSubBudgetLineItems(selectedSubBudgetId || undefined);
 
-  const { data: subBudgetItems = [] } = useSubBudgetForMember(
-    projectId || undefined,
-    selectedSubTeamMemberId
-  );
+  // Auto-select first sub budget when project or subcontractor changes
+  useEffect(() => {
+    if (allSubBudgets.length > 0 && !selectedSubBudgetId) {
+      setSelectedSubBudgetId(allSubBudgets[0].id);
+    }
+  }, [allSubBudgets, selectedSubBudgetId]);
 
   // Determine which budget items to show in step 3
-  const activeBudgetItems = (isAdminEntry && budgetSource === 'master')
+  const activeBudgetItems = budgetSource === 'master'
     ? projectBudgetItems
-    : (subBudgetItems.length > 0 ? subBudgetItems : projectBudgetItems);
+    : selectedSubBudgetItems;
   const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
@@ -421,24 +419,44 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
-                {/* Budget source toggle for admin entries */}
-                {isAdminEntry && subBudgetItems.length > 0 && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                {/* Budget source toggle */}
+                <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="flex items-center gap-2">
                     <Label className="text-sm font-display font-semibold">Bill from:</Label>
                     <Select value={budgetSource} onValueChange={(v) => {
                       setBudgetSource(v as 'master' | 'sub');
-                      setLineItems([]); // Reset selections when switching
+                      setLineItems([]);
                     }}>
-                      <SelectTrigger className="w-64">
+                      <SelectTrigger className="w-48">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sub">Sub's Budget ({subBudgetItems.length} items)</SelectItem>
+                        <SelectItem value="sub">Sub Budget</SelectItem>
                         <SelectItem value="master">Master Budget ({projectBudgetItems.length} items)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                  {budgetSource === 'sub' && allSubBudgets.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-body text-muted-foreground">Sub Budget:</Label>
+                      <Select value={selectedSubBudgetId} onValueChange={(v) => {
+                        setSelectedSubBudgetId(v);
+                        setLineItems([]);
+                      }}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select a sub budget" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allSubBudgets.map((sb: any) => (
+                            <SelectItem key={sb.id} value={sb.id}>
+                              {sb.team_members?.name || sb.team_members?.crew_name || 'Unknown'} — {sb.file_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
 
                 <p className="text-muted-foreground font-body text-sm">
                   Tap each budget line item you're billing for, then set the % complete.
@@ -447,8 +465,10 @@ const InvoiceWizard = () => {
                 {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground font-body">
-                      {!isAdminEntry && subBudgetItems.length === 0
-                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                      {budgetSource === 'sub' && allSubBudgets.length === 0
+                        ? 'No sub budgets have been uploaded for this project yet.'
+                        : budgetSource === 'sub'
+                        ? 'No line items found in the selected sub budget.'
                         : 'No budget items found for this project.'}
                     </p>
                   </div>
