@@ -16,6 +16,7 @@ const InvoiceWizard = () => {
   const navigate = useNavigate();
   const { data: dbProjects = [] } = useProjects();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: directoryEntries = [] } = useSubcontractorDirectory();
   const createTeamMember = useCreateTeamMember();
   const { toast } = useToast();
   const { t } = useTranslation();
