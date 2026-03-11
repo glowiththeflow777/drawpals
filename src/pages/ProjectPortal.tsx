@@ -213,6 +213,115 @@ const ProjectPortal = () => {
     }
   };
 
+  const parseBudgetFile = (file: File, onParsed: (items: ParsedLineItem[]) => void) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (rows.length === 0) { onParsed([]); return; }
+
+        const headers = Object.keys(rows[0]);
+        const fieldPatterns: [string, RegExp[]][] = [
+          ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
+          ['costGroup',  [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
+          ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
+          ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
+          ['quantity', [/^quantity$/i, /^qty\.?$/i]],
+          ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
+          ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
+          ['costType', [/^cost\s*type$/i, /^type$/i]],
+          ['costCode', [/^cost\s*code$/i, /^code$/i]],
+        ];
+        const colMap: Record<string, string> = {};
+        const usedHeaders = new Set<string>();
+        for (const [field, patterns] of fieldPatterns) {
+          for (const pattern of patterns) {
+            const matchIdx = headers.findIndex((h) => !usedHeaders.has(h) && pattern.test(h.trim()));
+            if (matchIdx !== -1) { colMap[field] = headers[matchIdx]; usedHeaders.add(headers[matchIdx]); break; }
+          }
+        }
+        const col = (field: string) => colMap[field] || '';
+        const parsed: ParsedLineItem[] = rows.map((row, idx) => {
+          const costRaw = String(row[col('extendedCost')] ?? '');
+          const cost = parseFloat(costRaw.replace(/[^0-9.-]/g, '')) || 0;
+          const lineNo = Number(row[col('lineItemNo')]);
+          return {
+            id: `parsed-${idx}`,
+            lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
+            costGroup: String(row[col('costGroup')] || ''),
+            costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
+            description: String(row[col('description')] || ''),
+            quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
+            unit: String(row[col('unit')] || 'Each'),
+            extendedCost: cost,
+            costType: String(row[col('costType')] || 'Labor'),
+            costCode: String(row[col('costCode')] || ''),
+          };
+        }).filter(item => item.costItemName || item.extendedCost > 0);
+        onParsed(parsed);
+      } catch (err) {
+        console.error('Failed to parse file:', err);
+        onParsed([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleBudgetReupload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBudgetFileName(file.name);
+    parseBudgetFile(file, (items) => {
+      setBudgetParsedItems(items);
+      setBudgetSelectedIds(new Set(items.map(i => i.id)));
+      setBudgetUploadOpen(true);
+    });
+    e.target.value = '';
+  };
+
+  const handleSaveBudgetItems = async () => {
+    if (!selectedProject) return;
+    const selected = budgetParsedItems.filter(i => budgetSelectedIds.has(i.id));
+    if (selected.length === 0) return;
+    setSavingBudget(true);
+    try {
+      await insertBudgetItems.mutateAsync(
+        selected.map(item => ({
+          project_id: selectedProject.id,
+          line_item_no: item.lineItemNo,
+          cost_group: item.costGroup,
+          cost_item_name: item.costItemName,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          extended_cost: item.extendedCost,
+          cost_type: item.costType,
+          cost_code: item.costCode,
+        }))
+      );
+
+      // Update project total budget
+      const currentItems = allBudgetItems.filter(b => b.project_id === selectedProject.id);
+      const currentTotal = currentItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+      const newTotal = currentTotal + selected.reduce((s, i) => s + i.extendedCost, 0);
+      await updateProject.mutateAsync({ id: selectedProject.id, total_budget: newTotal });
+      setSelectedProject(prev => prev ? { ...prev, total_budget: newTotal } : prev);
+
+      toast({ title: 'Budget items added', description: `${selected.length} line items added to the project.` });
+      setBudgetUploadOpen(false);
+      setBudgetParsedItems([]);
+      setBudgetFileName('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to save budget items', variant: 'destructive' });
+    } finally {
+      setSavingBudget(false);
+    }
+  };
+
   const updateProjectStatus = async (projectId: string, status: ProjectStatus) => {
     try {
       await updateProject.mutateAsync({ id: projectId, status });
