@@ -333,7 +333,36 @@ const InvoiceWizard = () => {
                 </div>
                 <div>
                   <Label className="font-body">{t('invoiceWizard.step2.payrollDrawDate')}</Label>
-                  <Input type="date" value={drawDate} onChange={e => setDrawDate(e.target.value)} className="mt-1" />
+                  <p className="text-xs text-muted-foreground mb-1.5">Only Tuesdays are available — invoices must be submitted by Tuesday at 10:00 AM.</p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal mt-1",
+                          !drawDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {drawDate ? format(new Date(drawDate + 'T00:00:00'), 'PPP') : <span>Select a Tuesday</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={drawDate ? new Date(drawDate + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (date) setDrawDate(format(date, 'yyyy-MM-dd'));
+                        }}
+                        disabled={(date) => {
+                          // Only allow Tuesdays (day 2) that are today or in the future
+                          return date.getDay() !== 2 || startOfDay(date) < startOfDay(new Date());
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             )}
