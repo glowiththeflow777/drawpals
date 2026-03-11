@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory } from '@/hooks/useProjects';
 import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ const InvoiceWizard = () => {
   const navigate = useNavigate();
   const { data: dbProjects = [] } = useProjects();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: directoryEntries = [] } = useSubcontractorDirectory();
   const createTeamMember = useCreateTeamMember();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -184,11 +185,25 @@ const InvoiceWizard = () => {
                         <SelectValue placeholder={t('invoiceWizard.step2.chooseSubcontractor')} />
                       </SelectTrigger>
                       <SelectContent>
+                        {/* Team member subcontractors */}
                         {teamMembers.filter(m => m.role === 'subcontractor').map(m => (
-                          <SelectItem key={m.id} value={m.crew_name || m.name}>
+                          <SelectItem key={`tm-${m.id}`} value={m.crew_name || m.name}>
                             {m.crew_name || m.name}
                           </SelectItem>
                         ))}
+                        {/* Directory subcontractors (exclude duplicates by name) */}
+                        {directoryEntries
+                          .filter(d => {
+                            const teamNames = teamMembers
+                              .filter(m => m.role === 'subcontractor')
+                              .map(m => (m.crew_name || m.name).toLowerCase());
+                            return !teamNames.includes(d.company_name.toLowerCase());
+                          })
+                          .map(d => (
+                            <SelectItem key={`dir-${d.id}`} value={d.company_name}>
+                              {d.company_name}{d.contact_name ? ` (${d.contact_name})` : ''}
+                            </SelectItem>
+                          ))}
                         <SelectItem value="__new__">
                           <span className="flex items-center gap-1.5">
                             <UserPlus className="w-3.5 h-3.5" /> Add New Subcontractor

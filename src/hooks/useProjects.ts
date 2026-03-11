@@ -42,6 +42,19 @@ export function useTeamMembers() {
   });
 }
 
+export type DbSubcontractorDirectory = Tables<'subcontractor_directory'>;
+
+export function useSubcontractorDirectory() {
+  return useQuery({
+    queryKey: ['subcontractor_directory'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subcontractor_directory').select('*').order('company_name');
+      if (error) throw error;
+      return data as DbSubcontractorDirectory[];
+    },
+  });
+}
+
 export function useProjectAssignments(projectId?: string) {
   return useQuery({
     queryKey: ['project_assignments', projectId],
