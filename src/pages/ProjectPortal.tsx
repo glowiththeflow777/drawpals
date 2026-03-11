@@ -1006,7 +1006,7 @@ const ProjectPortal = () => {
                 currentUserId={currentUserId}
               />
 
-              {/* Budget Line Items (Master - Admin Only) */}
+              {/* Master Budget */}
               <div className="card-elevated p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <button
@@ -1016,24 +1016,22 @@ const ProjectPortal = () => {
                   >
                     {budgetExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                     <FileSpreadsheet className="w-5 h-5 text-muted-foreground" />
-                    Budget Line Items
+                    Master Budget
                     <span className="text-sm font-normal text-muted-foreground">
                       ({allBudgetItems.filter(b => b.project_id === selectedProject.id).length} items)
                     </span>
                   </button>
-                  {budgetExpanded && (
-                    <div className="relative">
-                      <input
-                        type="file"
-                        accept=".xlsx,.xls,.csv"
-                        onChange={handleBudgetReupload}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                      />
-                      <Button variant="outline" size="sm" className="font-display text-xs">
-                        <Upload className="w-3 h-3 mr-1" /> Add Budget Items
-                      </Button>
-                    </div>
-                  )}
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleBudgetReupload}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                    />
+                    <Button variant="outline" size="sm" className="font-display text-xs">
+                      <Upload className="w-3 h-3 mr-1" /> Add Budget Items
+                    </Button>
+                  </div>
                 </div>
                 {budgetExpanded && (() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
