@@ -13,6 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const tabs = [
     { label: t('nav.dashboard'), path: '/admin', icon: BarChart3 },
     { label: t('nav.projectsNav'), path: '/admin/projects', icon: FolderOpen },
+    { label: t('nav.invoices'), path: '/admin/invoices', icon: FileText },
     { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
     { label: t('nav.team'), path: '/admin/team', icon: Users },
   ];
