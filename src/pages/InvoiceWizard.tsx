@@ -478,6 +478,25 @@ const InvoiceWizard = () => {
                                       {item.description && item.description !== item.cost_item_name && (
                                         <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                                       )}
+                                      {(() => {
+                                        const billed = billingHistory.get(item.id) || 0;
+                                        const total = Number(item.extended_cost);
+                                        const remaining = total - billed;
+                                        if (billed > 0) {
+                                          const pctBilled = total > 0 ? Math.round((billed / total) * 100) : 0;
+                                          return (
+                                            <div className="flex items-center gap-3 mt-1">
+                                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(pctBilled, 100)}%` }} />
+                                              </div>
+                                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                ${billed.toLocaleString()} billed · ${remaining.toLocaleString()} left
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
                                   </button>
                                   {isSelected && liIdx >= 0 && (
@@ -501,6 +520,15 @@ const InvoiceWizard = () => {
                                           readOnly
                                           className="mt-1 h-8 text-sm bg-muted font-semibold"
                                           value={lineItems[liIdx]?.drawAmount || 0}
+                                        />
+                                      </div>
+                                      <div className="flex-1">
+                                        <Label className="text-xs font-body">Remaining</Label>
+                                        <Input
+                                          type="number"
+                                          readOnly
+                                          className="mt-1 h-8 text-sm bg-muted font-semibold"
+                                          value={Math.max(0, Number(item.extended_cost) - (billingHistory.get(item.id) || 0) - (lineItems[liIdx]?.drawAmount || 0))}
                                         />
                                       </div>
                                     </div>
