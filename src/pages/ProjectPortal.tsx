@@ -817,20 +817,13 @@ const ProjectPortal = () => {
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: 'Total Budget', value: Number(selectedProject.total_budget) },
-                  { label: 'Invoiced', value: Number(selectedProject.amount_invoiced) },
-                  { label: 'Approved', value: Number(selectedProject.amount_paid) },
-                  { label: 'Remaining', value: Number(selectedProject.total_budget) - Number(selectedProject.amount_invoiced) },
-                ].map(stat => (
-                  <div key={stat.label} className="card-elevated p-4">
-                    <p className="text-xs text-muted-foreground font-body">{stat.label}</p>
-                    <p className="text-xl font-display font-bold">${stat.value.toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
+              {/* Financial Dashboard */}
+              <FinancialDashboard
+                project={selectedProject}
+                budgetItems={allBudgetItems.filter(b => b.project_id === selectedProject.id)}
+                invoiceLineItems={invoiceLineItems}
+                billingHistory={billingHistory}
+              />
 
               {/* Assigned Admins & Project Managers */}
               <div className="card-elevated p-5 space-y-5">
