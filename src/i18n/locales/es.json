@@ -232,7 +232,7 @@
   "adminDashboard": {
     "totalBudget": "Presupuesto Total",
     "invoiced": "Facturado",
-    "paid": "Pagado",
+    "paid": "Aprobado",
     "remaining": "Restante",
     "budgetBreakdown": "Desglose del Presupuesto",
     "budgetVsActual": "Presupuesto vs Real",
