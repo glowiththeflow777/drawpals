@@ -961,12 +961,9 @@ const ProjectPortal = () => {
                       <button
                         key={sub.id}
                         onClick={() => {
-                          if (isAssigned) {
-                            setSelectedMember(sub);
-                            setMemberDetailOpen(true);
-                          } else {
-                            handleToggleAssignment(selectedProject.id, sub.id);
-                          }
+                          setSelectedMember(sub);
+                          if (!isAssigned) setNewAssignStatus('invited');
+                          setMemberDetailOpen(true);
                         }}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                           isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
