@@ -169,7 +169,7 @@ const InvoiceWizard = () => {
                     <p className="text-xs font-display font-semibold text-warning">{t('invoiceWizard.step2.adminEntry')}</p>
                   </div>
                 )}
-                {(
+                {true && (
                   <div className="space-y-3">
                     <Label className="font-body">{t('invoiceWizard.step2.selectSubcontractor')}</Label>
                     <Select value={selectedSubcontractor} onValueChange={(val) => {
