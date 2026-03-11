@@ -61,7 +61,7 @@ const App = () => (
           } />
           <Route path="/invoice/new" element={
             <RoleProvider>
-              <ProtectedRoute allowedRoles={['subcontractor']}>
+              <ProtectedRoute allowedRoles={['subcontractor', 'admin', 'project-manager']}>
                 <SubcontractorLayout><InvoiceWizard /></SubcontractorLayout>
               </ProtectedRoute>
             </RoleProvider>
