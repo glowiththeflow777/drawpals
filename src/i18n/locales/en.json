@@ -232,7 +232,7 @@
   "adminDashboard": {
     "totalBudget": "Total Budget",
     "invoiced": "Invoiced",
-    "paid": "Paid",
+    "paid": "Approved",
     "remaining": "Remaining",
     "budgetBreakdown": "Budget Breakdown",
     "budgetVsActual": "Budget vs Actual",
