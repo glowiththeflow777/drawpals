@@ -8,6 +8,7 @@ import SubcontractorDashboard from "./pages/SubcontractorDashboard";
 import InvoiceWizard from "./pages/InvoiceWizard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Approvals from "./pages/Approvals";
+import Invoices from "./pages/Invoices";
 import ProjectPortal from "./pages/ProjectPortal";
 import TeamManagement from "./pages/TeamManagement";
 import AdminLayout from "./components/AdminLayout";
