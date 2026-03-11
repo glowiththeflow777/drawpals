@@ -12,7 +12,7 @@ import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
-import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
+// BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
