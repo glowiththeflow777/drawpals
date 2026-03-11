@@ -198,6 +198,47 @@ export function useUpdateAssignmentStatus() {
   });
 }
 
+export function useInvoices(projectId?: string) {
+  return useQuery({
+    queryKey: ['invoices', projectId],
+    queryFn: async () => {
+      let query = supabase.from('invoices').select('*');
+      if (projectId) query = query.eq('project_id', projectId);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useCreateInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invoice: {
+      project_id: string;
+      submitted_by: string;
+      subcontractor_name: string;
+      invoice_number: string;
+      invoice_date: string;
+      sow_total: number;
+      day_labor_total: number;
+      reimbursement_total: number;
+      change_order_total: number;
+      credit_total: number;
+      grand_total: number;
+      notes: string;
+    }) => {
+      const { data, error } = await supabase.from('invoices').insert(invoice).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
+
 export function useRemoveAssignment() {
   const qc = useQueryClient();
   return useMutation({
