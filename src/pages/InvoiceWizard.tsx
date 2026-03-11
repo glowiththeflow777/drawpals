@@ -25,6 +25,7 @@ const InvoiceWizard = () => {
   const createTeamMember = useCreateTeamMember();
   const createInvoice = useCreateInvoice();
   const { user } = useCurrentUser();
+  const { data: profile } = useCurrentProfile();
   const { toast } = useToast();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
