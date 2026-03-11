@@ -169,8 +169,7 @@ const InvoiceWizard = () => {
                     <p className="text-xs font-display font-semibold text-warning">{t('invoiceWizard.step2.adminEntry')}</p>
                   </div>
                 )}
-                {
-                  <div className="space-y-3">
+                <div className="space-y-3">
                     <Label className="font-body">{t('invoiceWizard.step2.selectSubcontractor')}</Label>
                     <Select value={selectedSubcontractor} onValueChange={(val) => {
                       if (val === '__new__') {
@@ -243,7 +242,7 @@ const InvoiceWizard = () => {
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            disabled={!newSubForm.name.trim() || !newSubForm.email.trim() || creatingNewSub}
+                            disabled={creatingNewSub || !newSubForm.name.trim() || !newSubForm.email.trim()}
                             onClick={async () => {
                               setCreatingNewSub(true);
                               try {
@@ -277,7 +276,6 @@ const InvoiceWizard = () => {
                       </div>
                     )}
                   </div>
-                )}
                 <div>
                   <Label className="font-body">{t('invoiceWizard.step2.crewName')}</Label>
                   <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" readOnly={isAdminEntry} />
