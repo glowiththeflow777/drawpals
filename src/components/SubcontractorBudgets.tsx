@@ -327,7 +327,7 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                       value={columnMapping[field.key] || '__none__'}
                       onValueChange={(v) => updateMapping(field.key, v)}
                     >
-                      <SelectTrigger className="h-9 text-sm">
+                      <SelectTrigger className="h-9 text-sm truncate" title={columnMapping[field.key] || ''}>
                         <SelectValue placeholder="— Not mapped —" />
                       </SelectTrigger>
                       <SelectContent className="max-h-60 overflow-y-auto">
