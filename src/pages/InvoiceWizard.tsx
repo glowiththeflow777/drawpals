@@ -58,8 +58,28 @@ const InvoiceWizard = () => {
   const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
   const { data: projectAssignments = [] } = useProjectAssignments(projectId || undefined);
   const { data: billingHistory = new Map() } = useBillingHistory(projectId || undefined);
+  const [budgetSource, setBudgetSource] = useState<'master' | 'sub'>('sub');
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+
+  // Resolve selected subcontractor to team_member_id
+  const selectedSubTeamMemberId = (() => {
+    if (!isAdminEntry) return profile?.team_member_id || undefined;
+    const match = teamMembers.find(m =>
+      m.role === 'subcontractor' && (m.crew_name === selectedSubcontractor || m.name === selectedSubcontractor)
+    );
+    return match?.id;
+  })();
+
+  const { data: subBudgetItems = [] } = useSubBudgetForMember(
+    projectId || undefined,
+    selectedSubTeamMemberId
+  );
+
+  // Determine which budget items to show in step 3
+  const activeBudgetItems = (isAdminEntry && budgetSource === 'master')
+    ? projectBudgetItems
+    : (subBudgetItems.length > 0 ? subBudgetItems : projectBudgetItems);
   const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
