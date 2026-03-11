@@ -81,6 +81,59 @@ const ProjectPortal = () => {
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
 
+  // Quick invite dialog state
+  type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
+  const [quickInviteOpen, setQuickInviteOpen] = useState(false);
+  const [quickInviteRole, setQuickInviteRole] = useState<QuickInviteRole>('subcontractor');
+  const [quickInviteForm, setQuickInviteForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
+  const [quickInviteSending, setQuickInviteSending] = useState(false);
+
+  const qc = useQueryClient();
+
+  const openQuickInvite = (role: QuickInviteRole) => {
+    setQuickInviteRole(role);
+    setQuickInviteForm({ name: '', email: '', phone: '', crew_name: '' });
+    setQuickInviteOpen(true);
+  };
+
+  const handleQuickInvite = async () => {
+    if (!quickInviteForm.name.trim() || !quickInviteForm.email.trim() || !selectedProject) return;
+    setQuickInviteSending(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: t('team.sessionExpired'), description: t('team.sessionExpiredDesc'), variant: 'destructive' });
+        navigate('/');
+        return;
+      }
+
+      const res = await supabase.functions.invoke('invite-member', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: quickInviteForm.email,
+          name: quickInviteForm.name,
+          role: quickInviteRole,
+          phone: quickInviteForm.phone,
+          crew_name: quickInviteRole === 'subcontractor' ? quickInviteForm.crew_name : null,
+          project_id: selectedProject.id,
+          redirect_url: `${window.location.origin}/reset-password`,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message || 'Failed to send invitation');
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast({ title: t('team.inviteSent'), description: t('team.inviteDesc', { email: quickInviteForm.email }) });
+      setQuickInviteOpen(false);
+      // Refresh team members and assignments
+      qc.invalidateQueries({ queryKey: ['team_members'] });
+      qc.invalidateQueries({ queryKey: ['project_assignments'] });
+    } catch (e: any) {
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } finally {
+      setQuickInviteSending(false);
+    }
+  };
   const filteredProjects = activeTab === 'all'
     ? projects
     : projects.filter(p => p.status === activeTab);
