@@ -456,12 +456,15 @@ const InvoiceWizard = () => {
                                         <span className="font-display text-sm font-medium">
                                           <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
                                           {item.cost_item_name}
+                                          {item.cost_type && (
+                                            <span className="text-xs text-muted-foreground ml-1.5">({item.cost_type})</span>
+                                          )}
                                         </span>
                                         <span className="text-xs font-display font-semibold ml-2 flex-shrink-0">
                                           ${Number(item.extended_cost).toLocaleString()}
                                         </span>
                                       </div>
-                                      {item.description && (
+                                      {item.description && item.description !== item.cost_item_name && (
                                         <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                                       )}
                                     </div>
