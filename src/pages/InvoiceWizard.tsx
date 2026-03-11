@@ -474,7 +474,7 @@ const InvoiceWizard = () => {
                   <input
                     type="file"
                     multiple
-                    accept="image/*,.pdf,.doc,.docx"
+                    accept="image/*,.pdf,.doc,.docx,.xlsx,.xls,.csv,.txt,.rtf,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="absolute inset-0 opacity-0 cursor-pointer z-10"
                     onChange={(e) => {
                       const files = e.target.files;
