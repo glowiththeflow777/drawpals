@@ -446,6 +446,7 @@ const ProjectPortal = () => {
       });
 
       if (selectedParsedItems.length > 0) {
+        const batchName = uploadedFileName || `Budget ${new Date().toLocaleDateString()}`;
         await insertBudgetItems.mutateAsync(
           selectedParsedItems.map(item => ({
             project_id: newProject.id,
@@ -458,6 +459,7 @@ const ProjectPortal = () => {
             extended_cost: item.extendedCost,
             cost_type: item.costType,
             cost_code: item.costCode,
+            batch_label: batchName,
           }))
         );
       }
