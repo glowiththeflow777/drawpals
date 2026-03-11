@@ -1002,7 +1002,7 @@ const ProjectPortal = () => {
               {/* Subcontractor Budgets */}
               <SubcontractorBudgets
                 projectId={selectedProject.id}
-                assignedSubs={getProjectAssignments(selectedProject.id, 'subcontractor')}
+                assignedMembers={getProjectAssignments(selectedProject.id)}
                 currentUserId={currentUserId}
               />
 
