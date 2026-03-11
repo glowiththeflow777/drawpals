@@ -6,44 +6,62 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { mockInvoices, mockProjects } from '@/data/mockData';
-import type { Invoice } from '@/types/budget';
+import { useInvoices, useProjects, useUpdateInvoiceStatus } from '@/hooks/useProjects';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
-type FilterStatus = 'all' | 'pending' | 'approved' | 'rejected';
+type FilterStatus = 'all' | 'submitted' | 'approved' | 'rejected';
 
 const Approvals = () => {
   const { t } = useTranslation();
-  const [filter, setFilter] = useState<FilterStatus>('pending');
+  const [filter, setFilter] = useState<FilterStatus>('submitted');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState<Record<string, string>>({});
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const { data: invoices = [], isLoading } = useInvoices();
+  const { data: projects = [] } = useProjects();
+  const updateStatus = useUpdateInvoiceStatus();
 
   const statusConfig = {
-    pending: { icon: Clock, label: t('status.pending'), className: 'bg-warning/15 text-warning' },
+    submitted: { icon: Clock, label: t('status.pending'), className: 'bg-warning/15 text-warning' },
     approved: { icon: CheckCircle2, label: t('status.approved'), className: 'bg-success/15 text-success' },
     rejected: { icon: XCircle, label: t('status.rejected'), className: 'bg-destructive/15 text-destructive' },
-    draft: { icon: AlertCircle, label: t('status.draft'), className: 'bg-muted text-muted-foreground' },
   };
 
   const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const invoices = filter === 'all' ? mockInvoices : mockInvoices.filter(i => i.status === filter);
-  const pendingCount = mockInvoices.filter(i => i.status === 'pending').length;
+  const filtered = filter === 'all' ? invoices : invoices.filter(i => i.status === filter);
+  const pendingCount = invoices.filter(i => i.status === 'submitted').length;
 
   const handleApprove = async (id: string) => {
-    setActionLoading(id);
-    // TODO: wire to DB
-    setTimeout(() => setActionLoading(null), 800);
+    updateStatus.mutate(
+      { invoiceId: id, status: 'approved' },
+      {
+        onSuccess: () => toast.success('Invoice approved'),
+        onError: (e) => toast.error(`Failed: ${e.message}`),
+      }
+    );
   };
 
   const handleReject = async (id: string) => {
-    setActionLoading(id);
-    // TODO: wire to DB
-    setTimeout(() => setActionLoading(null), 800);
+    updateStatus.mutate(
+      { invoiceId: id, status: 'rejected', rejectionNotes: rejectionNotes[id] || '' },
+      {
+        onSuccess: () => toast.success('Invoice rejected'),
+        onError: (e) => toast.error(`Failed: ${e.message}`),
+      }
+    );
   };
 
   const toggle = (id: string) => setExpandedId(prev => prev === id ? null : id);
+
+  if (isLoading) {
+    return (
+      <main className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
@@ -60,7 +78,7 @@ const Approvals = () => {
       {/* Filter chips */}
       <div className="flex gap-2">
         {([
-          { value: 'pending' as FilterStatus, label: `${t('approvals.pending')} (${mockInvoices.filter(i => i.status === 'pending').length})` },
+          { value: 'submitted' as FilterStatus, label: `${t('approvals.pending')} (${pendingCount})` },
           { value: 'approved' as FilterStatus, label: t('approvals.approved') },
           { value: 'rejected' as FilterStatus, label: t('approvals.rejected') },
           { value: 'all' as FilterStatus, label: t('common.all') },
@@ -78,18 +96,20 @@ const Approvals = () => {
       </div>
 
       {/* Invoice list */}
-      {invoices.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="card-elevated p-12 text-center text-muted-foreground font-body">
           {t('approvals.noInvoices')}
         </div>
       ) : (
         <div className="space-y-4">
           <AnimatePresence>
-            {invoices.map((inv, i) => {
-              const project = mockProjects.find(p => p.id === inv.projectId);
-              const status = statusConfig[inv.status];
+            {filtered.map((inv, i) => {
+              const project = projects.find(p => p.id === inv.project_id);
+              const statusKey = inv.status as keyof typeof statusConfig;
+              const status = statusConfig[statusKey] || statusConfig.submitted;
               const StatusIcon = status.icon;
               const expanded = expandedId === inv.id;
+              const isMutating = updateStatus.isPending && updateStatus.variables?.invoiceId === inv.id;
 
               return (
                 <motion.div
@@ -111,13 +131,13 @@ const Approvals = () => {
                           <StatusIcon className="w-3 h-3" />
                           {status.label}
                         </span>
-                        <span className="text-xs text-muted-foreground font-body">Draw: {inv.payrollDrawDate}</span>
+                        <span className="text-xs text-muted-foreground font-body">{inv.invoice_date}</span>
                       </div>
-                      <h3 className="font-display font-semibold text-base">{inv.crewName}</h3>
-                      <p className="text-sm text-muted-foreground font-body">{project?.name} — {inv.projectAddress}</p>
+                      <h3 className="font-display font-semibold text-base">{inv.subcontractor_name || 'Invoice'} — #{inv.invoice_number}</h3>
+                      <p className="text-sm text-muted-foreground font-body">{project?.name || 'Unknown Project'}</p>
                     </div>
                     <div className="flex items-center gap-4 ml-4">
-                      <p className="font-display font-bold text-xl">{fmt(inv.totals.total)}</p>
+                      <p className="font-display font-bold text-xl">{fmt(inv.grand_total)}</p>
                       {expanded ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
                     </div>
                   </button>
@@ -136,11 +156,11 @@ const Approvals = () => {
                           {/* Totals summary */}
                           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                             {[
-                              { label: 'SOW Draw', value: inv.totals.sowDraw, icon: FileText },
-                              { label: 'Day Labor', value: inv.totals.dayRateLabor, icon: Hammer },
-                              { label: 'Reimbursements', value: inv.totals.reimbursement, icon: Receipt },
-                              { label: 'Change Orders', value: inv.totals.changeOrders, icon: ArrowRightLeft },
-                              { label: 'Credits', value: inv.totals.credits, icon: DollarSign },
+                              { label: 'SOW Draw', value: inv.sow_total, icon: FileText },
+                              { label: 'Day Labor', value: inv.day_labor_total, icon: Hammer },
+                              { label: 'Reimbursements', value: inv.reimbursement_total, icon: Receipt },
+                              { label: 'Change Orders', value: inv.change_order_total, icon: ArrowRightLeft },
+                              { label: 'Credits', value: inv.credit_total, icon: DollarSign },
                             ].map(t => (
                               <div key={t.label} className="bg-muted/50 rounded-lg p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
@@ -152,156 +172,30 @@ const Approvals = () => {
                             ))}
                           </div>
 
-                          {/* Line Items */}
-                          {inv.lineItems.length > 0 && (
-                            <div>
-                              <h4 className="font-display font-semibold text-sm mb-2 flex items-center gap-1.5">
-                                <FileText className="w-4 h-4 text-primary" /> SOW Line Items
-                              </h4>
-                              <div className="rounded-lg border border-border overflow-hidden">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="bg-muted/50">
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">#</th>
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Description</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Contract</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">% Complete</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Draw</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {inv.lineItems.map((li, idx) => (
-                                      <tr key={li.id || idx} className="border-t border-border/50">
-                                        <td className="p-2.5 font-body text-muted-foreground">{li.lineItemNo || idx + 1}</td>
-                                        <td className="p-2.5 font-body">{li.description}</td>
-                                        <td className="p-2.5 text-right font-body">{fmt(li.contractPrice)}</td>
-                                        <td className="p-2.5 text-right font-body">{li.percentComplete}%</td>
-                                        <td className="p-2.5 text-right font-display font-semibold">{fmt(li.drawAmount)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Day Labor */}
-                          {inv.dayLabor.length > 0 && (
-                            <div>
-                              <h4 className="font-display font-semibold text-sm mb-2 flex items-center gap-1.5">
-                                <Hammer className="w-4 h-4 text-accent" /> Day Labor
-                              </h4>
-                              <div className="rounded-lg border border-border overflow-hidden">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="bg-muted/50">
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Day</th>
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Crew/Notes</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Hours</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Amount</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {inv.dayLabor.map((dl, idx) => (
-                                      <tr key={idx} className="border-t border-border/50">
-                                        <td className="p-2.5 font-body">{dl.day}</td>
-                                        <td className="p-2.5 font-body text-muted-foreground">{dl.crewMembers}</td>
-                                        <td className="p-2.5 text-right font-body">{dl.hours || '-'}</td>
-                                        <td className="p-2.5 text-right font-display font-semibold">{fmt(dl.amount)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Reimbursements */}
-                          {inv.reimbursements.length > 0 && (
-                            <div>
-                              <h4 className="font-display font-semibold text-sm mb-2 flex items-center gap-1.5">
-                                <Receipt className="w-4 h-4 text-info" /> Reimbursements
-                              </h4>
-                              <div className="rounded-lg border border-border overflow-hidden">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="bg-muted/50">
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Date</th>
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Store</th>
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Description</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Amount</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {inv.reimbursements.map((r, idx) => (
-                                      <tr key={idx} className="border-t border-border/50">
-                                        <td className="p-2.5 font-body">{r.date}</td>
-                                        <td className="p-2.5 font-body">{r.store}</td>
-                                        <td className="p-2.5 font-body text-muted-foreground">{r.description}</td>
-                                        <td className="p-2.5 text-right font-display font-semibold">{fmt(r.amount)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Change Orders & Credits */}
-                          {(inv.changeOrders.length > 0 || inv.credits.length > 0) && (
-                            <div>
-                              <h4 className="font-display font-semibold text-sm mb-2 flex items-center gap-1.5">
-                                <ArrowRightLeft className="w-4 h-4 text-warning" /> Change Orders & Credits
-                              </h4>
-                              <div className="rounded-lg border border-border overflow-hidden">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="bg-muted/50">
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Type</th>
-                                      <th className="text-left p-2.5 font-display font-semibold text-xs text-muted-foreground">Description</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Qty</th>
-                                      <th className="text-right p-2.5 font-display font-semibold text-xs text-muted-foreground">Amount</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {inv.changeOrders.map((co, idx) => (
-                                      <tr key={`co-${idx}`} className="border-t border-border/50">
-                                        <td className="p-2.5 font-body"><span className="px-2 py-0.5 rounded text-xs bg-warning/15 text-warning font-medium">CO</span></td>
-                                        <td className="p-2.5 font-body">{co.description}</td>
-                                        <td className="p-2.5 text-right font-body">{co.quantity}</td>
-                                        <td className="p-2.5 text-right font-display font-semibold">{fmt(co.amount)}</td>
-                                      </tr>
-                                    ))}
-                                    {inv.credits.map((cr, idx) => (
-                                      <tr key={`cr-${idx}`} className="border-t border-border/50">
-                                        <td className="p-2.5 font-body"><span className="px-2 py-0.5 rounded text-xs bg-destructive/15 text-destructive font-medium">Credit</span></td>
-                                        <td className="p-2.5 font-body">{cr.description}</td>
-                                        <td className="p-2.5 text-right font-body">{cr.quantity}</td>
-                                        <td className="p-2.5 text-right font-display font-semibold">{fmt(cr.amount)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
+                          {/* Notes */}
+                          {inv.notes && (
+                            <div className="bg-muted/30 rounded-lg p-4">
+                              <p className="text-sm font-medium mb-1">Notes</p>
+                              <p className="text-sm text-muted-foreground font-body">{inv.notes}</p>
                             </div>
                           )}
 
                           {/* Rejection notes (if rejected) */}
-                          {inv.status === 'rejected' && inv.rejectionNotes && (
+                          {inv.status === 'rejected' && (inv as any).rejection_notes && (
                             <div className="bg-destructive/5 border border-destructive/15 rounded-lg p-4">
                               <p className="text-sm font-medium text-destructive mb-1">Rejection Reason:</p>
-                              <p className="text-sm text-destructive/80 font-body">{inv.rejectionNotes}</p>
+                              <p className="text-sm text-destructive/80 font-body">{(inv as any).rejection_notes}</p>
                             </div>
                           )}
 
                           {/* Grand total */}
                           <div className="flex items-center justify-between bg-secondary/10 rounded-lg p-4">
                             <span className="font-display font-semibold text-lg">Invoice Total</span>
-                            <span className="font-display font-bold text-2xl">{fmt(inv.totals.total)}</span>
+                            <span className="font-display font-bold text-2xl">{fmt(inv.grand_total)}</span>
                           </div>
 
-                          {/* Actions for pending invoices */}
-                          {inv.status === 'pending' && (
+                          {/* Actions for submitted invoices */}
+                          {inv.status === 'submitted' && (
                             <div className="space-y-3">
                               <div>
                                 <label className="text-sm font-medium font-body mb-1.5 block">Rejection notes (optional)</label>
@@ -316,18 +210,18 @@ const Approvals = () => {
                                 <Button
                                   className="flex-1 bg-success text-success-foreground hover:bg-success/90 font-display"
                                   onClick={() => handleApprove(inv.id)}
-                                  disabled={actionLoading === inv.id}
+                                  disabled={isMutating}
                                 >
-                                  {actionLoading === inv.id ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                                  {isMutating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
                                   Approve Invoice
                                 </Button>
                                 <Button
                                   variant="outline"
                                   className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/5 font-display"
                                   onClick={() => handleReject(inv.id)}
-                                  disabled={actionLoading === inv.id || !rejectionNotes[inv.id]?.trim()}
+                                  disabled={isMutating || !rejectionNotes[inv.id]?.trim()}
                                 >
-                                  {actionLoading === inv.id ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <XCircle className="w-4 h-4 mr-1" />}
+                                  {isMutating ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <XCircle className="w-4 h-4 mr-1" />}
                                   Reject Invoice
                                 </Button>
                               </div>
