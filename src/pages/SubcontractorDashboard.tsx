@@ -31,7 +31,7 @@ const SubcontractorDashboard = () => {
           { label: t('dashboard.assignedProjects', 'Assigned Projects'), value: activeProjects.length.toString(), icon: FolderOpen, color: 'text-foreground', prefix: '' },
           { label: t('adminDashboard.totalBudget', 'Total Budget'), value: totalBudget, icon: DollarSign, color: 'text-foreground', prefix: '$' },
           { label: t('dashboard.pending', 'Pending'), value: totalInvoiced - totalPaid, icon: Clock, color: 'text-warning', prefix: '$' },
-          { label: t('dashboard.approved', 'Paid'), value: totalPaid, icon: CheckCircle2, color: 'text-success', prefix: '$' },
+          { label: t('dashboard.approved', 'Approved'), value: totalPaid, icon: CheckCircle2, color: 'text-success', prefix: '$' },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card-elevated p-4">
             <div className="flex items-center gap-2 mb-1">
