@@ -1,4 +1,4 @@
-import { Building2, LogOut, FileText, Plus, ChevronDown } from 'lucide-react';
+import { Building2, LogOut, BarChart3, FolderOpen, FileText, Plus, ChevronDown } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -18,8 +18,10 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
   const { t } = useTranslation();
 
   const tabs = [
-    { label: t('nav.invoices'), path: '/dashboard', icon: FileText },
-    { label: t('nav.newInvoice'), path: '/invoice/new', icon: Plus },
+    { label: t('nav.dashboard', 'Dashboard'), path: '/dashboard', icon: BarChart3 },
+    { label: t('nav.myProjects', 'My Projects'), path: '/dashboard/projects', icon: FolderOpen },
+    { label: t('nav.invoices', 'Invoices'), path: '/dashboard/invoices', icon: FileText },
+    { label: t('nav.newInvoice', 'New Invoice'), path: '/invoice/new', icon: Plus },
   ];
 
   return (
@@ -65,7 +67,7 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
             <LanguageSwitcher />
           </div>
         </div>
-        <nav className="max-w-4xl mx-auto flex gap-1">
+        <nav className="max-w-4xl mx-auto flex gap-1 overflow-x-auto">
           {tabs.map(t => {
             const active = pathname === t.path;
             return (
@@ -73,7 +75,7 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
                 key={t.path}
                 to={t.path}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 py-2.5 text-sm font-display font-medium rounded-t-lg transition-colors',
+                  'flex items-center gap-1.5 px-4 py-2.5 text-sm font-display font-medium rounded-t-lg transition-colors whitespace-nowrap',
                   active
                     ? 'bg-background text-foreground'
                     : 'text-secondary-foreground/50 hover:text-secondary-foreground/80 hover:bg-secondary-foreground/5'
