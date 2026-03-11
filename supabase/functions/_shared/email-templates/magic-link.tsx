@@ -24,12 +24,12 @@ export const MagicLinkEmail = ({
 }: MagicLinkEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your login link for {siteName}</Preview>
+    <Preview>Your Draw Pals login link</Preview>
     <Body style={main}>
       <Container style={container}>
         <Heading style={h1}>Your login link</Heading>
         <Text style={text}>
-          Click the button below to log in to {siteName}. This link will expire
+          Click the button below to log in to Draw Pals. This link will expire
           shortly.
         </Text>
         <Button style={button} href={confirmationUrl}>
@@ -45,26 +45,29 @@ export const MagicLinkEmail = ({
 
 export default MagicLinkEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const main = { backgroundColor: '#ffffff', fontFamily: "'DM Sans', 'Space Grotesk', Arial, sans-serif" }
 const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: 'hsl(30, 10%, 12%)',
+  fontFamily: "'Space Grotesk', Arial, sans-serif",
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: '#55575d',
+  color: 'hsl(30, 8%, 45%)',
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: 'hsl(32, 90%, 50%)',
   color: '#ffffff',
   fontSize: '14px',
-  borderRadius: '8px',
+  borderRadius: '0.75rem',
   padding: '12px 20px',
   textDecoration: 'none',
+  fontFamily: "'Space Grotesk', Arial, sans-serif",
+  fontWeight: '600' as const,
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
