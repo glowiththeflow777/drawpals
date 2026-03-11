@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { mockProjects } from '@/data/mockData';
+import { useProjects } from '@/hooks/useProjects';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
 
 const InvoiceWizard = () => {
   const navigate = useNavigate();
+  const { data: dbProjects = [] } = useProjects();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isAdminEntry = searchParams.get('admin') === 'true';
@@ -53,7 +54,7 @@ const InvoiceWizard = () => {
   const [changeOrders, setChangeOrders] = useState<Partial<ChangeOrderEntry>[]>([]);
   const [credits, setCredits] = useState<Partial<ChangeOrderEntry>[]>([]);
 
-  const project = mockProjects.find(p => p.id === projectId);
+  const project = dbProjects.find(p => p.id === projectId);
 
   const updateLineItem = (idx: number, field: string, value: string | number) => {
     const updated = [...lineItems];
@@ -123,7 +124,7 @@ const InvoiceWizard = () => {
             {step === 1 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step1.question')}</p>
-                {mockProjects.filter(p => p.status === 'active').map(p => (
+                {dbProjects.filter(p => p.status === 'active').map(p => (
                   <button
                     key={p.id}
                     onClick={() => setProjectId(p.id)}
@@ -131,7 +132,7 @@ const InvoiceWizard = () => {
                   >
                     <p className="font-display font-semibold">{p.name}</p>
                     <p className="text-sm text-muted-foreground">{p.address}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.totalBudget.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.total_budget.toLocaleString()}</p>
                   </button>
                 ))}
               </div>
