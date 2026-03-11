@@ -18,6 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
+  useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
