@@ -22,7 +22,6 @@ import {
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
   useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
-  type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
 
