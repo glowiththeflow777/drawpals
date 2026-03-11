@@ -418,8 +418,8 @@ const InvoiceWizard = () => {
                           </div>
                           <div className="divide-y divide-border/50">
                             {items.map(item => {
-                              const isSelected = selectedIds.has(item.line_item_no);
-                              const liIdx = lineItems.findIndex(li => li.lineItemNo === item.line_item_no);
+                              const isSelected = selectedIds.has(item.id);
+                              const liIdx = lineItems.findIndex(li => (li as any).budgetItemId === item.id);
 
                               return (
                                 <div key={item.id}>
@@ -427,17 +427,18 @@ const InvoiceWizard = () => {
                                     type="button"
                                     onClick={() => {
                                       if (isSelected) {
-                                        setLineItems(prev => prev.filter(li => li.lineItemNo !== item.line_item_no));
+                                        setLineItems(prev => prev.filter(li => (li as any).budgetItemId !== item.id));
                                       } else {
                                         setLineItems(prev => [
-                                          ...prev.filter(li => li.description || li.lineItemNo),
+                                          ...prev,
                                           {
+                                            budgetItemId: item.id,
                                             lineItemNo: item.line_item_no,
-                                            description: item.description || item.cost_item_name,
+                                            description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
                                             contractPrice: Number(item.extended_cost),
                                             percentComplete: 0,
                                             drawAmount: 0,
-                                          },
+                                          } as any,
                                         ]);
                                       }
                                     }}
