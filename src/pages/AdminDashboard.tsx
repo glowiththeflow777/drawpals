@@ -91,6 +91,9 @@ const AdminDashboard = () => {
   const totalInvoiced = filtered.reduce((s, p) => s + Number(p.amount_invoiced), 0);
   const totalPaid = filtered.reduce((s, p) => s + Number(p.amount_paid), 0);
   const remaining = totalBudget - totalInvoiced;
+  const budgetSavings = Math.max(0, totalBudget - totalPaid);
+  const pmBonus = budgetSavings * 0.30;
+  const businessShare = budgetSavings * 0.70;
 
   const pieData = [
     { name: t('adminDashboard.pieLabels.paid'), value: totalPaid },
@@ -152,6 +155,36 @@ const AdminDashboard = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* PM Bonus Calculator */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card-elevated p-5">
+          <h3 className="font-display font-semibold text-lg mb-3 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-success" />
+            {t('adminDashboard.bonus.title')}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">{t('adminDashboard.bonus.explanation')}</p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground font-body">{t('adminDashboard.totalBudget')}</p>
+              <p className="text-lg font-display font-bold">${totalBudget.toLocaleString()}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground font-body">{t('adminDashboard.bonus.actualCost')}</p>
+              <p className="text-lg font-display font-bold">${totalPaid.toLocaleString()}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <p className="text-xs text-muted-foreground font-body">{t('adminDashboard.bonus.savings')}</p>
+              <p className="text-lg font-display font-bold text-success">${budgetSavings.toLocaleString()}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-xs text-muted-foreground font-body">{t('adminDashboard.bonus.pmBonus')} (30%)</p>
+              <p className="text-xl font-display font-bold text-primary">${pmBonus.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+            <span>{t('adminDashboard.bonus.businessShare')} (70%): <strong className="text-foreground">${businessShare.toLocaleString()}</strong></span>
+          </div>
+        </motion.div>
 
         {/* Charts */}
         <div className="grid lg:grid-cols-2 gap-4">

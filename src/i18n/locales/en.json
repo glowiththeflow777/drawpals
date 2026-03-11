@@ -258,6 +258,14 @@
       "paid": "Paid",
       "invoicedUnpaid": "Invoiced (Unpaid)",
       "remaining": "Remaining"
+    },
+    "bonus": {
+      "title": "PM Bonus Calculator",
+      "explanation": "Project managers earn 30% of budget savings. Savings = Total Budget − Actual Cost (Amount Paid).",
+      "actualCost": "Actual Cost",
+      "savings": "Budget Savings",
+      "pmBonus": "PM Bonus",
+      "businessShare": "Business Share"
     }
   },
   "projects": {
