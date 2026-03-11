@@ -57,6 +57,9 @@ const InvoiceWizard = () => {
   const [reimbursements, setReimbursements] = useState<Partial<ReimbursementEntry>[]>([]);
   const [changeOrders, setChangeOrders] = useState<Partial<ChangeOrderEntry>[]>([]);
   const [credits, setCredits] = useState<Partial<ChangeOrderEntry>[]>([]);
+  const [showNewSubForm, setShowNewSubForm] = useState(false);
+  const [creatingNewSub, setCreatingNewSub] = useState(false);
+  const [newSubForm, setNewSubForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
 
   const project = dbProjects.find(p => p.id === projectId);
 
