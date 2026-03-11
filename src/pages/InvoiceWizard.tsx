@@ -504,7 +504,7 @@ const InvoiceWizard = () => {
                       {/* Summary */}
                       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                         <span className="font-display text-sm font-medium">
-                          {lineItems.filter(li => li.lineItemNo).length} items selected
+                          {lineItems.filter(li => (li as any).budgetItemId).length} items selected
                         </span>
                         <span className="font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</span>
                       </div>
