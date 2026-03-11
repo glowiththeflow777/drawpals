@@ -1,15 +1,24 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileText, Plus } from 'lucide-react';
+import { ArrowLeft, FileText, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useProjects, useInvoices } from '@/hooks/useProjects';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useProjects, useInvoices, useDeleteInvoice } from '@/hooks/useProjects';
+import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 
 export default function ProjectInvoices() {
   const { projectId } = useParams<{ projectId: string }>();
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { data: projects = [] } = useProjects();
   const { data: invoices = [] } = useInvoices(projectId);
+  const deleteInvoice = useDeleteInvoice();
+
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const project = projects.find(p => p.id === projectId);
 
@@ -23,6 +32,17 @@ export default function ProjectInvoices() {
 
   const fmt = (n: number) =>
     `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteInvoice.mutateAsync(deleteTarget.id);
+      toast({ title: 'Invoice deleted', description: `Invoice #${deleteTarget.invoice_number} has been removed and project totals updated.` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+    setDeleteTarget(null);
+  };
 
   if (!project) {
     return (
@@ -111,11 +131,52 @@ export default function ProjectInvoices() {
                 <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize whitespace-nowrap ${statusColor(inv.status)}`}>
                   {inv.status}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => setDeleteTarget(inv)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display">Delete Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && (
+                <>
+                  Are you sure you want to delete invoice <strong>#{deleteTarget.invoice_number}</strong> from{' '}
+                  <strong>{deleteTarget.subcontractor_name}</strong> for{' '}
+                  <strong>{fmt(Number(deleteTarget.grand_total))}</strong>?
+                  {deleteTarget.status === 'approved' && (
+                    <span className="block mt-2 text-destructive font-medium">
+                      This invoice is approved. Deleting it will subtract {fmt(Number(deleteTarget.grand_total))} from the project's invoiced and approved totals.
+                    </span>
+                  )}
+                  <span className="block mt-2">This action cannot be undone.</span>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
