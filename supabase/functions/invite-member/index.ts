@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Invite the user via Supabase Auth — redirect to the reset-password page so they can set up their password
+    // Invite the user via Supabase Auth
     let inviteData = null;
     const { data: inviteResult, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { name, role },
@@ -52,7 +52,6 @@ Deno.serve(async (req) => {
     });
 
     if (inviteError) {
-      // If user already exists, send them a password reset email instead
       if (inviteError.message.includes("already been registered")) {
         console.log("User already registered, sending password reset instead:", email);
         const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
@@ -84,7 +83,6 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingMember) {
-      // Update existing record
       const { data: updated, error: updateError } = await supabaseAdmin
         .from("team_members")
         .update({ name, role, phone: phone || '', crew_name: crew_name || null })
@@ -94,7 +92,6 @@ Deno.serve(async (req) => {
       if (updateError) console.error("Team member update error:", updateError);
       memberData = updated || existingMember;
     } else {
-      // Insert new record
       const { data: inserted, error: insertError } = await supabaseAdmin
         .from("team_members")
         .insert({ email, name, role, phone: phone || '', crew_name: crew_name || null })
@@ -106,7 +103,6 @@ Deno.serve(async (req) => {
 
     // If project_id is provided, auto-assign the team member to the project
     if (project_id && memberData) {
-      // Check if assignment already exists
       const { data: existingAssignment } = await supabaseAdmin
         .from("project_assignments")
         .select()
@@ -117,8 +113,23 @@ Deno.serve(async (req) => {
       if (!existingAssignment) {
         const { error: assignError } = await supabaseAdmin
           .from("project_assignments")
-          .insert({ project_id, team_member_id: memberData.id });
+          .insert({
+            project_id,
+            team_member_id: memberData.id,
+            invitation_status: 'invited',
+            invited_at: new Date().toISOString(),
+          });
         if (assignError) console.error("Project assignment error:", assignError);
+      } else {
+        // Update existing assignment status back to invited (resend)
+        const { error: updateAssignError } = await supabaseAdmin
+          .from("project_assignments")
+          .update({
+            invitation_status: 'invited',
+            invited_at: new Date().toISOString(),
+          })
+          .eq("id", existingAssignment.id);
+        if (updateAssignError) console.error("Assignment update error:", updateAssignError);
       }
     }
 
