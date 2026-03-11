@@ -19,6 +19,8 @@ const InvoiceWizard = () => {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: directoryEntries = [] } = useSubcontractorDirectory();
   const createTeamMember = useCreateTeamMember();
+  const createInvoice = useCreateInvoice();
+  const { user } = useCurrentUser();
   const { toast } = useToast();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
