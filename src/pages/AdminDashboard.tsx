@@ -101,6 +101,10 @@ const AdminDashboard = () => {
     { name: t('adminDashboard.pieLabels.remaining'), value: remaining },
   ];
 
+  const budgetItems = activeProject === 'all'
+    ? allBudgetItems.slice(0, 8)
+    : allBudgetItems.filter(b => b.project_id === activeProject).slice(0, 8);
+
   const varianceData = filtered.map(p => ({
     name: p.name.length > 20 ? p.name.substring(0, 18) + '…' : p.name,
     [t('adminDashboard.budgetVsActualBudget')]: Number(p.total_budget),
