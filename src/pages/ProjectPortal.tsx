@@ -1486,128 +1486,229 @@ const ProjectPortal = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Budget Upload Preview Dialog */}
-      <Dialog open={budgetUploadOpen} onOpenChange={setBudgetUploadOpen}>
+      {/* Budget Upload Wizard Dialog */}
+      <Dialog open={budgetUploadOpen} onOpenChange={(open) => {
+        setBudgetUploadOpen(open);
+        if (!open) {
+          setBudgetWizardStep(1);
+          setBudgetRawRows([]);
+          setBudgetHeaders([]);
+          setBudgetColumnMapping({} as any);
+          setBudgetParsedItems([]);
+          setBudgetSelectedIds(new Set());
+        }
+      }}>
         <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-display">Add Budget Line Items</DialogTitle>
+            <DialogTitle className="font-display">
+              {budgetWizardStep === 1 ? 'Step 1: Map Columns' : 'Step 2: Select Items'}
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground font-body">
-            Parsed <strong>{budgetParsedItems.length}</strong> items from <strong>{budgetFileName}</strong>. Select the items to add to this project.
-          </p>
 
-          {budgetParsedItems.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-primary" />
-                  <p className="text-sm font-display font-semibold">{budgetSelectedIds.size} of {budgetParsedItems.length} selected</p>
+          {/* Step 1: Column Mapping */}
+          {budgetWizardStep === 1 && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground font-body">
+                Map your spreadsheet columns to budget fields. We auto-detected some — adjust as needed.
+              </p>
+              {budgetHeaders.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {MASTER_BUDGET_FIELDS.map(field => (
+                      <div key={field.key} className="space-y-1">
+                        <label className="text-xs font-display font-semibold flex items-center gap-1">
+                          {field.label}
+                          {field.required && <span className="text-destructive">*</span>}
+                        </label>
+                        <Select
+                          value={budgetColumnMapping[field.key] || '__none__'}
+                          onValueChange={(v) => updateBudgetMapping(field.key, v)}
+                        >
+                          <SelectTrigger className="h-9 text-sm truncate" title={budgetColumnMapping[field.key] || ''}>
+                            <SelectValue placeholder="— Not mapped —" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60 overflow-y-auto">
+                            <SelectItem value="__none__">— Not mapped —</SelectItem>
+                            {budgetHeaders.map(h => (
+                              <SelectItem key={h} value={h} className="truncate max-w-[300px]" title={h}>{h}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Live preview */}
+                  {budgetMappingPreview.length > 0 && (
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      <p className="text-xs font-display font-semibold px-3 py-2 bg-muted/30">Preview (first 3 rows)</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/50">
+                              <th className="p-2 text-left">#</th>
+                              <th className="p-2 text-left">Item</th>
+                              <th className="p-2 text-left">Group</th>
+                              <th className="p-2 text-right">Cost</th>
+                              <th className="p-2 text-left">Type</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {budgetMappingPreview.map((item) => (
+                              <tr key={item.id} className="border-t border-border/30">
+                                <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
+                                <td className="p-2">{item.costItemName}</td>
+                                <td className="p-2 text-muted-foreground">{item.costGroup}</td>
+                                <td className="p-2 text-right font-semibold">${item.extendedCost.toLocaleString()}</td>
+                                <td className="p-2 text-muted-foreground">{item.costType}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground font-body text-sm">No data found in this file.</p>
                 </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBudgetUploadOpen(false)}>Cancel</Button>
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (budgetSelectedIds.size === budgetParsedItems.length) {
-                      setBudgetSelectedIds(new Set());
-                    } else {
-                      setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
-                    }
-                  }}
-                  className="text-xs"
+                  onClick={handleBudgetMappingConfirm}
+                  disabled={!budgetColumnMapping.extendedCost && !budgetColumnMapping.costItemName}
                 >
-                  {budgetSelectedIds.size === budgetParsedItems.length ? 'Deselect All' : 'Select All'}
+                  Continue <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>
-              </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-muted">
-                      <tr>
-                        <th className="p-2 w-8">
-                          <Checkbox
-                            checked={budgetSelectedIds.size === budgetParsedItems.length}
-                            onCheckedChange={() => {
-                              if (budgetSelectedIds.size === budgetParsedItems.length) {
-                                setBudgetSelectedIds(new Set());
-                              } else {
-                                setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
-                              }
-                            }}
-                          />
-                        </th>
-                        <th className="text-left p-2 text-xs font-display">#</th>
-                        <th className="text-left p-2 text-xs font-display">Item</th>
-                        <th className="text-left p-2 text-xs font-display">Group</th>
-                        <th className="text-right p-2 text-xs font-display">Cost</th>
-                        <th className="text-left p-2 text-xs font-display">Type</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {budgetParsedItems.map(item => {
-                        const isSelected = budgetSelectedIds.has(item.id);
-                        return (
-                          <tr
-                            key={item.id}
-                            className={`border-t border-border/50 cursor-pointer transition-colors ${isSelected ? '' : 'opacity-40'}`}
-                            onClick={() => {
-                              setBudgetSelectedIds(prev => {
-                                const next = new Set(prev);
-                                if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
-                                return next;
-                              });
-                            }}
-                          >
-                            <td className="p-2" onClick={e => e.stopPropagation()}>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Step 2: Review & Select Items */}
+          {budgetWizardStep === 2 && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground font-body">
+                Parsed <strong>{budgetParsedItems.length}</strong> items from <strong>{budgetFileName}</strong>. Select the items to add.
+              </p>
+
+              {budgetParsedItems.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary" />
+                      <p className="text-sm font-display font-semibold">{budgetSelectedIds.size} of {budgetParsedItems.length} selected</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (budgetSelectedIds.size === budgetParsedItems.length) {
+                          setBudgetSelectedIds(new Set());
+                        } else {
+                          setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      {budgetSelectedIds.size === budgetParsedItems.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                  </div>
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-muted">
+                          <tr>
+                            <th className="p-2 w-8">
                               <Checkbox
-                                checked={isSelected}
+                                checked={budgetSelectedIds.size === budgetParsedItems.length}
                                 onCheckedChange={() => {
+                                  if (budgetSelectedIds.size === budgetParsedItems.length) {
+                                    setBudgetSelectedIds(new Set());
+                                  } else {
+                                    setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
+                                  }
+                                }}
+                              />
+                            </th>
+                            <th className="text-left p-2 text-xs font-display">#</th>
+                            <th className="text-left p-2 text-xs font-display">Item</th>
+                            <th className="text-left p-2 text-xs font-display">Group</th>
+                            <th className="text-right p-2 text-xs font-display">Cost</th>
+                            <th className="text-left p-2 text-xs font-display">Type</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {budgetParsedItems.map(item => {
+                            const isSelected = budgetSelectedIds.has(item.id);
+                            return (
+                              <tr
+                                key={item.id}
+                                className={`border-t border-border/50 cursor-pointer transition-colors ${isSelected ? '' : 'opacity-40'}`}
+                                onClick={() => {
                                   setBudgetSelectedIds(prev => {
                                     const next = new Set(prev);
                                     if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
                                     return next;
                                   });
                                 }}
-                              />
-                            </td>
-                            <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
-                            <td className="p-2 font-body">{item.costItemName}</td>
-                            <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
-                            <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
-                            <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              >
+                                <td className="p-2" onClick={e => e.stopPropagation()}>
+                                  <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => {
+                                      setBudgetSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                </td>
+                                <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
+                                <td className="p-2 font-body">{item.costItemName}</td>
+                                <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
+                                <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
+                                <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="border-t border-border p-3 bg-muted/50 flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground font-body">Selected Total</span>
+                      <span className="font-display font-bold text-lg">
+                        ${budgetParsedItems.filter(i => budgetSelectedIds.has(i.id)).reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground font-body text-sm">No items could be parsed with the current mapping. Go back and adjust.</p>
                 </div>
-                <div className="border-t border-border p-3 bg-muted/50 flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground font-body">Selected Total</span>
-                  <span className="font-display font-bold text-lg">
-                    ${budgetParsedItems.filter(i => budgetSelectedIds.has(i.id)).reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}
-                  </span>
-                </div>
-              </div>
+              )}
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBudgetWizardStep(1)}>
+                  <ArrowLeft className="w-3 h-3 mr-1" /> Back
+                </Button>
+                <Button
+                  onClick={handleSaveBudgetItems}
+                  disabled={savingBudget || budgetSelectedIds.size === 0}
+                  className="gradient-primary text-primary-foreground"
+                >
+                  {savingBudget ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+                  Add {budgetSelectedIds.size} Items
+                </Button>
+              </DialogFooter>
             </div>
           )}
-
-          {budgetParsedItems.length === 0 && (
-            <div className="text-center py-8">
-              <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground font-body text-sm">No items could be parsed from this file.</p>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBudgetUploadOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleSaveBudgetItems}
-              disabled={savingBudget || budgetSelectedIds.size === 0}
-              className="gradient-primary text-primary-foreground"
-            >
-              {savingBudget ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
-              Add {budgetSelectedIds.size} Items
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
