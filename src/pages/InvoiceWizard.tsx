@@ -478,9 +478,11 @@ const InvoiceWizard = () => {
                 {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground font-body">
-                      {budgetSource === 'sub' && allSubBudgets.length === 0
+                      {!isAdminEntry
+                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                        : effectiveBudgetSource === 'sub' && allSubBudgets.length === 0
                         ? 'No sub budgets have been uploaded for this project yet.'
-                        : budgetSource === 'sub'
+                        : effectiveBudgetSource === 'sub'
                         ? 'No line items found in the selected sub budget.'
                         : 'No budget items found for this project.'}
                     </p>
