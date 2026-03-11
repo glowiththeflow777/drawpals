@@ -400,10 +400,11 @@ export function useSubBudgetForMember(projectId?: string, teamMemberId?: string)
         .maybeSingle();
       if (bErr) throw bErr;
       if (!budget) return [];
+      const budgetId = (budget as any).id;
       const { data, error } = await supabase
         .from('sub_budget_line_items' as any)
         .select('*')
-        .eq('sub_budget_id', budget.id)
+        .eq('sub_budget_id', budgetId)
         .order('line_item_no');
       if (error) throw error;
       return (data as any[]) || [];
