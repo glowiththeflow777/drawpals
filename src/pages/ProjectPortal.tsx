@@ -840,6 +840,45 @@ const ProjectPortal = () => {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Quick Invite Dialog */}
+      <Dialog open={quickInviteOpen} onOpenChange={setQuickInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {t('projects.detail.inviteTitle', { role: quickInviteRole === 'admin' ? t('team.roles.admin') : quickInviteRole === 'project-manager' ? t('team.roles.project-manager') : t('team.roles.subcontractor') })}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground font-body">{t('projects.detail.inviteDesc')}</p>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.name')} *</label>
+              <Input value={quickInviteForm.name} onChange={e => setQuickInviteForm(f => ({ ...f, name: e.target.value }))} placeholder={t('team.namePlaceholder')} />
+            </div>
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.email')} *</label>
+              <Input type="email" value={quickInviteForm.email} onChange={e => setQuickInviteForm(f => ({ ...f, email: e.target.value }))} placeholder={t('team.emailPlaceholder')} />
+            </div>
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.phone')}</label>
+              <Input value={quickInviteForm.phone} onChange={e => setQuickInviteForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('team.phonePlaceholder')} />
+            </div>
+            {quickInviteRole === 'subcontractor' && (
+              <div>
+                <label className="text-sm font-medium font-body mb-1.5 block">{t('team.crewName')}</label>
+                <Input value={quickInviteForm.crew_name} onChange={e => setQuickInviteForm(f => ({ ...f, crew_name: e.target.value }))} placeholder={t('team.crewPlaceholder')} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickInviteOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={handleQuickInvite} disabled={quickInviteSending || !quickInviteForm.name.trim() || !quickInviteForm.email.trim()}>
+              {quickInviteSending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              {t('projects.detail.inviteSendBtn')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
