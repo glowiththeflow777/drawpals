@@ -90,6 +90,11 @@ const ProjectPortal = () => {
   const [quickInviteForm, setQuickInviteForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
   const [quickInviteSending, setQuickInviteSending] = useState(false);
 
+  // Member detail dialog state
+  const [memberDetailOpen, setMemberDetailOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<DbTeamMember | null>(null);
+  const [resendingInvite, setResendingInvite] = useState(false);
+
   const qc = useQueryClient();
 
   const openQuickInvite = (role: QuickInviteRole) => {
