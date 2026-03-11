@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
 import FinancialDashboard from '@/components/FinancialDashboard';
+import SubcontractorBudgets from '@/components/SubcontractorBudgets';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,7 +113,15 @@ const ProjectPortal = () => {
   const [newAssignStatus, setNewAssignStatus] = useState<'invited' | 'pending' | 'active'>('invited');
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
+  const [currentUserId, setCurrentUserId] = useState('');
   const qc = useQueryClient();
+
+  // Get current user id
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
 
   const openQuickInvite = (role: QuickInviteRole) => {
     setQuickInviteRole(role);
@@ -995,7 +1004,14 @@ const ProjectPortal = () => {
                 </div>
               </div>
 
-              {/* Budget Line Items */}
+              {/* Subcontractor Budgets */}
+              <SubcontractorBudgets
+                projectId={selectedProject.id}
+                assignedSubs={getProjectAssignments(selectedProject.id, 'subcontractor')}
+                currentUserId={currentUserId}
+              />
+
+              {/* Budget Line Items (Master - Admin Only) */}
               <div className="card-elevated p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <button

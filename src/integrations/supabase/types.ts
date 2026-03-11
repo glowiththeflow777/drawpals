@@ -466,6 +466,104 @@ export type Database = {
         }
         Relationships: []
       }
+      sub_budget_line_items: {
+        Row: {
+          batch_label: string
+          cost_code: string
+          cost_group: string
+          cost_item_name: string
+          cost_type: string
+          created_at: string
+          description: string
+          extended_cost: number
+          id: string
+          line_item_no: number
+          quantity: number
+          sub_budget_id: string
+          unit: string
+        }
+        Insert: {
+          batch_label?: string
+          cost_code?: string
+          cost_group?: string
+          cost_item_name?: string
+          cost_type?: string
+          created_at?: string
+          description?: string
+          extended_cost?: number
+          id?: string
+          line_item_no?: number
+          quantity?: number
+          sub_budget_id: string
+          unit?: string
+        }
+        Update: {
+          batch_label?: string
+          cost_code?: string
+          cost_group?: string
+          cost_item_name?: string
+          cost_type?: string
+          created_at?: string
+          description?: string
+          extended_cost?: number
+          id?: string
+          line_item_no?: number
+          quantity?: number
+          sub_budget_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_budget_line_items_sub_budget_id_fkey"
+            columns: ["sub_budget_id"]
+            isOneToOne: false
+            referencedRelation: "sub_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sub_budgets: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          project_id: string
+          team_member_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          project_id: string
+          team_member_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          project_id?: string
+          team_member_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sub_budgets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sub_budgets_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subcontractor_directory: {
         Row: {
           company_name: string

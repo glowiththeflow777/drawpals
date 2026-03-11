@@ -307,6 +307,113 @@ export function useInvoiceLineItemsDetailed(projectId?: string) {
   });
 }
 
+// Sub budgets
+export function useSubBudgets(projectId?: string) {
+  return useQuery({
+    queryKey: ['sub_budgets', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sub_budgets' as any)
+        .select('*, team_members(id, name, email, role, crew_name)')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
+export function useSubBudgetLineItems(subBudgetId?: string) {
+  return useQuery({
+    queryKey: ['sub_budget_line_items', subBudgetId],
+    enabled: !!subBudgetId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sub_budget_line_items' as any)
+        .select('*')
+        .eq('sub_budget_id', subBudgetId)
+        .order('line_item_no');
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
+export function useCreateSubBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      project_id: string;
+      team_member_id: string;
+      uploaded_by: string;
+      file_name: string;
+      line_items: {
+        line_item_no: number;
+        cost_group: string;
+        cost_item_name: string;
+        description: string;
+        quantity: number;
+        unit: string;
+        extended_cost: number;
+        cost_type: string;
+        cost_code: string;
+        batch_label: string;
+      }[];
+    }) => {
+      const { line_items, ...budgetData } = params;
+      const { data, error } = await supabase
+        .from('sub_budgets' as any)
+        .upsert(budgetData, { onConflict: 'project_id,team_member_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      const budgetId = (data as any).id;
+
+      // Delete old line items then insert new ones
+      await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', budgetId);
+      if (line_items.length > 0) {
+        const rows = line_items.map(li => ({ ...li, sub_budget_id: budgetId }));
+        const { error: liErr } = await supabase.from('sub_budget_line_items' as any).insert(rows);
+        if (liErr) throw liErr;
+      }
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['sub_budgets', vars.project_id] });
+      qc.invalidateQueries({ queryKey: ['sub_budget_line_items'] });
+    },
+  });
+}
+
+// Fetch sub budget line items for a specific sub in a project (for invoice wizard)
+export function useSubBudgetForMember(projectId?: string, teamMemberId?: string) {
+  return useQuery({
+    queryKey: ['sub_budget_for_member', projectId, teamMemberId],
+    enabled: !!projectId && !!teamMemberId,
+    queryFn: async () => {
+      const { data: budget, error: bErr } = await supabase
+        .from('sub_budgets' as any)
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('team_member_id', teamMemberId)
+        .maybeSingle();
+      if (bErr) throw bErr;
+      if (!budget) return [];
+      const budgetId = (budget as any).id;
+      const { data, error } = await supabase
+        .from('sub_budget_line_items' as any)
+        .select('*')
+        .eq('sub_budget_id', budgetId)
+        .order('line_item_no');
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
+
+
 export function useRemoveAssignment() {
   const qc = useQueryClient();
   return useMutation({

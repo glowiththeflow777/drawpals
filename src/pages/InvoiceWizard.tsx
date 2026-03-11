@@ -10,8 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory } from '@/hooks/useProjects';
-import { useCurrentUser } from '@/hooks/useAuth';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments, useBillingHistory, useSubBudgetForMember } from '@/hooks/useProjects';
+import { useCurrentUser, useCurrentProfile } from '@/hooks/useAuth';
 // BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ const InvoiceWizard = () => {
   const createTeamMember = useCreateTeamMember();
   const createInvoice = useCreateInvoice();
   const { user } = useCurrentUser();
+  const { data: profile } = useCurrentProfile();
   const { toast } = useToast();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -57,8 +58,28 @@ const InvoiceWizard = () => {
   const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
   const { data: projectAssignments = [] } = useProjectAssignments(projectId || undefined);
   const { data: billingHistory = new Map() } = useBillingHistory(projectId || undefined);
+  const [budgetSource, setBudgetSource] = useState<'master' | 'sub'>('sub');
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
+
+  // Resolve selected subcontractor to team_member_id
+  const selectedSubTeamMemberId = (() => {
+    if (!isAdminEntry) return profile?.team_member_id || undefined;
+    const match = teamMembers.find(m =>
+      m.role === 'subcontractor' && (m.crew_name === selectedSubcontractor || m.name === selectedSubcontractor)
+    );
+    return match?.id;
+  })();
+
+  const { data: subBudgetItems = [] } = useSubBudgetForMember(
+    projectId || undefined,
+    selectedSubTeamMemberId
+  );
+
+  // Determine which budget items to show in step 3
+  const activeBudgetItems = (isAdminEntry && budgetSource === 'master')
+    ? projectBudgetItems
+    : (subBudgetItems.length > 0 ? subBudgetItems : projectBudgetItems);
   const [drawDate, setDrawDate] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
@@ -400,18 +421,41 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
+                {/* Budget source toggle for admin entries */}
+                {isAdminEntry && subBudgetItems.length > 0 && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    <Label className="text-sm font-display font-semibold">Bill from:</Label>
+                    <Select value={budgetSource} onValueChange={(v) => {
+                      setBudgetSource(v as 'master' | 'sub');
+                      setLineItems([]); // Reset selections when switching
+                    }}>
+                      <SelectTrigger className="w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sub">Sub's Budget ({subBudgetItems.length} items)</SelectItem>
+                        <SelectItem value="master">Master Budget ({projectBudgetItems.length} items)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <p className="text-muted-foreground font-body text-sm">
                   Tap each budget line item you're billing for, then set the % complete.
                 </p>
 
-                {projectBudgetItems.length === 0 ? (
+                {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground font-body">No budget items found for this project.</p>
+                    <p className="text-muted-foreground font-body">
+                      {!isAdminEntry && subBudgetItems.length === 0
+                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                        : 'No budget items found for this project.'}
+                    </p>
                   </div>
                 ) : (() => {
                   // Group by cost_group
-                  const groups = new Map<string, typeof projectBudgetItems>();
-                  projectBudgetItems.forEach(item => {
+                  const groups = new Map<string, any[]>();
+                  activeBudgetItems.forEach((item: any) => {
                     const group = item.cost_group || 'Ungrouped';
                     if (!groups.has(group)) groups.set(group, []);
                     groups.get(group)!.push(item);
