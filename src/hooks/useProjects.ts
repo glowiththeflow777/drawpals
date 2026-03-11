@@ -50,7 +50,8 @@ export function useProjectAssignments(projectId?: string) {
       if (projectId) query = query.eq('project_id', projectId);
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      // Cast to include the new columns that aren't in generated types yet
+      return data as (typeof data[number] & { invitation_status?: string; invited_at?: string })[];
     },
   });
 }

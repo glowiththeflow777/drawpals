@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,11 @@ const ProjectPortal = () => {
   const [quickInviteForm, setQuickInviteForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
   const [quickInviteSending, setQuickInviteSending] = useState(false);
 
+  // Member detail dialog state
+  const [memberDetailOpen, setMemberDetailOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<DbTeamMember | null>(null);
+  const [resendingInvite, setResendingInvite] = useState(false);
+
   const qc = useQueryClient();
 
   const openQuickInvite = (role: QuickInviteRole) => {
@@ -146,6 +151,60 @@ const ProjectPortal = () => {
       .filter((a: any) => a.project_id === projectId && (!role || a.team_members?.role === role))
       .map((a: any) => a.team_members as DbTeamMember)
       .filter(Boolean);
+  };
+
+  // Get assignment record (with status) for a specific member in a project
+  const getAssignmentRecord = (projectId: string, teamMemberId: string) => {
+    return allAssignments.find(
+      (a: any) => a.project_id === projectId && a.team_member_id === teamMemberId
+    ) as any | undefined;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'invited':
+        return { label: 'Invited', className: 'bg-amber-500/10 text-amber-600', icon: MailCheck };
+      case 'pending':
+        return { label: 'Pending', className: 'bg-blue-500/10 text-blue-600', icon: Clock };
+      case 'active':
+      default:
+        return { label: 'Active', className: 'status-badge-approved', icon: CheckCircle2 };
+    }
+  };
+
+  const handleResendInvite = async () => {
+    if (!selectedMember || !selectedProject) return;
+    setResendingInvite(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: t('team.sessionExpired'), variant: 'destructive' });
+        return;
+      }
+
+      const res = await supabase.functions.invoke('invite-member', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: selectedMember.email,
+          name: selectedMember.name,
+          role: selectedMember.role,
+          phone: selectedMember.phone,
+          crew_name: selectedMember.crew_name,
+          project_id: selectedProject.id,
+          redirect_url: `${window.location.origin}/reset-password`,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast({ title: 'Invitation resent', description: `A new invitation was sent to ${selectedMember.email}` });
+      qc.invalidateQueries({ queryKey: ['project_assignments'] });
+    } catch (e: any) {
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } finally {
+      setResendingInvite(false);
+    }
   };
 
   const updateProjectStatus = async (projectId: string, status: ProjectStatus) => {
@@ -664,10 +723,20 @@ const ProjectPortal = () => {
                   <div className="grid gap-2 sm:grid-cols-2">
                     {teamMembers.filter(m => m.role === 'admin').map(member => {
                       const isAssigned = getProjectAssignments(selectedProject.id, 'admin').some(a => a.id === member.id);
+                      const assignment = getAssignmentRecord(selectedProject.id, member.id);
+                      const status = assignment?.invitation_status || 'active';
+                      const badge = getStatusBadge(status);
                       return (
                         <button
                           key={member.id}
-                          onClick={() => handleToggleAssignment(selectedProject.id, member.id)}
+                          onClick={() => {
+                            if (isAssigned) {
+                              setSelectedMember(member);
+                              setMemberDetailOpen(true);
+                            } else {
+                              handleToggleAssignment(selectedProject.id, member.id);
+                            }
+                          }}
                           className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                             isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
                           }`}
@@ -681,7 +750,12 @@ const ProjectPortal = () => {
                             <p className="font-display font-medium text-sm truncate">{member.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                           </div>
-                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                          {isAssigned && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
+                              <badge.icon className="w-3 h-3" />
+                              {badge.label}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -705,10 +779,20 @@ const ProjectPortal = () => {
                   <div className="grid gap-2 sm:grid-cols-2">
                     {teamMembers.filter(m => m.role === 'project-manager').map(member => {
                       const isAssigned = getProjectAssignments(selectedProject.id, 'project-manager').some(a => a.id === member.id);
+                      const assignment = getAssignmentRecord(selectedProject.id, member.id);
+                      const status = assignment?.invitation_status || 'active';
+                      const badge = getStatusBadge(status);
                       return (
                         <button
                           key={member.id}
-                          onClick={() => handleToggleAssignment(selectedProject.id, member.id)}
+                          onClick={() => {
+                            if (isAssigned) {
+                              setSelectedMember(member);
+                              setMemberDetailOpen(true);
+                            } else {
+                              handleToggleAssignment(selectedProject.id, member.id);
+                            }
+                          }}
                           className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                             isAssigned ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground/30'
                           }`}
@@ -722,7 +806,12 @@ const ProjectPortal = () => {
                             <p className="font-display font-medium text-sm truncate">{member.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                           </div>
-                          {isAssigned && <CheckCircle2 className="w-4 h-4 text-accent-foreground flex-shrink-0" />}
+                          {isAssigned && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
+                              <badge.icon className="w-3 h-3" />
+                              {badge.label}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -750,10 +839,20 @@ const ProjectPortal = () => {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamMembers.filter(m => m.role === 'subcontractor').map(sub => {
                     const isAssigned = getProjectAssignments(selectedProject.id, 'subcontractor').some(a => a.id === sub.id);
+                    const assignment = getAssignmentRecord(selectedProject.id, sub.id);
+                    const status = assignment?.invitation_status || 'active';
+                    const badge = getStatusBadge(status);
                     return (
                       <button
                         key={sub.id}
-                        onClick={() => handleToggleAssignment(selectedProject.id, sub.id)}
+                        onClick={() => {
+                          if (isAssigned) {
+                            setSelectedMember(sub);
+                            setMemberDetailOpen(true);
+                          } else {
+                            handleToggleAssignment(selectedProject.id, sub.id);
+                          }
+                        }}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                           isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
                         }`}
@@ -767,7 +866,12 @@ const ProjectPortal = () => {
                           <p className="font-display font-medium text-sm truncate">{sub.crew_name || sub.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{sub.email}</p>
                         </div>
-                        {isAssigned && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                        {isAssigned && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
+                            <badge.icon className="w-3 h-3" />
+                            {badge.label}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -897,6 +1001,93 @@ const ProjectPortal = () => {
               {t('projects.detail.inviteSendBtn')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Member Detail Dialog */}
+      <Dialog open={memberDetailOpen} onOpenChange={setMemberDetailOpen}>
+        <DialogContent className="sm:max-w-md">
+          {selectedMember && selectedProject && (() => {
+            const assignment = getAssignmentRecord(selectedProject.id, selectedMember.id);
+            const status = assignment?.invitation_status || 'active';
+            const badge = getStatusBadge(status);
+            const invitedAt = assignment?.invited_at ? new Date(assignment.invited_at).toLocaleDateString() : null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="font-display">Team Member Details</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-lg">
+                      {selectedMember.crew_name?.[0] || selectedMember.name[0]}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-display font-semibold text-lg">{selectedMember.name}</p>
+                      {selectedMember.crew_name && (
+                        <p className="text-sm text-muted-foreground">{selectedMember.crew_name}</p>
+                      )}
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${badge.className}`}>
+                      <badge.icon className="w-4 h-4" />
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 bg-muted/50 rounded-lg p-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Email</span>
+                      <span className="font-medium">{selectedMember.email}</span>
+                    </div>
+                    {selectedMember.phone && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Phone</span>
+                        <span className="font-medium">{selectedMember.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Role</span>
+                      <span className="font-medium capitalize">{selectedMember.role}</span>
+                    </div>
+                    {invitedAt && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Last Invited</span>
+                        <span className="font-medium">{invitedAt}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {status !== 'active' && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-sm text-amber-700 font-body">
+                        This member hasn't fully activated yet. You can resend the invitation email.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter className="flex gap-2 sm:gap-2">
+                  <Button variant="outline" onClick={() => {
+                    handleToggleAssignment(selectedProject.id, selectedMember.id);
+                    setMemberDetailOpen(false);
+                  }} className="text-destructive hover:text-destructive">
+                    <X className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                  {status !== 'active' && (
+                    <Button onClick={handleResendInvite} disabled={resendingInvite}>
+                      {resendingInvite ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                      Resend Invitation
+                    </Button>
+                  )}
+                  {status === 'active' && (
+                    <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>
+                      Close
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>

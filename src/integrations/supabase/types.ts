@@ -133,18 +133,24 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          invitation_status: Database["public"]["Enums"]["invitation_status"]
+          invited_at: string | null
           project_id: string
           team_member_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_at?: string | null
           project_id: string
           team_member_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          invitation_status?: Database["public"]["Enums"]["invitation_status"]
+          invited_at?: string | null
           project_id?: string
           team_member_id?: string
         }
@@ -287,6 +293,7 @@ export type Database = {
       }
     }
     Enums: {
+      invitation_status: "invited" | "pending" | "active"
       project_status: "active" | "on-hold" | "completed" | "archived"
       team_role: "admin" | "project-manager" | "subcontractor"
     }
@@ -416,6 +423,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      invitation_status: ["invited", "pending", "active"],
       project_status: ["active", "on-hold", "completed", "archived"],
       team_role: ["admin", "project-manager", "subcontractor"],
     },
