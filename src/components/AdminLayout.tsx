@@ -1,10 +1,12 @@
 import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck, FileText, ChevronDown, HardHat } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import NotificationBell from '@/components/NotificationBell';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { useActiveRole } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,15 +19,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { activeRole } = useActiveRole();
+
+  const portalLabel = activeRole === 'project-manager'
+    ? t('nav.pmPortal', 'Project Manager Portal')
+    : t('nav.adminPortal');
 
   const tabs = [
     { label: t('nav.dashboard'), path: '/admin', icon: BarChart3 },
     { label: t('nav.projectsNav'), path: '/admin/projects', icon: FolderOpen },
     { label: t('nav.invoices'), path: '/admin/invoices', icon: FileText },
     { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
-    { label: t('nav.team'), path: '/admin/team', icon: Users },
-    { label: 'Sub Directory', path: '/admin/directory', icon: HardHat },
+    // Only admins see Team and Directory
+    ...(activeRole === 'admin' ? [
+      { label: t('nav.team'), path: '/admin/team', icon: Users },
+      { label: 'Sub Directory', path: '/admin/directory', icon: HardHat },
+    ] : []),
   ];
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('activeRole');
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div className="text-left">
                   <h1 className="font-display font-bold text-secondary-foreground text-sm">{t('common.appName')}</h1>
-                  <p className="text-secondary-foreground/50 text-xs">{t('nav.adminPortal')}</p>
+                  <p className="text-secondary-foreground/50 text-xs">{portalLabel}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-secondary-foreground/50" />
               </button>
@@ -59,13 +75,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               })}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/')} className="gap-2 cursor-pointer text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="gap-2 cursor-pointer text-destructive">
                 <LogOut className="w-4 h-4" />
                 {t('common.logout', 'Log Out')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex items-center gap-1">
+            <RoleSwitcher />
             <NotificationBell />
             <LanguageSwitcher />
           </div>

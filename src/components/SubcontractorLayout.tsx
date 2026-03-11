@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import NotificationBell from '@/components/NotificationBell';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { supabase } from '@/integrations/supabase/client';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +25,12 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
     { label: t('nav.invoices', 'Invoices'), path: '/dashboard/invoices', icon: FileText },
     { label: t('nav.newInvoice', 'New Invoice'), path: '/invoice/new', icon: Plus },
   ];
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('activeRole');
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -56,13 +64,14 @@ export default function SubcontractorLayout({ children }: { children: React.Reac
                 );
               })}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/')} className="gap-2 cursor-pointer text-destructive">
+              <DropdownMenuItem onClick={handleLogout} className="gap-2 cursor-pointer text-destructive">
                 <LogOut className="w-4 h-4" />
                 {t('common.logout', 'Log Out')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="flex items-center gap-1">
+            <RoleSwitcher />
             <NotificationBell />
             <LanguageSwitcher />
           </div>
