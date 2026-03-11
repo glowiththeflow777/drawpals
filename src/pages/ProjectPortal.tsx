@@ -1129,7 +1129,7 @@ const ProjectPortal = () => {
                       )}
                     </div>
                   );
-                })())}
+                })()}
               </div>
 
               {/* Documents */}
