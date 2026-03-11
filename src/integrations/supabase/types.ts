@@ -172,6 +172,7 @@ export type Database = {
           period_start: string | null
           project_id: string
           reimbursement_total: number
+          rejection_notes: string | null
           sow_total: number
           status: string
           subcontractor_name: string
@@ -192,6 +193,7 @@ export type Database = {
           period_start?: string | null
           project_id: string
           reimbursement_total?: number
+          rejection_notes?: string | null
           sow_total?: number
           status?: string
           subcontractor_name?: string
@@ -212,6 +214,7 @@ export type Database = {
           period_start?: string | null
           project_id?: string
           reimbursement_total?: number
+          rejection_notes?: string | null
           sow_total?: number
           status?: string
           subcontractor_name?: string
