@@ -430,7 +430,8 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
-                {/* Budget source toggle */}
+                {/* Budget source toggle — only for admin/PM entries */}
+                {isAdminEntry && (
                 <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/50 border border-border">
                   <div className="flex items-center gap-2">
                     <Label className="text-sm font-display font-semibold">Bill from:</Label>
@@ -468,6 +469,7 @@ const InvoiceWizard = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 <p className="text-muted-foreground font-body text-sm">
                   Tap each budget line item you're billing for, then set the % complete.
