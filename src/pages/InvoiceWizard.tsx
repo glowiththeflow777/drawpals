@@ -325,8 +325,29 @@ const InvoiceWizard = () => {
                     )}
                   </div>
                 <div>
-                  <Label className="font-body">{t('invoiceWizard.step2.crewName')}</Label>
-                  <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" readOnly={isAdminEntry} />
+                  <Label className="font-body">{t('invoiceWizard.step2.projectManager', 'Project Manager')}</Label>
+                  {(() => {
+                    const pmAssignments = projectAssignments.filter(
+                      (a: any) => a.team_members?.role === 'project-manager'
+                    );
+                    if (pmAssignments.length === 0) {
+                      return <p className="text-sm text-muted-foreground mt-1">No project managers assigned to this project.</p>;
+                    }
+                    return (
+                      <Select value={crewName} onValueChange={setCrewName}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select a project manager..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pmAssignments.map((a: any) => (
+                            <SelectItem key={a.team_members.id} value={a.team_members.name}>
+                              {a.team_members.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
                 <div>
                   <Label className="font-body">{t('invoiceWizard.step2.projectAddress')}</Label>
