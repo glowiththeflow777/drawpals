@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
@@ -30,6 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell />
             <LanguageSwitcher />
             <Link to="/">
               <Button variant="ghost" size="sm" className="text-secondary-foreground/50 hover:text-secondary-foreground">
