@@ -24,6 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t('nav.invoices'), path: '/admin/invoices', icon: FileText },
     { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
     { label: t('nav.team'), path: '/admin/team', icon: Users },
+    { label: 'Sub Directory', path: '/admin/directory', icon: HardHat },
   ];
 
   return (
