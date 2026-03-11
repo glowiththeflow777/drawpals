@@ -83,6 +83,12 @@ const ProjectPortal = () => {
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
 
+  // Budget re-upload dialog state
+  const [budgetUploadOpen, setBudgetUploadOpen] = useState(false);
+  const [budgetParsedItems, setBudgetParsedItems] = useState<ParsedLineItem[]>([]);
+  const [budgetSelectedIds, setBudgetSelectedIds] = useState<Set<string>>(new Set());
+  const [budgetFileName, setBudgetFileName] = useState('');
+  const [savingBudget, setSavingBudget] = useState(false);
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
@@ -204,6 +210,115 @@ const ProjectPortal = () => {
       toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
     } finally {
       setResendingInvite(false);
+    }
+  };
+
+  const parseBudgetFile = (file: File, onParsed: (items: ParsedLineItem[]) => void) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (rows.length === 0) { onParsed([]); return; }
+
+        const headers = Object.keys(rows[0]);
+        const fieldPatterns: [string, RegExp[]][] = [
+          ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
+          ['costGroup',  [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
+          ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
+          ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
+          ['quantity', [/^quantity$/i, /^qty\.?$/i]],
+          ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
+          ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
+          ['costType', [/^cost\s*type$/i, /^type$/i]],
+          ['costCode', [/^cost\s*code$/i, /^code$/i]],
+        ];
+        const colMap: Record<string, string> = {};
+        const usedHeaders = new Set<string>();
+        for (const [field, patterns] of fieldPatterns) {
+          for (const pattern of patterns) {
+            const matchIdx = headers.findIndex((h) => !usedHeaders.has(h) && pattern.test(h.trim()));
+            if (matchIdx !== -1) { colMap[field] = headers[matchIdx]; usedHeaders.add(headers[matchIdx]); break; }
+          }
+        }
+        const col = (field: string) => colMap[field] || '';
+        const parsed: ParsedLineItem[] = rows.map((row, idx) => {
+          const costRaw = String(row[col('extendedCost')] ?? '');
+          const cost = parseFloat(costRaw.replace(/[^0-9.-]/g, '')) || 0;
+          const lineNo = Number(row[col('lineItemNo')]);
+          return {
+            id: `parsed-${idx}`,
+            lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
+            costGroup: String(row[col('costGroup')] || ''),
+            costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
+            description: String(row[col('description')] || ''),
+            quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
+            unit: String(row[col('unit')] || 'Each'),
+            extendedCost: cost,
+            costType: String(row[col('costType')] || 'Labor'),
+            costCode: String(row[col('costCode')] || ''),
+          };
+        }).filter(item => item.costItemName || item.extendedCost > 0);
+        onParsed(parsed);
+      } catch (err) {
+        console.error('Failed to parse file:', err);
+        onParsed([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleBudgetReupload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBudgetFileName(file.name);
+    parseBudgetFile(file, (items) => {
+      setBudgetParsedItems(items);
+      setBudgetSelectedIds(new Set(items.map(i => i.id)));
+      setBudgetUploadOpen(true);
+    });
+    e.target.value = '';
+  };
+
+  const handleSaveBudgetItems = async () => {
+    if (!selectedProject) return;
+    const selected = budgetParsedItems.filter(i => budgetSelectedIds.has(i.id));
+    if (selected.length === 0) return;
+    setSavingBudget(true);
+    try {
+      await insertBudgetItems.mutateAsync(
+        selected.map(item => ({
+          project_id: selectedProject.id,
+          line_item_no: item.lineItemNo,
+          cost_group: item.costGroup,
+          cost_item_name: item.costItemName,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          extended_cost: item.extendedCost,
+          cost_type: item.costType,
+          cost_code: item.costCode,
+        }))
+      );
+
+      // Update project total budget
+      const currentItems = allBudgetItems.filter(b => b.project_id === selectedProject.id);
+      const currentTotal = currentItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+      const newTotal = currentTotal + selected.reduce((s, i) => s + i.extendedCost, 0);
+      await updateProject.mutateAsync({ id: selectedProject.id, total_budget: newTotal });
+      setSelectedProject(prev => prev ? { ...prev, total_budget: newTotal } : prev);
+
+      toast({ title: 'Budget items added', description: `${selected.length} line items added to the project.` });
+      setBudgetUploadOpen(false);
+      setBudgetParsedItems([]);
+      setBudgetFileName('');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to save budget items', variant: 'destructive' });
+    } finally {
+      setSavingBudget(false);
     }
   };
 
@@ -888,9 +1003,17 @@ const ProjectPortal = () => {
                     <FileSpreadsheet className="w-5 h-5 text-muted-foreground" />
                     Budget Line Items
                   </h3>
-                  <Button variant="outline" size="sm" className="font-display text-xs">
-                    <Upload className="w-3 h-3 mr-1" /> Re-upload Budget
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleBudgetReupload}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                    />
+                    <Button variant="outline" size="sm" className="font-display text-xs">
+                      <Upload className="w-3 h-3 mr-1" /> Add Budget Items
+                    </Button>
+                  </div>
                 </div>
                 {(() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
@@ -1088,6 +1211,131 @@ const ProjectPortal = () => {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Budget Upload Preview Dialog */}
+      <Dialog open={budgetUploadOpen} onOpenChange={setBudgetUploadOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-display">Add Budget Line Items</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground font-body">
+            Parsed <strong>{budgetParsedItems.length}</strong> items from <strong>{budgetFileName}</strong>. Select the items to add to this project.
+          </p>
+
+          {budgetParsedItems.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-display font-semibold">{budgetSelectedIds.size} of {budgetParsedItems.length} selected</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (budgetSelectedIds.size === budgetParsedItems.length) {
+                      setBudgetSelectedIds(new Set());
+                    } else {
+                      setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
+                    }
+                  }}
+                  className="text-xs"
+                >
+                  {budgetSelectedIds.size === budgetParsedItems.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              </div>
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-muted">
+                      <tr>
+                        <th className="p-2 w-8">
+                          <Checkbox
+                            checked={budgetSelectedIds.size === budgetParsedItems.length}
+                            onCheckedChange={() => {
+                              if (budgetSelectedIds.size === budgetParsedItems.length) {
+                                setBudgetSelectedIds(new Set());
+                              } else {
+                                setBudgetSelectedIds(new Set(budgetParsedItems.map(i => i.id)));
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="text-left p-2 text-xs font-display">#</th>
+                        <th className="text-left p-2 text-xs font-display">Item</th>
+                        <th className="text-left p-2 text-xs font-display">Group</th>
+                        <th className="text-right p-2 text-xs font-display">Cost</th>
+                        <th className="text-left p-2 text-xs font-display">Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {budgetParsedItems.map(item => {
+                        const isSelected = budgetSelectedIds.has(item.id);
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`border-t border-border/50 cursor-pointer transition-colors ${isSelected ? '' : 'opacity-40'}`}
+                            onClick={() => {
+                              setBudgetSelectedIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                return next;
+                              });
+                            }}
+                          >
+                            <td className="p-2" onClick={e => e.stopPropagation()}>
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => {
+                                  setBudgetSelectedIds(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
+                            <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
+                            <td className="p-2 font-body">{item.costItemName}</td>
+                            <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
+                            <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
+                            <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border-t border-border p-3 bg-muted/50 flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground font-body">Selected Total</span>
+                  <span className="font-display font-bold text-lg">
+                    ${budgetParsedItems.filter(i => budgetSelectedIds.has(i.id)).reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {budgetParsedItems.length === 0 && (
+            <div className="text-center py-8">
+              <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground font-body text-sm">No items could be parsed from this file.</p>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBudgetUploadOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSaveBudgetItems}
+              disabled={savingBudget || budgetSelectedIds.size === 0}
+              className="gradient-primary text-primary-foreground"
+            >
+              {savingBudget ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
+              Add {budgetSelectedIds.size} Items
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
