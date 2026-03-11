@@ -41,6 +41,64 @@ interface ParsedLineItem {
   costCode: string;
 }
 
+// Column mapping wizard fields & helpers (shared with SubcontractorBudgets)
+const MASTER_BUDGET_FIELDS = [
+  { key: 'lineItemNo', label: 'Line Item #', required: false },
+  { key: 'costGroup', label: 'Cost Group', required: false },
+  { key: 'costItemName', label: 'Cost Item Name', required: true },
+  { key: 'description', label: 'Description', required: false },
+  { key: 'quantity', label: 'Quantity', required: false },
+  { key: 'unit', label: 'Unit', required: false },
+  { key: 'extendedCost', label: 'Extended Cost', required: true },
+  { key: 'costType', label: 'Cost Type', required: false },
+  { key: 'costCode', label: 'Cost Code', required: false },
+] as const;
+
+type MasterFieldKey = typeof MASTER_BUDGET_FIELDS[number]['key'];
+
+function masterAutoDetectMapping(headers: string[]): Record<MasterFieldKey, string> {
+  const fieldPatterns: [MasterFieldKey, RegExp[]][] = [
+    ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
+    ['costGroup', [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
+    ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
+    ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
+    ['quantity', [/^quantity$/i, /^qty\.?$/i]],
+    ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
+    ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
+    ['costType', [/^cost\s*type$/i, /^type$/i]],
+    ['costCode', [/^cost\s*code$/i, /^code$/i]],
+  ];
+  const mapping: Record<string, string> = {};
+  const used = new Set<string>();
+  for (const [field, patterns] of fieldPatterns) {
+    for (const pattern of patterns) {
+      const match = headers.find(h => !used.has(h) && pattern.test(h.trim()));
+      if (match) { mapping[field] = match; used.add(match); break; }
+    }
+  }
+  return mapping as Record<MasterFieldKey, string>;
+}
+
+function masterApplyMapping(rows: Record<string, any>[], mapping: Record<MasterFieldKey, string>): ParsedLineItem[] {
+  const col = (f: MasterFieldKey) => mapping[f] || '';
+  return rows.map((row, idx) => {
+    const cost = parseFloat(String(row[col('extendedCost')] ?? '').replace(/[^0-9.-]/g, '')) || 0;
+    const lineNo = Number(row[col('lineItemNo')]);
+    return {
+      id: `parsed-${idx}`,
+      lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
+      costGroup: String(row[col('costGroup')] || ''),
+      costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
+      description: String(row[col('description')] || ''),
+      quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
+      unit: String(row[col('unit')] || 'Each'),
+      extendedCost: cost,
+      costType: String(row[col('costType')] || 'Labor'),
+      costCode: String(row[col('costCode')] || ''),
+    };
+  }).filter(i => i.costItemName || i.extendedCost > 0);
+}
+
 const ProjectPortal = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
