@@ -1003,9 +1003,17 @@ const ProjectPortal = () => {
                     <FileSpreadsheet className="w-5 h-5 text-muted-foreground" />
                     Budget Line Items
                   </h3>
-                  <Button variant="outline" size="sm" className="font-display text-xs">
-                    <Upload className="w-3 h-3 mr-1" /> Re-upload Budget
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleBudgetReupload}
+                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                    />
+                    <Button variant="outline" size="sm" className="font-display text-xs">
+                      <Upload className="w-3 h-3 mr-1" /> Add Budget Items
+                    </Button>
+                  </div>
                 </div>
                 {(() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
