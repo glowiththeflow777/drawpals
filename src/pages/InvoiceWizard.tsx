@@ -67,15 +67,26 @@ const InvoiceWizard = () => {
   const { data: allSubBudgets = [] } = useSubBudgets(projectId || undefined);
   const { data: selectedSubBudgetItems = [] } = useSubBudgetLineItems(selectedSubBudgetId || undefined);
 
-  // Auto-select first sub budget when project or subcontractor changes
+  // For subcontractors: auto-select their own sub budget based on team_member_id
   useEffect(() => {
+    if (!isAdminEntry && profile?.team_member_id && allSubBudgets.length > 0) {
+      const ownBudget = allSubBudgets.find((sb: any) => sb.team_member_id === profile.team_member_id);
+      if (ownBudget) {
+        setSelectedSubBudgetId(ownBudget.id);
+        return;
+      }
+    }
+    // For admin: auto-select first sub budget if none selected
     if (allSubBudgets.length > 0 && !selectedSubBudgetId) {
       setSelectedSubBudgetId(allSubBudgets[0].id);
     }
-  }, [allSubBudgets, selectedSubBudgetId]);
+  }, [allSubBudgets, selectedSubBudgetId, isAdminEntry, profile?.team_member_id]);
+
+  // Subcontractors always bill from sub budget, never see master
+  const effectiveBudgetSource = isAdminEntry ? budgetSource : 'sub';
 
   // Determine which budget items to show in step 3
-  const activeBudgetItems = budgetSource === 'master'
+  const activeBudgetItems = effectiveBudgetSource === 'master'
     ? projectBudgetItems
     : selectedSubBudgetItems;
   const [drawDate, setDrawDate] = useState('');
