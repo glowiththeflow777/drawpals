@@ -368,11 +368,12 @@ export function useCreateSubBudget() {
         .select()
         .single();
       if (error) throw error;
+      const budgetId = (data as any).id;
 
       // Delete old line items then insert new ones
-      await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', data.id);
+      await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', budgetId);
       if (line_items.length > 0) {
-        const rows = line_items.map(li => ({ ...li, sub_budget_id: data.id }));
+        const rows = line_items.map(li => ({ ...li, sub_budget_id: budgetId }));
         const { error: liErr } = await supabase.from('sub_budget_line_items' as any).insert(rows);
         if (liErr) throw liErr;
       }
