@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice } from '@/hooks/useProjects';
+import { useCurrentUser } from '@/hooks/useAuth';
 import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +19,8 @@ const InvoiceWizard = () => {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: directoryEntries = [] } = useSubcontractorDirectory();
   const createTeamMember = useCreateTeamMember();
+  const createInvoice = useCreateInvoice();
+  const { user } = useCurrentUser();
   const { toast } = useToast();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -85,8 +88,33 @@ const InvoiceWizard = () => {
   const creditTotal = credits.reduce((s, c) => s + (c.amount || 0), 0);
   const grandTotal = sowTotal + dayLaborTotal + reimbTotal + coTotal - Math.abs(creditTotal);
 
-  const handleSubmit = () => {
-    navigate('/dashboard');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!user || !projectId) return;
+    setSubmitting(true);
+    try {
+      await createInvoice.mutateAsync({
+        project_id: projectId,
+        submitted_by: user.id,
+        subcontractor_name: selectedSubcontractor || crewName,
+        invoice_number: `INV-${Date.now()}`,
+        invoice_date: drawDate || new Date().toISOString().split('T')[0],
+        sow_total: sowTotal,
+        day_labor_total: dayLaborTotal,
+        reimbursement_total: reimbTotal,
+        change_order_total: coTotal,
+        credit_total: creditTotal,
+        grand_total: grandTotal,
+        notes: '',
+      });
+      toast({ title: 'Invoice submitted', description: `$${grandTotal.toLocaleString()} invoice saved successfully.` });
+      navigate(isAdminEntry ? '/admin/invoices' : '/dashboard');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const canNext = () => {
@@ -574,8 +602,9 @@ const InvoiceWizard = () => {
             <Button
               className="flex-1 py-6 font-display gradient-primary text-primary-foreground text-lg"
               onClick={handleSubmit}
+              disabled={submitting}
             >
-              <Check className="w-5 h-5 mr-2" /> Submit Invoice
+              {submitting ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Check className="w-5 h-5 mr-2" />} Submit Invoice
             </Button>
           )}
         </div>
