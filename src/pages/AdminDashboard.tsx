@@ -187,6 +187,9 @@ const AdminDashboard = () => {
           </div>
         </motion.div>
 
+        {/* AI Forecast Widget */}
+        <AIForecastWidget />
+
         {/* Charts */}
         <div className="grid lg:grid-cols-2 gap-4">
           <div className="card-elevated p-4">
