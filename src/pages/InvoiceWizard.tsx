@@ -158,8 +158,7 @@ const InvoiceWizard = () => {
                       <p className="text-xs text-muted-foreground mt-1">{t('common.budget')}: ${p.total_budget.toLocaleString()}</p>
                     </button>
                   );
-                }
-                ))}
+                })}
               </div>
             )}
 
