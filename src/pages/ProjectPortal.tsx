@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat } from 'lucide-react';
@@ -812,17 +812,33 @@ const ProjectPortal = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {items.map(item => (
-                            <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
-                              <td className="p-3">{item.line_item_no}</td>
-                              <td className="p-3 font-body font-medium">{item.cost_item_name}</td>
-                              <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
-                              <td className="p-3 text-right">{Number(item.quantity).toLocaleString()}</td>
-                              <td className="p-3 text-muted-foreground text-xs">{item.unit}</td>
-                              <td className="p-3 text-right font-display font-semibold">${Number(item.extended_cost).toLocaleString()}</td>
-                              <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
-                            </tr>
-                          ))}
+                          {(() => {
+                            let lastGroup = '';
+                            return items.map(item => {
+                              const showGroupHeader = item.cost_group && item.cost_group !== lastGroup;
+                              if (item.cost_group) lastGroup = item.cost_group;
+                              return (
+                                <React.Fragment key={item.id}>
+                                  {showGroupHeader && (
+                                    <tr className="bg-muted/50">
+                                      <td colSpan={7} className="p-3 font-display font-bold text-sm text-foreground">
+                                        {item.cost_group}
+                                      </td>
+                                    </tr>
+                                  )}
+                                  <tr className="border-b border-border/50 hover:bg-muted/30">
+                                    <td className="p-3">{item.line_item_no}</td>
+                                    <td className="p-3 font-body font-medium">{item.cost_item_name}</td>
+                                    <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
+                                    <td className="p-3 text-right">{Number(item.quantity).toLocaleString()}</td>
+                                    <td className="p-3 text-muted-foreground text-xs">{item.unit}</td>
+                                    <td className="p-3 text-right font-display font-semibold">${Number(item.extended_cost).toLocaleString()}</td>
+                                    <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
+                                  </tr>
+                                </React.Fragment>
+                              );
+                            });
+                          })()}
                         </tbody>
                         <tfoot>
                           <tr className="border-t-2 border-border">
