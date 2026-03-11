@@ -67,15 +67,26 @@ const InvoiceWizard = () => {
   const { data: allSubBudgets = [] } = useSubBudgets(projectId || undefined);
   const { data: selectedSubBudgetItems = [] } = useSubBudgetLineItems(selectedSubBudgetId || undefined);
 
-  // Auto-select first sub budget when project or subcontractor changes
+  // For subcontractors: auto-select their own sub budget based on team_member_id
   useEffect(() => {
+    if (!isAdminEntry && profile?.team_member_id && allSubBudgets.length > 0) {
+      const ownBudget = allSubBudgets.find((sb: any) => sb.team_member_id === profile.team_member_id);
+      if (ownBudget) {
+        setSelectedSubBudgetId(ownBudget.id);
+        return;
+      }
+    }
+    // For admin: auto-select first sub budget if none selected
     if (allSubBudgets.length > 0 && !selectedSubBudgetId) {
       setSelectedSubBudgetId(allSubBudgets[0].id);
     }
-  }, [allSubBudgets, selectedSubBudgetId]);
+  }, [allSubBudgets, selectedSubBudgetId, isAdminEntry, profile?.team_member_id]);
+
+  // Subcontractors always bill from sub budget, never see master
+  const effectiveBudgetSource = isAdminEntry ? budgetSource : 'sub';
 
   // Determine which budget items to show in step 3
-  const activeBudgetItems = budgetSource === 'master'
+  const activeBudgetItems = effectiveBudgetSource === 'master'
     ? projectBudgetItems
     : selectedSubBudgetItems;
   const [drawDate, setDrawDate] = useState('');
@@ -419,7 +430,8 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
-                {/* Budget source toggle */}
+                {/* Budget source toggle — only for admin/PM entries */}
+                {isAdminEntry && (
                 <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/50 border border-border">
                   <div className="flex items-center gap-2">
                     <Label className="text-sm font-display font-semibold">Bill from:</Label>
@@ -457,6 +469,7 @@ const InvoiceWizard = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 <p className="text-muted-foreground font-body text-sm">
                   Tap each budget line item you're billing for, then set the % complete.
@@ -465,9 +478,11 @@ const InvoiceWizard = () => {
                 {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground font-body">
-                      {budgetSource === 'sub' && allSubBudgets.length === 0
+                      {!isAdminEntry
+                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                        : effectiveBudgetSource === 'sub' && allSubBudgets.length === 0
                         ? 'No sub budgets have been uploaded for this project yet.'
-                        : budgetSource === 'sub'
+                        : effectiveBudgetSource === 'sub'
                         ? 'No line items found in the selected sub budget.'
                         : 'No budget items found for this project.'}
                     </p>
