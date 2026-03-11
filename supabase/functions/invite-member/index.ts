@@ -52,9 +52,19 @@ Deno.serve(async (req) => {
     });
 
     if (inviteError) {
-      // If user already exists, that's OK — just proceed with team member setup
+      // If user already exists, send them a password reset email instead
       if (inviteError.message.includes("already been registered")) {
-        console.log("User already registered, skipping invite:", email);
+        console.log("User already registered, sending password reset instead:", email);
+        const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
+          type: 'recovery',
+          email,
+          options: {
+            redirectTo: redirect_url || undefined,
+          },
+        });
+        if (resetError) {
+          console.error("Password reset link error:", resetError);
+        }
       } else {
         return new Response(JSON.stringify({ error: inviteError.message }), {
           status: 400,
