@@ -59,6 +59,8 @@ const ProjectPortal = () => {
   const { data: allBudgetItems = [] } = useBudgetLineItems();
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: allAssignments = [] } = useProjectAssignments();
+  const { data: billingHistory = new Map() } = useBillingHistory(selectedProject?.id);
+  const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(selectedProject?.id);
 
   // Mutations
   const createProject = useCreateProject();
