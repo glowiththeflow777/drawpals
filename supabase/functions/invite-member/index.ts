@@ -65,40 +65,55 @@ Deno.serve(async (req) => {
       inviteData = inviteResult;
     }
 
-    // Also create/update the team_members record
-    const { data: memberData, error: memberError } = await supabaseAdmin
+    // Check if team member already exists by email
+    let memberData = null;
+    const { data: existingMember } = await supabaseAdmin
       .from("team_members")
-      .upsert({
-        email,
-        name,
-        role,
-        phone: phone || '',
-        crew_name: crew_name || null,
-      }, { onConflict: 'email' })
       .select()
-      .single();
+      .eq("email", email)
+      .maybeSingle();
 
-    if (memberError) {
-      console.error("Team member upsert error:", memberError);
+    if (existingMember) {
+      // Update existing record
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from("team_members")
+        .update({ name, role, phone: phone || '', crew_name: crew_name || null })
+        .eq("id", existingMember.id)
+        .select()
+        .single();
+      if (updateError) console.error("Team member update error:", updateError);
+      memberData = updated || existingMember;
+    } else {
+      // Insert new record
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from("team_members")
+        .insert({ email, name, role, phone: phone || '', crew_name: crew_name || null })
+        .select()
+        .single();
+      if (insertError) console.error("Team member insert error:", insertError);
+      memberData = inserted;
     }
 
     // If project_id is provided, auto-assign the team member to the project
     if (project_id && memberData) {
-      const { error: assignError } = await supabaseAdmin
+      // Check if assignment already exists
+      const { data: existingAssignment } = await supabaseAdmin
         .from("project_assignments")
-        .upsert({
-          project_id,
-          team_member_id: memberData.id,
-        }, { onConflict: 'project_id,team_member_id' })
-        .select();
+        .select()
+        .eq("project_id", project_id)
+        .eq("team_member_id", memberData.id)
+        .maybeSingle();
 
-      if (assignError) {
-        console.error("Project assignment error:", assignError);
+      if (!existingAssignment) {
+        const { error: assignError } = await supabaseAdmin
+          .from("project_assignments")
+          .insert({ project_id, team_member_id: memberData.id });
+        if (assignError) console.error("Project assignment error:", assignError);
       }
     }
 
     return new Response(
-      JSON.stringify({ message: "Invitation sent", user: inviteData.user, team_member: memberData }),
+      JSON.stringify({ message: "Invitation sent", user: inviteData?.user || null, team_member: memberData }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
