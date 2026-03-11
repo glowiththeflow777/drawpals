@@ -13,6 +13,7 @@ import Approvals from "./pages/Approvals";
 import Invoices from "./pages/Invoices";
 import ProjectPortal from "./pages/ProjectPortal";
 import TeamManagement from "./pages/TeamManagement";
+import SubcontractorDirectory from "./pages/SubcontractorDirectory";
 import AdminLayout from "./components/AdminLayout";
 import SubcontractorLayout from "./components/SubcontractorLayout";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/admin/invoices" element={<AdminLayout><Invoices /></AdminLayout>} />
           <Route path="/admin/approvals" element={<AdminLayout><Approvals /></AdminLayout>} />
           <Route path="/admin/team" element={<AdminLayout><TeamManagement /></AdminLayout>} />
+          <Route path="/admin/directory" element={<AdminLayout><SubcontractorDirectory /></AdminLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

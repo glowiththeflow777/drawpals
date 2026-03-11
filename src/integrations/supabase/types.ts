@@ -251,6 +251,51 @@ export type Database = {
         }
         Relationships: []
       }
+      subcontractor_directory: {
+        Row: {
+          company_name: string
+          contact_name: string
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          location: string
+          notes: string
+          phone: string
+          specialties: string[]
+          subcontractor_type: string
+          website: string
+        }
+        Insert: {
+          company_name: string
+          contact_name?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          location?: string
+          notes?: string
+          phone?: string
+          specialties?: string[]
+          subcontractor_type?: string
+          website?: string
+        }
+        Update: {
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          location?: string
+          notes?: string
+          phone?: string
+          specialties?: string[]
+          subcontractor_type?: string
+          website?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
