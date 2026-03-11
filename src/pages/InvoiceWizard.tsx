@@ -150,19 +150,112 @@ const InvoiceWizard = () => {
                   </div>
                 )}
                 {isAdminEntry && (
-                  <div>
+                  <div className="space-y-3">
                     <Label className="font-body">{t('invoiceWizard.step2.selectSubcontractor')}</Label>
-                    <Select value={selectedSubcontractor} onValueChange={(val) => { setSelectedSubcontractor(val); setCrewName(val); }}>
+                    <Select value={selectedSubcontractor} onValueChange={(val) => {
+                      if (val === '__new__') {
+                        setShowNewSubForm(true);
+                        return;
+                      }
+                      setSelectedSubcontractor(val);
+                      setCrewName(val);
+                      setShowNewSubForm(false);
+                    }}>
                       <SelectTrigger className="mt-1">
                         <SelectValue placeholder={t('invoiceWizard.step2.chooseSubcontractor')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Gloria's Crew">Gloria's Crew</SelectItem>
-                        <SelectItem value="Beckett's Team">Beckett's Team</SelectItem>
-                        <SelectItem value="Rio Finishers">Rio Finishers</SelectItem>
-                        <SelectItem value="Austin Interiors">Austin Interiors</SelectItem>
+                        {teamMembers.filter(m => m.role === 'subcontractor').map(m => (
+                          <SelectItem key={m.id} value={m.crew_name || m.name}>
+                            {m.crew_name || m.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">
+                          <span className="flex items-center gap-1.5">
+                            <UserPlus className="w-3.5 h-3.5" /> Add New Subcontractor
+                          </span>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+
+                    {showNewSubForm && (
+                      <div className="border border-border rounded-lg p-4 space-y-3 bg-muted/30">
+                        <p className="text-sm font-display font-semibold">New Subcontractor</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-body">Name *</Label>
+                            <Input
+                              className="mt-1"
+                              placeholder="Contact name"
+                              value={newSubForm.name}
+                              onChange={e => setNewSubForm(f => ({ ...f, name: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-body">Crew Name</Label>
+                            <Input
+                              className="mt-1"
+                              placeholder="Crew / company name"
+                              value={newSubForm.crew_name}
+                              onChange={e => setNewSubForm(f => ({ ...f, crew_name: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-body">Email *</Label>
+                            <Input
+                              type="email"
+                              className="mt-1"
+                              placeholder="email@example.com"
+                              value={newSubForm.email}
+                              onChange={e => setNewSubForm(f => ({ ...f, email: e.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-body">Phone</Label>
+                            <Input
+                              className="mt-1"
+                              placeholder="512-555-0000"
+                              value={newSubForm.phone}
+                              onChange={e => setNewSubForm(f => ({ ...f, phone: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={!newSubForm.name.trim() || !newSubForm.email.trim() || creatingNewSub}
+                            onClick={async () => {
+                              setCreatingNewSub(true);
+                              try {
+                                const created = await createTeamMember.mutateAsync({
+                                  name: newSubForm.name,
+                                  email: newSubForm.email,
+                                  phone: newSubForm.phone,
+                                  crew_name: newSubForm.crew_name || null,
+                                  role: 'subcontractor',
+                                });
+                                const displayName = created.crew_name || created.name;
+                                setSelectedSubcontractor(displayName);
+                                setCrewName(displayName);
+                                setShowNewSubForm(false);
+                                setNewSubForm({ name: '', email: '', phone: '', crew_name: '' });
+                                toast({ title: 'Subcontractor added', description: `${displayName} has been created.` });
+                              } catch (e: any) {
+                                toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                              } finally {
+                                setCreatingNewSub(false);
+                              }
+                            }}
+                          >
+                            {creatingNewSub ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
+                            Add
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setShowNewSubForm(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div>
