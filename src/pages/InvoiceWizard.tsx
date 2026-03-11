@@ -421,13 +421,36 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
+                {/* Budget source toggle for admin entries */}
+                {isAdminEntry && subBudgetItems.length > 0 && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    <Label className="text-sm font-display font-semibold">Bill from:</Label>
+                    <Select value={budgetSource} onValueChange={(v) => {
+                      setBudgetSource(v as 'master' | 'sub');
+                      setLineItems([]); // Reset selections when switching
+                    }}>
+                      <SelectTrigger className="w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sub">Sub's Budget ({subBudgetItems.length} items)</SelectItem>
+                        <SelectItem value="master">Master Budget ({projectBudgetItems.length} items)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <p className="text-muted-foreground font-body text-sm">
                   Tap each budget line item you're billing for, then set the % complete.
                 </p>
 
-                {projectBudgetItems.length === 0 ? (
+                {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground font-body">No budget items found for this project.</p>
+                    <p className="text-muted-foreground font-body">
+                      {!isAdminEntry && subBudgetItems.length === 0
+                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                        : 'No budget items found for this project.'}
+                    </p>
                   </div>
                 ) : (() => {
                   // Group by cost_group
