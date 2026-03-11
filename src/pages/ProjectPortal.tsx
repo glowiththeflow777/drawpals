@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -93,6 +93,7 @@ const ProjectPortal = () => {
   const [budgetSelectedIds, setBudgetSelectedIds] = useState<Set<string>>(new Set());
   const [budgetFileName, setBudgetFileName] = useState('');
   const [savingBudget, setSavingBudget] = useState(false);
+  const [budgetExpanded, setBudgetExpanded] = useState(false);
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
@@ -1000,23 +1001,33 @@ const ProjectPortal = () => {
               {/* Budget Line Items */}
               <div className="card-elevated p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBudgetExpanded(!budgetExpanded)}
+                    className="flex items-center gap-2 font-display font-semibold text-lg hover:text-primary transition-colors"
+                  >
+                    {budgetExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
                     <FileSpreadsheet className="w-5 h-5 text-muted-foreground" />
                     Budget Line Items
-                  </h3>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleBudgetReupload}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                    />
-                    <Button variant="outline" size="sm" className="font-display text-xs">
-                      <Upload className="w-3 h-3 mr-1" /> Add Budget Items
-                    </Button>
-                  </div>
+                    <span className="text-sm font-normal text-muted-foreground">
+                      ({allBudgetItems.filter(b => b.project_id === selectedProject.id).length} items)
+                    </span>
+                  </button>
+                  {budgetExpanded && (
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,.csv"
+                        onChange={handleBudgetReupload}
+                        className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
+                      />
+                      <Button variant="outline" size="sm" className="font-display text-xs">
+                        <Upload className="w-3 h-3 mr-1" /> Add Budget Items
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {(() => {
+                {budgetExpanded && (() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
                   if (items.length === 0) {
                     return (
