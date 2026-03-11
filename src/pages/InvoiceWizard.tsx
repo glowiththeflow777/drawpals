@@ -56,6 +56,7 @@ const InvoiceWizard = () => {
   const [projectId, setProjectId] = useState(preselectedProject);
   const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
   const { data: projectAssignments = [] } = useProjectAssignments(projectId || undefined);
+  const { data: billingHistory = new Map() } = useBillingHistory(projectId || undefined);
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
