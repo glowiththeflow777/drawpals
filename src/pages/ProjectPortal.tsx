@@ -1026,7 +1026,18 @@ const ProjectPortal = () => {
                       </div>
                     );
                   }
-                  return (
+
+                  // Group items by batch_label
+                  const batches = new Map<string, typeof items>();
+                  items.forEach(item => {
+                    const label = (item as any).batch_label || 'Original Budget';
+                    if (!batches.has(label)) batches.set(label, []);
+                    batches.get(label)!.push(item);
+                  });
+
+                  const grandTotal = items.reduce((s, i) => s + Number(i.extended_cost), 0);
+
+                  const renderBatchTable = (batchItems: typeof items) => (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
@@ -1043,7 +1054,7 @@ const ProjectPortal = () => {
                         <tbody>
                           {(() => {
                             let lastGroup = '';
-                            return items.map(item => {
+                            return batchItems.map(item => {
                               const showGroupHeader = item.cost_group && item.cost_group !== lastGroup;
                               if (item.cost_group) lastGroup = item.cost_group;
                               return (
@@ -1070,13 +1081,41 @@ const ProjectPortal = () => {
                           })()}
                         </tbody>
                         <tfoot>
-                          <tr className="border-t-2 border-border">
-                            <td colSpan={5} className="p-3 text-right font-display font-semibold">Total</td>
-                            <td className="p-3 text-right font-display font-bold text-lg">${items.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</td>
+                          <tr className="border-t border-border">
+                            <td colSpan={5} className="p-3 text-right font-display font-semibold text-sm">Subtotal</td>
+                            <td className="p-3 text-right font-display font-bold">${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</td>
                             <td></td>
                           </tr>
                         </tfoot>
                       </table>
+                    </div>
+                  );
+
+                  return (
+                    <div className="space-y-4">
+                      {Array.from(batches.entries()).map(([label, batchItems], idx) => (
+                        <div key={label} className="border border-border rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-display font-semibold text-sm">{label}</span>
+                              <span className="text-xs text-muted-foreground">({batchItems.length} items)</span>
+                            </div>
+                            <span className="font-display font-bold text-sm">
+                              ${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}
+                            </span>
+                          </div>
+                          {renderBatchTable(batchItems)}
+                        </div>
+                      ))}
+
+                      {/* Grand Total across all batches */}
+                      {batches.size > 1 && (
+                        <div className="flex items-center justify-between p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
+                          <span className="font-display font-bold text-lg">Combined Total ({items.length} items)</span>
+                          <span className="font-display font-bold text-xl">${grandTotal.toLocaleString()}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
