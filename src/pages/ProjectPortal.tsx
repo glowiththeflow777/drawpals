@@ -734,12 +734,17 @@ const ProjectPortal = () => {
 
               {/* Assigned Subcontractors */}
               <div className="card-elevated p-5 space-y-4">
-                <h3 className="font-display font-semibold text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-muted-foreground" />
-                  Assigned Subcontractors
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                    <Users className="w-5 h-5 text-muted-foreground" />
+                    {t('projects.detail.assignedSubs')}
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={() => openQuickInvite('subcontractor')} className="text-xs font-display">
+                    <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground font-body">
-                  Toggle subcontractors to give them access to this project's portal and budget line items.
+                  {t('projects.detail.toggleSubsDesc')}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamMembers.filter(m => m.role === 'subcontractor').map(sub => {
@@ -766,7 +771,7 @@ const ProjectPortal = () => {
                     );
                   })}
                   {teamMembers.filter(m => m.role === 'subcontractor').length === 0 && (
-                    <p className="text-sm text-muted-foreground col-span-2">No subcontractors added yet. Add team members in Cloud.</p>
+                    <p className="text-sm text-muted-foreground col-span-2">{t('projects.detail.noSubs')}</p>
                   )}
                 </div>
               </div>
