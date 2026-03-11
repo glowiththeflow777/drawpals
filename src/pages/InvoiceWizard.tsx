@@ -111,6 +111,16 @@ const InvoiceWizard = () => {
         credit_total: creditTotal,
         grand_total: grandTotal,
         notes: '',
+        line_items: lineItems
+          .filter((li: any) => li.budgetItemId)
+          .map((li: any) => ({
+            budget_line_item_id: li.budgetItemId,
+            line_item_no: li.lineItemNo || 0,
+            description: li.description || '',
+            contract_price: li.contractPrice || 0,
+            percent_complete: li.percentComplete || 0,
+            draw_amount: li.drawAmount || 0,
+          })),
       });
       toast({ title: 'Invoice submitted', description: `$${grandTotal.toLocaleString()} invoice saved successfully.` });
       navigate(isAdminEntry ? '/admin/invoices' : '/dashboard');
