@@ -307,7 +307,7 @@
       "updateStatus": "Actualizar estado",
       "budget": "Presupuesto",
       "amountInvoiced": "Facturado",
-      "amountPaid": "Pagado",
+      "amountPaid": "Aprobado",
       "remaining": "Restante",
       "budgetUtilization": "Uso del Presupuesto",
       "lineItemsTitle": "Partidas del Presupuesto",
