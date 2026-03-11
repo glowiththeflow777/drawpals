@@ -265,6 +265,32 @@ export function useCreateInvoice() {
   });
 }
 
+export function useDeleteInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (invoiceId: string) => {
+      // Delete line items first (FK constraint)
+      const { error: lineError } = await supabase
+        .from('invoice_line_items')
+        .delete()
+        .eq('invoice_id', invoiceId);
+      if (lineError) throw lineError;
+
+      // Delete the invoice (DB trigger handles project amount adjustments)
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      qc.invalidateQueries({ queryKey: ['invoice_line_items_billing'] });
+    },
+  });
+}
+
 // Fetch total billed per budget line item for a project (across all approved/submitted invoices)
 export function useBillingHistory(projectId?: string) {
   return useQuery({
