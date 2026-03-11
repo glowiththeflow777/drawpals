@@ -1003,6 +1003,93 @@ const ProjectPortal = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Member Detail Dialog */}
+      <Dialog open={memberDetailOpen} onOpenChange={setMemberDetailOpen}>
+        <DialogContent className="sm:max-w-md">
+          {selectedMember && selectedProject && (() => {
+            const assignment = getAssignmentRecord(selectedProject.id, selectedMember.id);
+            const status = assignment?.invitation_status || 'active';
+            const badge = getStatusBadge(status);
+            const invitedAt = assignment?.invited_at ? new Date(assignment.invited_at).toLocaleDateString() : null;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="font-display">Team Member Details</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-display font-bold text-lg">
+                      {selectedMember.crew_name?.[0] || selectedMember.name[0]}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-display font-semibold text-lg">{selectedMember.name}</p>
+                      {selectedMember.crew_name && (
+                        <p className="text-sm text-muted-foreground">{selectedMember.crew_name}</p>
+                      )}
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${badge.className}`}>
+                      <badge.icon className="w-4 h-4" />
+                      {badge.label}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 bg-muted/50 rounded-lg p-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Email</span>
+                      <span className="font-medium">{selectedMember.email}</span>
+                    </div>
+                    {selectedMember.phone && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Phone</span>
+                        <span className="font-medium">{selectedMember.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Role</span>
+                      <span className="font-medium capitalize">{selectedMember.role}</span>
+                    </div>
+                    {invitedAt && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Last Invited</span>
+                        <span className="font-medium">{invitedAt}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {status !== 'active' && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-sm text-amber-700 font-body">
+                        This member hasn't fully activated yet. You can resend the invitation email.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <DialogFooter className="flex gap-2 sm:gap-2">
+                  <Button variant="outline" onClick={() => {
+                    handleToggleAssignment(selectedProject.id, selectedMember.id);
+                    setMemberDetailOpen(false);
+                  }} className="text-destructive hover:text-destructive">
+                    <X className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                  {status !== 'active' && (
+                    <Button onClick={handleResendInvite} disabled={resendingInvite}>
+                      {resendingInvite ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+                      Resend Invitation
+                    </Button>
+                  )}
+                  {status === 'active' && (
+                    <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>
+                      Close
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
