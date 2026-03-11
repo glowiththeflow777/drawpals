@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next';
 const LandingPage = () => {
   const { t, i18n } = useTranslation();
   const [mode, setMode] = useState<'landing' | 'login' | 'setup'>('landing');
-  const [role, setRole] = useState<'subcontractor' | 'admin'>('subcontractor');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [setupName, setSetupName] = useState('');
@@ -34,13 +33,35 @@ const LandingPage = () => {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
 
     if (error) {
+      setLoading(false);
       toast({ title: t('landing.signInFailed'), description: error.message, variant: 'destructive' });
-    } else {
-      navigate(role === 'admin' ? '/admin' : '/dashboard');
+      return;
     }
+
+    // Fetch user roles to determine where to route
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: roles } = await supabase.rpc('get_user_roles', { _user_id: user.id });
+      const userRoles = (roles || []) as string[];
+      
+      // Restore last active role or pick best default
+      const stored = localStorage.getItem('activeRole');
+      if (stored && userRoles.includes(stored)) {
+        navigate(stored === 'subcontractor' ? '/dashboard' : '/admin');
+      } else if (userRoles.includes('admin')) {
+        localStorage.setItem('activeRole', 'admin');
+        navigate('/admin');
+      } else if (userRoles.includes('project-manager')) {
+        localStorage.setItem('activeRole', 'project-manager');
+        navigate('/admin');
+      } else {
+        localStorage.setItem('activeRole', 'subcontractor');
+        navigate('/dashboard');
+      }
+    }
+    setLoading(false);
   };
 
   const handleSetup = async (e: React.FormEvent) => {
@@ -61,7 +82,6 @@ const LandingPage = () => {
       toast({ title: t('landing.setup.successTitle'), description: t('landing.setup.successDesc') });
       setEmail(setupEmail);
       setMode('login');
-      setRole('admin');
     }
   };
 
@@ -115,7 +135,6 @@ const LandingPage = () => {
     return (
       <div className="min-h-screen flex flex-col">
         <div className="gradient-dark flex-1 flex items-center justify-center px-4 py-16 relative overflow-hidden">
-          {/* Language toggle - top right */}
           <div className="absolute top-4 right-4 z-20">
             <Button variant="ghost" size="sm" onClick={toggleLanguage} className="text-secondary-foreground/50 hover:text-secondary-foreground flex items-center gap-1">
               <Globe className="w-4 h-4" />
@@ -138,17 +157,9 @@ const LandingPage = () => {
             </p>
 
             <div className="flex justify-center">
-              <Button size="lg" className="gradient-primary text-primary-foreground font-display text-lg px-8 py-6 rounded-xl shadow-lg hover:opacity-90 transition-opacity" onClick={() => { setRole('subcontractor'); setMode('login'); }}>
-                <HardHat className="w-5 h-5 mr-2" />
-                {t('landing.subcontractorBtn')}
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </div>
-
-            <div className="flex justify-center mt-2">
-              <Button size="sm" variant="ghost" className="text-secondary-foreground/40 font-body text-sm hover:text-secondary-foreground/60 transition-colors" onClick={() => { setRole('admin'); setMode('login'); }}>
-                <Building2 className="w-4 h-4 mr-1" />
-                {t('landing.adminLogin')}
+              <Button size="lg" className="gradient-primary text-primary-foreground font-display text-lg px-8 py-6 rounded-xl shadow-lg hover:opacity-90 transition-opacity" onClick={() => setMode('login')}>
+                <ArrowRight className="w-5 h-5 mr-2" />
+                {t('landing.signIn', 'Sign In')}
               </Button>
             </div>
 
@@ -166,6 +177,7 @@ const LandingPage = () => {
     );
   }
 
+  // Unified login — no role selection needed
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-8">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
@@ -173,9 +185,9 @@ const LandingPage = () => {
         <div className="card-elevated p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              {role === 'admin' ? <Building2 className="w-5 h-5 text-primary-foreground" /> : <HardHat className="w-5 h-5 text-primary-foreground" />}
+              <Building2 className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h2 className="text-2xl font-display font-bold">{role === 'admin' ? t('landing.adminSignIn') : t('landing.signIn')}</h2>
+            <h2 className="text-2xl font-display font-bold">{t('landing.signIn', 'Sign In')}</h2>
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -194,7 +206,7 @@ const LandingPage = () => {
             </div>
             <Button type="submit" className="w-full gradient-primary text-primary-foreground py-6 text-lg font-display rounded-xl" disabled={loading}>
               {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              {t('landing.signIn')} <ArrowRight className="w-5 h-5 ml-2" />
+              {t('landing.signIn', 'Sign In')} <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </form>
           <div className="text-center mt-4">

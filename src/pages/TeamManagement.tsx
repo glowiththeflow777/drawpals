@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Plus, Pencil, Trash2, X, Check, Loader2, Shield, Briefcase, HardHat, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useTeamMembers, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember, DbTeamMember } from '@/hooks/useProjects';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,11 +18,12 @@ interface MemberForm {
   name: string;
   email: string;
   phone: string;
-  role: TeamRole;
+  role: TeamRole; // Primary role for team_members table
+  roles: TeamRole[]; // All roles for user_roles table
   crew_name: string;
 }
 
-const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'subcontractor', crew_name: '' };
+const emptyForm: MemberForm = { name: '', email: '', phone: '', role: 'subcontractor', roles: ['subcontractor'], crew_name: '' };
 
 const TeamManagement = () => {
   const { data: allMembers = [], isLoading } = useTeamMembers();
@@ -50,8 +52,21 @@ const TeamManagement = () => {
 
   const openEdit = (m: DbTeamMember) => {
     setEditingId(m.id);
-    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole, crew_name: m.crew_name || '' });
+    setForm({ name: m.name, email: m.email, phone: m.phone, role: m.role as TeamRole, roles: [m.role as TeamRole], crew_name: m.crew_name || '' });
     setDialogOpen(true);
+  };
+
+  const toggleRole = (role: TeamRole) => {
+    setForm(f => {
+      const newRoles = f.roles.includes(role)
+        ? f.roles.filter(r => r !== role)
+        : [...f.roles, role];
+      // Ensure at least one role is selected
+      if (newRoles.length === 0) return f;
+      // Set primary role to the first selected
+      const primaryRole = newRoles.includes(f.role) ? f.role : newRoles[0];
+      return { ...f, roles: newRoles, role: primaryRole };
+    });
   };
 
   const handleSave = async () => {
@@ -59,45 +74,37 @@ const TeamManagement = () => {
       toast({ title: t('team.nameRequired'), variant: 'destructive' });
       return;
     }
+    if (form.roles.length === 0) {
+      toast({ title: 'At least one role is required', variant: 'destructive' });
+      return;
+    }
     try {
       if (editingId) {
-        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.role === 'subcontractor' ? form.crew_name : null });
+        await updateMember.mutateAsync({ id: editingId, name: form.name, email: form.email, phone: form.phone, role: form.role, crew_name: form.roles.includes('subcontractor') ? form.crew_name : null });
         toast({ title: t('team.memberUpdated') });
       } else {
-        // Send invite email via backend function (requires authenticated session)
         const { data: { session } } = await supabase.auth.getSession();
-
         if (!session?.access_token) {
-          toast({
-            title: t('team.sessionExpired'),
-            description: t('team.sessionExpiredDesc'),
-            variant: 'destructive'
-          });
+          toast({ title: t('team.sessionExpired'), description: t('team.sessionExpiredDesc'), variant: 'destructive' });
           navigate('/');
           return;
         }
 
         const res = await supabase.functions.invoke('invite-member', {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
+          headers: { Authorization: `Bearer ${session.access_token}` },
           body: {
             email: form.email,
             name: form.name,
             role: form.role,
+            roles: form.roles,
             phone: form.phone,
-            crew_name: form.role === 'subcontractor' ? form.crew_name : null,
+            crew_name: form.roles.includes('subcontractor') ? form.crew_name : null,
             redirect_url: `${window.location.origin}/reset-password`,
           },
         });
 
-        if (res.error) {
-          throw new Error(res.error.message || 'Failed to send invitation');
-        }
-
-        if (res.data?.error) {
-          throw new Error(res.data.error);
-        }
+        if (res.error) throw new Error(res.error.message || 'Failed to send invitation');
+        if (res.data?.error) throw new Error(res.data.error);
 
         toast({ title: t('team.inviteSent'), description: t('team.inviteDesc', { email: form.email }) });
       }
@@ -121,10 +128,11 @@ const TeamManagement = () => {
   const roleLabel = (role: string) => role === 'admin' ? t('team.roles.admin') : role === 'subcontractor' ? t('team.roles.subcontractor') : t('team.roles.project-manager');
   const roleColor = (role: string) => role === 'admin' ? 'bg-primary/15 text-primary' : role === 'subcontractor' ? 'bg-info/15 text-info' : 'bg-accent/15 text-accent';
 
+  const allRoles: TeamRole[] = ['admin', 'project-manager', 'subcontractor'];
+
   return (
     <>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        {/* Title + Add */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className="w-6 h-6 text-primary" />
@@ -135,7 +143,6 @@ const TeamManagement = () => {
           </Button>
         </div>
 
-        {/* Filter chips */}
         <div className="flex gap-2">
           {(['all', 'admin', 'project-manager', 'subcontractor'] as const).map(f => (
             <button
@@ -150,14 +157,12 @@ const TeamManagement = () => {
           ))}
         </div>
 
-        {/* Loading */}
         {isLoading && (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
           </div>
         )}
 
-        {/* Members grid */}
         {!isLoading && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
@@ -217,7 +222,6 @@ const TeamManagement = () => {
         )}
       </main>
 
-      {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -237,19 +241,38 @@ const TeamManagement = () => {
               <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('team.phonePlaceholder')} />
             </div>
             <div>
-              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.role')} *</label>
-              <Select value={form.role} onValueChange={(v: TeamRole) => setForm(f => ({ ...f, role: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">{t('team.roles.admin')}</SelectItem>
-                  <SelectItem value="project-manager">{t('team.roles.project-manager')}</SelectItem>
-                  <SelectItem value="subcontractor">{t('team.roles.subcontractor')}</SelectItem>
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium font-body mb-2 block">{t('common.role', 'Roles')} *</label>
+              <div className="space-y-2">
+                {allRoles.map(role => (
+                  <label key={role} className="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={form.roles.includes(role)}
+                      onCheckedChange={() => toggleRole(role)}
+                    />
+                    <span className="flex items-center gap-1.5 text-sm font-body">
+                      {roleIcon(role)}
+                      {roleLabel(role)}
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
-            {form.role === 'subcontractor' && (
+            {editingId && (
+              <div>
+                <label className="text-sm font-medium font-body mb-1.5 block">Primary Role</label>
+                <Select value={form.role} onValueChange={(v: TeamRole) => setForm(f => ({ ...f, role: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {form.roles.map(r => (
+                      <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {form.roles.includes('subcontractor') && (
               <div>
                 <label className="text-sm font-medium font-body mb-1.5 block">{t('team.crewName')}</label>
                 <Input value={form.crew_name} onChange={e => setForm(f => ({ ...f, crew_name: e.target.value }))} placeholder={t('team.crewPlaceholder')} />

@@ -20,6 +20,8 @@ import SubcontractorLayout from "./components/SubcontractorLayout";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import RoleProvider from "./components/RoleProvider";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -33,19 +35,88 @@ const App = () => (
           <Route path="/" element={<LandingPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          
+          {/* Protected routes wrapped in RoleProvider */}
           {/* Subcontractor Portal */}
-          <Route path="/dashboard" element={<SubcontractorLayout><SubcontractorDashboard /></SubcontractorLayout>} />
-          <Route path="/dashboard/projects" element={<SubcontractorLayout><SubcontractorProjects /></SubcontractorLayout>} />
-          <Route path="/dashboard/invoices" element={<SubcontractorLayout><SubcontractorInvoices /></SubcontractorLayout>} />
-          <Route path="/invoice/new" element={<SubcontractorLayout><InvoiceWizard /></SubcontractorLayout>} />
-          {/* Admin Portal */}
-          <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-          <Route path="/admin/projects" element={<AdminLayout><ProjectPortal /></AdminLayout>} />
-          <Route path="/admin/invoices" element={<AdminLayout><Invoices /></AdminLayout>} />
-          <Route path="/admin/invoices/:projectId" element={<AdminLayout><ProjectInvoices /></AdminLayout>} />
-          <Route path="/admin/approvals" element={<AdminLayout><Approvals /></AdminLayout>} />
-          <Route path="/admin/team" element={<AdminLayout><TeamManagement /></AdminLayout>} />
-          <Route path="/admin/directory" element={<AdminLayout><SubcontractorDirectory /></AdminLayout>} />
+          <Route path="/dashboard" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['subcontractor']}>
+                <SubcontractorLayout><SubcontractorDashboard /></SubcontractorLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/dashboard/projects" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['subcontractor']}>
+                <SubcontractorLayout><SubcontractorProjects /></SubcontractorLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/dashboard/invoices" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['subcontractor']}>
+                <SubcontractorLayout><SubcontractorInvoices /></SubcontractorLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/invoice/new" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['subcontractor']}>
+                <SubcontractorLayout><InvoiceWizard /></SubcontractorLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          
+          {/* Admin / PM Portal */}
+          <Route path="/admin" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><AdminDashboard /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/projects" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><ProjectPortal /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/invoices" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><Invoices /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/invoices/:projectId" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><ProjectInvoices /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/approvals" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><Approvals /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/team" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout><TeamManagement /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/directory" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout><SubcontractorDirectory /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
