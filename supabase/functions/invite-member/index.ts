@@ -53,16 +53,18 @@ Deno.serve(async (req) => {
 
     if (inviteError) {
       if (inviteError.message.includes("already been registered")) {
-        console.log("User already registered, sending password reset instead:", email);
-        const { error: resetError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'recovery',
-          email,
-          options: {
-            redirectTo: redirect_url || undefined,
-          },
+        console.log("User already registered, sending password reset email:", email);
+        // Use resetPasswordForEmail which actually sends the email,
+        // unlike generateLink which only generates a link server-side
+        const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+          redirectTo: redirect_url || undefined,
         });
         if (resetError) {
-          console.error("Password reset link error:", resetError);
+          console.error("Password reset email error:", resetError);
+          return new Response(JSON.stringify({ error: resetError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
       } else {
         return new Response(JSON.stringify({ error: inviteError.message }), {
