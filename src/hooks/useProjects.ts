@@ -249,3 +249,19 @@ export function useRemoveAssignment() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['project_assignments'] }),
   });
 }
+
+export function useUpdateInvoiceStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ invoiceId, status, rejectionNotes }: { invoiceId: string; status: string; rejectionNotes?: string }) => {
+      const updates: Record<string, unknown> = { status };
+      if (rejectionNotes !== undefined) updates.rejection_notes = rejectionNotes;
+      const { error } = await supabase.from('invoices').update(updates as any).eq('id', invoiceId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+}
