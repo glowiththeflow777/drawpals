@@ -307,7 +307,7 @@
       "updateStatus": "Update status",
       "budget": "Budget",
       "amountInvoiced": "Invoiced",
-      "amountPaid": "Paid",
+      "amountPaid": "Approved",
       "remaining": "Remaining",
       "budgetUtilization": "Budget utilization",
       "lineItemsTitle": "Budget Line Items",
