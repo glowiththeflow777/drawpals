@@ -62,6 +62,7 @@ const InvoiceWizard = () => {
   const [showNewSubForm, setShowNewSubForm] = useState(false);
   const [creatingNewSub, setCreatingNewSub] = useState(false);
   const [newSubForm, setNewSubForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const project = dbProjects.find(p => p.id === projectId);
 
@@ -457,11 +458,46 @@ const InvoiceWizard = () => {
             {step === 7 && (
               <div className="space-y-4">
                 <p className="text-muted-foreground font-body text-sm">Upload photos and receipt scans</p>
-                <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary transition-colors cursor-pointer">
+                <div className="relative border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary transition-colors cursor-pointer">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx"
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        setAttachments(prev => [...prev, ...Array.from(files)]);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
                   <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
                   <p className="font-display font-semibold">Tap to upload files</p>
                   <p className="text-xs text-muted-foreground mt-1">Photos, receipts, PDFs</p>
                 </div>
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {attachments.map((file, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm font-body truncate">{file.name}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {(file.size / 1024).toFixed(0)} KB
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-destructive flex-shrink-0 ml-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">{attachments.length} file(s) attached</p>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground text-center">Or connect to CompanyCam for job site photos</p>
               </div>
             )}
