@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       budget_line_items: {
         Row: {
+          batch_label: string
           cost_code: string
           cost_group: string
           cost_item_name: string
@@ -30,6 +31,7 @@ export type Database = {
           unit: string
         }
         Insert: {
+          batch_label?: string
           cost_code?: string
           cost_group?: string
           cost_item_name?: string
@@ -44,6 +46,7 @@ export type Database = {
           unit?: string
         }
         Update: {
+          batch_label?: string
           cost_code?: string
           cost_group?: string
           cost_item_name?: string
