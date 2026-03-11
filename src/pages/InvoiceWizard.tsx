@@ -88,8 +88,33 @@ const InvoiceWizard = () => {
   const creditTotal = credits.reduce((s, c) => s + (c.amount || 0), 0);
   const grandTotal = sowTotal + dayLaborTotal + reimbTotal + coTotal - Math.abs(creditTotal);
 
-  const handleSubmit = () => {
-    navigate('/dashboard');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!user || !projectId) return;
+    setSubmitting(true);
+    try {
+      await createInvoice.mutateAsync({
+        project_id: projectId,
+        submitted_by: user.id,
+        subcontractor_name: selectedSubcontractor || crewName,
+        invoice_number: `INV-${Date.now()}`,
+        invoice_date: drawDate || new Date().toISOString().split('T')[0],
+        sow_total: sowTotal,
+        day_labor_total: dayLaborTotal,
+        reimbursement_total: reimbTotal,
+        change_order_total: coTotal,
+        credit_total: creditTotal,
+        grand_total: grandTotal,
+        notes: '',
+      });
+      toast({ title: 'Invoice submitted', description: `$${grandTotal.toLocaleString()} invoice saved successfully.` });
+      navigate(isAdminEntry ? '/admin/invoices' : '/dashboard');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const canNext = () => {
