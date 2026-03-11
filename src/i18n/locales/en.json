@@ -370,5 +370,10 @@
     "approved": "Approved",
     "rejected": "Rejected",
     "draft": "Draft"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet",
+    "justNow": "Just now"
   }
 }
