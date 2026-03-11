@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice } from '@/hooks/useProjects';
+import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
 import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
@@ -55,6 +55,7 @@ const InvoiceWizard = () => {
   const [step, setStep] = useState(1);
   const [projectId, setProjectId] = useState(preselectedProject);
   const { data: projectBudgetItems = [] } = useBudgetLineItems(projectId || undefined);
+  const { data: projectAssignments = [] } = useProjectAssignments(projectId || undefined);
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
@@ -324,8 +325,29 @@ const InvoiceWizard = () => {
                     )}
                   </div>
                 <div>
-                  <Label className="font-body">{t('invoiceWizard.step2.crewName')}</Label>
-                  <Input value={crewName} onChange={e => setCrewName(e.target.value)} className="mt-1" readOnly={isAdminEntry} />
+                  <Label className="font-body">{t('invoiceWizard.step2.projectManager', 'Project Manager')}</Label>
+                  {(() => {
+                    const pmAssignments = projectAssignments.filter(
+                      (a: any) => a.team_members?.role === 'project-manager'
+                    );
+                    if (pmAssignments.length === 0) {
+                      return <p className="text-sm text-muted-foreground mt-1">No project managers assigned to this project.</p>;
+                    }
+                    return (
+                      <Select value={crewName} onValueChange={setCrewName}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select a project manager..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {pmAssignments.map((a: any) => (
+                            <SelectItem key={a.team_members.id} value={a.team_members.name}>
+                              {a.team_members.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
+                  })()}
                 </div>
                 <div>
                   <Label className="font-body">{t('invoiceWizard.step2.projectAddress')}</Label>
