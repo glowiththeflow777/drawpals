@@ -256,8 +256,8 @@
     "qbSuccess": "¡Archivo QuickBooks IIF exportado!",
     "noDataExport": "Sin datos para exportar",
     "pieLabels": {
-      "paid": "Pagado",
-      "invoicedUnpaid": "Facturado (Sin Pagar)",
+      "paid": "Aprobado",
+      "invoicedUnpaid": "Facturado (Pendiente)",
       "remaining": "Restante"
     },
     "bonus": {
