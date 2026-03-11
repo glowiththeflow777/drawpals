@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 
 const InvoiceWizard = () => {
   const navigate = useNavigate();
+  const { data: dbProjects = [] } = useProjects();
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const isAdminEntry = searchParams.get('admin') === 'true';
