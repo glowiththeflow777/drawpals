@@ -91,6 +91,9 @@ const AdminDashboard = () => {
   const totalInvoiced = filtered.reduce((s, p) => s + Number(p.amount_invoiced), 0);
   const totalPaid = filtered.reduce((s, p) => s + Number(p.amount_paid), 0);
   const remaining = totalBudget - totalInvoiced;
+  const budgetSavings = Math.max(0, totalBudget - totalPaid);
+  const pmBonus = budgetSavings * 0.30;
+  const businessShare = budgetSavings * 0.70;
 
   const pieData = [
     { name: t('adminDashboard.pieLabels.paid'), value: totalPaid },
