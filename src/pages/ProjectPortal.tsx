@@ -853,6 +853,9 @@ const ProjectPortal = () => {
                   );
                 })()}
               </div>
+
+              {/* Documents */}
+              <ProjectDocuments projectId={selectedProject.id} />
             </motion.div>
           )}
         </AnimatePresence>
