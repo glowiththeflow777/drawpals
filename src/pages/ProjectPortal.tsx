@@ -63,6 +63,9 @@ const ProjectPortal = () => {
   const updateProject = useUpdateProject();
   const insertBudgetItems = useInsertBudgetLineItems();
   const toggleAssignment = useToggleAssignment();
+  const addAssignment = useAddAssignment();
+  const updateAssignmentStatus = useUpdateAssignmentStatus();
+  const removeAssignment = useRemoveAssignment();
 
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
