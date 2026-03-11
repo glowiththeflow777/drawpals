@@ -454,8 +454,9 @@ const InvoiceWizard = () => {
                   </div>
                 ) : (() => {
                   // Group by cost_group
-                  const groups = new Map<string, typeof projectBudgetItems>();
-                  projectBudgetItems.forEach(item => {
+                  const groups = new Map<string, any[]>();
+                  activeBudgetItems.forEach((item: any) => {
+                    const group = item.cost_group || 'Ungrouped';
                     const group = item.cost_group || 'Ungrouped';
                     if (!groups.has(group)) groups.set(group, []);
                     groups.get(group)!.push(item);
