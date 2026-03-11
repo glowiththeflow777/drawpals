@@ -12,7 +12,7 @@ import { format, nextTuesday, addWeeks, startOfDay } from 'date-fns';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useProjects, useTeamMembers, useCreateTeamMember, useBudgetLineItems, useSubcontractorDirectory, useCreateInvoice, useProjectAssignments } from '@/hooks/useProjects';
 import { useCurrentUser } from '@/hooks/useAuth';
-import BudgetLineItemSearch from '@/components/BudgetLineItemSearch';
+// BudgetLineItemSearch no longer used in step 3 — replaced with full checklist
 import type { InvoiceLineItem, DayLaborEntry, ReimbursementEntry, ChangeOrderEntry } from '@/types/budget';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '@/hooks/use-toast';
@@ -59,9 +59,7 @@ const InvoiceWizard = () => {
   const [crewName, setCrewName] = useState(isAdminEntry ? '' : "Gloria's Crew");
   const [selectedSubcontractor, setSelectedSubcontractor] = useState('');
   const [drawDate, setDrawDate] = useState('');
-  const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([
-    { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 },
-  ]);
+  const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([]);
   const [dayLabor, setDayLabor] = useState<DayLaborEntry[]>(
     DAYS.map(d => ({ day: d, crewMembers: '', amount: 0, hours: 0 }))
   );
@@ -391,66 +389,124 @@ const InvoiceWizard = () => {
 
             {step === 3 && (
               <div className="space-y-4">
-                <p className="text-muted-foreground font-body text-sm">{t('invoiceWizard.step3.instruction')}</p>
+                <p className="text-muted-foreground font-body text-sm">
+                  Tap each budget line item you're billing for, then set the % complete.
+                </p>
 
-                {/* Search budget items */}
-                {projectBudgetItems.length > 0 && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-body">Search budget to add a line item</Label>
-                    <BudgetLineItemSearch
-                      budgetItems={projectBudgetItems}
-                      placeholder="Search by item #, name, or description..."
-                      onSelect={(item) => {
-                        setLineItems(prev => [...prev, {
-                          lineItemNo: item.line_item_no,
-                          description: item.description || item.cost_item_name,
-                          contractPrice: Number(item.extended_cost),
-                          percentComplete: 0,
-                          drawAmount: 0,
-                        }]);
-                      }}
-                    />
+                {projectBudgetItems.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground font-body">No budget items found for this project.</p>
                   </div>
-                )}
+                ) : (() => {
+                  // Group by cost_group
+                  const groups = new Map<string, typeof projectBudgetItems>();
+                  projectBudgetItems.forEach(item => {
+                    const group = item.cost_group || 'Ungrouped';
+                    if (!groups.has(group)) groups.set(group, []);
+                    groups.get(group)!.push(item);
+                  });
 
-                {lineItems.map((li, idx) => (
-                  <div key={idx} className="card-elevated p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-display font-semibold text-sm">{t('invoiceWizard.step3.item')} {idx + 1}</span>
-                      {lineItems.length > 1 && (
-                        <button onClick={() => setLineItems(lineItems.filter((_, i) => i !== idx))} className="text-destructive">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-xs font-body">{t('invoiceWizard.step3.lineItemNo')}</Label>
-                      <Input type="number" placeholder="#" className="mt-1" value={li.lineItemNo || ''} onChange={e => updateLineItem(idx, 'lineItemNo', e.target.value)} />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-body">{t('common.description')}</Label>
-                      <Input placeholder={t('invoiceWizard.step3.descriptionPlaceholder')} className="mt-1" value={li.description || ''} onChange={e => updateLineItem(idx, 'description', e.target.value)} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs font-body">{t('invoiceWizard.step3.contractPrice')}</Label>
-                        <Input type="number" placeholder="0" className="mt-1" value={li.contractPrice || ''} onChange={e => updateLineItem(idx, 'contractPrice', Number(e.target.value))} />
+                  const selectedIds = new Set(lineItems.map(li => li.lineItemNo));
+
+                  return (
+                    <div className="space-y-3">
+                      {Array.from(groups.entries()).map(([group, items]) => (
+                        <div key={group} className="border border-border rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-4 py-2.5 flex items-center justify-between">
+                            <span className="font-display font-semibold text-sm">{group}</span>
+                            <span className="text-xs text-muted-foreground">{items.length} items</span>
+                          </div>
+                          <div className="divide-y divide-border/50">
+                            {items.map(item => {
+                              const isSelected = selectedIds.has(item.line_item_no);
+                              const liIdx = lineItems.findIndex(li => li.lineItemNo === item.line_item_no);
+
+                              return (
+                                <div key={item.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        setLineItems(prev => prev.filter(li => li.lineItemNo !== item.line_item_no));
+                                      } else {
+                                        setLineItems(prev => [
+                                          ...prev.filter(li => li.description || li.lineItemNo),
+                                          {
+                                            lineItemNo: item.line_item_no,
+                                            description: item.description || item.cost_item_name,
+                                            contractPrice: Number(item.extended_cost),
+                                            percentComplete: 0,
+                                            drawAmount: 0,
+                                          },
+                                        ]);
+                                      }
+                                    }}
+                                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                                      isSelected ? 'bg-primary/10' : 'hover:bg-muted/40'
+                                    }`}
+                                  >
+                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                      isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                                    }`}>
+                                      {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-display text-sm font-medium">
+                                          <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
+                                          {item.cost_item_name}
+                                        </span>
+                                        <span className="text-xs font-display font-semibold ml-2 flex-shrink-0">
+                                          ${Number(item.extended_cost).toLocaleString()}
+                                        </span>
+                                      </div>
+                                      {item.description && (
+                                        <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                                      )}
+                                    </div>
+                                  </button>
+                                  {isSelected && liIdx >= 0 && (
+                                    <div className="px-4 pb-3 pt-1 bg-primary/5 flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                                      <div className="flex-1">
+                                        <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          placeholder="0"
+                                          className="mt-1 h-8 text-sm"
+                                          value={lineItems[liIdx]?.percentComplete || ''}
+                                          onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
+                                        />
+                                      </div>
+                                      <div className="flex-1">
+                                        <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
+                                        <Input
+                                          type="number"
+                                          readOnly
+                                          className="mt-1 h-8 text-sm bg-muted font-semibold"
+                                          value={lineItems[liIdx]?.drawAmount || 0}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Summary */}
+                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                        <span className="font-display text-sm font-medium">
+                          {lineItems.filter(li => li.lineItemNo).length} items selected
+                        </span>
+                        <span className="font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</span>
                       </div>
-                      <div>
-                        <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
-                        <Input type="number" placeholder="0" min="0" max="100" className="mt-1" value={li.percentComplete || ''} onChange={e => updateLineItem(idx, 'percentComplete', Number(e.target.value))} />
-                      </div>
-                      <div>
-                        <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
-                        <Input type="number" readOnly className="mt-1 bg-muted font-semibold" value={li.drawAmount || 0} />
-                      </div>
                     </div>
-                  </div>
-                ))}
-                <Button variant="outline" className="w-full" onClick={() => setLineItems([...lineItems, { description: '', contractPrice: 0, percentComplete: 0, drawAmount: 0 }])}>
-                  <Plus className="w-4 h-4 mr-2" /> {t('invoiceWizard.step3.addLineItem')}
-                </Button>
-                <div className="text-right font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</div>
+                  );
+                })()}
               </div>
             )}
 
