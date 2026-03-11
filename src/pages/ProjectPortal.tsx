@@ -113,7 +113,15 @@ const ProjectPortal = () => {
   const [newAssignStatus, setNewAssignStatus] = useState<'invited' | 'pending' | 'active'>('invited');
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
+  const [currentUserId, setCurrentUserId] = useState('');
   const qc = useQueryClient();
+
+  // Get current user id
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setCurrentUserId(data.user.id);
+    });
+  }, []);
 
   const openQuickInvite = (role: QuickInviteRole) => {
     setQuickInviteRole(role);
