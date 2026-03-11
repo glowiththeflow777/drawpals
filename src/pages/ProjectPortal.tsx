@@ -146,7 +146,7 @@ const ProjectPortal = () => {
           phone: quickInviteForm.phone,
           crew_name: quickInviteRole === 'subcontractor' ? quickInviteForm.crew_name : null,
           project_id: selectedProject.id,
-          redirect_url: `${window.location.origin}/reset-password`,
+          redirect_url: `https://drawpals.lovable.app/reset-password`,
         },
       });
 
@@ -214,7 +214,7 @@ const ProjectPortal = () => {
           phone: selectedMember.phone,
           crew_name: selectedMember.crew_name,
           project_id: selectedProject.id,
-          redirect_url: `${window.location.origin}/reset-password`,
+          redirect_url: `https://drawpals.lovable.app/reset-password`,
         },
       });
 

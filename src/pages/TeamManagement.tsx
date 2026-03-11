@@ -99,7 +99,7 @@ const TeamManagement = () => {
             roles: form.roles,
             phone: form.phone,
             crew_name: form.roles.includes('subcontractor') ? form.crew_name : null,
-            redirect_url: `${window.location.origin}/reset-password`,
+            redirect_url: `https://drawpals.lovable.app/reset-password`,
           },
         });
 
