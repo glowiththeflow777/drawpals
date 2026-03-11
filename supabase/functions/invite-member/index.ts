@@ -21,7 +21,6 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Use service role client for all operations
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -36,7 +35,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, name, role, phone, crew_name } = await req.json();
+    const { email, name, role, phone, crew_name, project_id, redirect_url } = await req.json();
 
     if (!email || !name || !role) {
       return new Response(JSON.stringify({ error: "email, name, and role are required" }), {
@@ -45,9 +44,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Invite the user via Supabase Auth (sends email with magic link to set password)
+    // Invite the user via Supabase Auth — redirect to the reset-password page so they can set up their password
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { name, role },
+      redirectTo: redirect_url || undefined,
     });
 
     if (inviteError) {
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     }
 
     // Also create/update the team_members record
-    const { error: memberError } = await supabaseAdmin
+    const { data: memberData, error: memberError } = await supabaseAdmin
       .from("team_members")
       .upsert({
         email,
@@ -66,14 +66,31 @@ Deno.serve(async (req) => {
         role,
         phone: phone || '',
         crew_name: crew_name || null,
-      }, { onConflict: 'email' });
+      }, { onConflict: 'email' })
+      .select()
+      .single();
 
     if (memberError) {
       console.error("Team member upsert error:", memberError);
     }
 
+    // If project_id is provided, auto-assign the team member to the project
+    if (project_id && memberData) {
+      const { error: assignError } = await supabaseAdmin
+        .from("project_assignments")
+        .upsert({
+          project_id,
+          team_member_id: memberData.id,
+        }, { onConflict: 'project_id,team_member_id' })
+        .select();
+
+      if (assignError) {
+        console.error("Project assignment error:", assignError);
+      }
+    }
+
     return new Response(
-      JSON.stringify({ message: "Invitation sent", user: inviteData.user }),
+      JSON.stringify({ message: "Invitation sent", user: inviteData.user, team_member: memberData }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

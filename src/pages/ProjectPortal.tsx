@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
@@ -79,6 +82,59 @@ const ProjectPortal = () => {
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
 
+  // Quick invite dialog state
+  type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
+  const [quickInviteOpen, setQuickInviteOpen] = useState(false);
+  const [quickInviteRole, setQuickInviteRole] = useState<QuickInviteRole>('subcontractor');
+  const [quickInviteForm, setQuickInviteForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
+  const [quickInviteSending, setQuickInviteSending] = useState(false);
+
+  const qc = useQueryClient();
+
+  const openQuickInvite = (role: QuickInviteRole) => {
+    setQuickInviteRole(role);
+    setQuickInviteForm({ name: '', email: '', phone: '', crew_name: '' });
+    setQuickInviteOpen(true);
+  };
+
+  const handleQuickInvite = async () => {
+    if (!quickInviteForm.name.trim() || !quickInviteForm.email.trim() || !selectedProject) return;
+    setQuickInviteSending(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({ title: t('team.sessionExpired'), description: t('team.sessionExpiredDesc'), variant: 'destructive' });
+        navigate('/');
+        return;
+      }
+
+      const res = await supabase.functions.invoke('invite-member', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: {
+          email: quickInviteForm.email,
+          name: quickInviteForm.name,
+          role: quickInviteRole,
+          phone: quickInviteForm.phone,
+          crew_name: quickInviteRole === 'subcontractor' ? quickInviteForm.crew_name : null,
+          project_id: selectedProject.id,
+          redirect_url: `${window.location.origin}/reset-password`,
+        },
+      });
+
+      if (res.error) throw new Error(res.error.message || 'Failed to send invitation');
+      if (res.data?.error) throw new Error(res.data.error);
+
+      toast({ title: t('team.inviteSent'), description: t('team.inviteDesc', { email: quickInviteForm.email }) });
+      setQuickInviteOpen(false);
+      // Refresh team members and assignments
+      qc.invalidateQueries({ queryKey: ['team_members'] });
+      qc.invalidateQueries({ queryKey: ['project_assignments'] });
+    } catch (e: any) {
+      toast({ title: t('common.error'), description: e.message, variant: 'destructive' });
+    } finally {
+      setQuickInviteSending(false);
+    }
+  };
   const filteredProjects = activeTab === 'all'
     ? projects
     : projects.filter(p => p.status === activeTab);
@@ -595,9 +651,14 @@ const ProjectPortal = () => {
 
                 {/* Admins */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    <Label className="font-display font-semibold text-sm">Admins</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <Label className="font-display font-semibold text-sm">{t('team.roles.admin')}</Label>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => openQuickInvite('admin')} className="text-xs font-display">
+                      <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
+                    </Button>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {teamMembers.filter(m => m.role === 'admin').map(member => {
@@ -624,16 +685,21 @@ const ProjectPortal = () => {
                       );
                     })}
                     {teamMembers.filter(m => m.role === 'admin').length === 0 && (
-                      <p className="text-sm text-muted-foreground col-span-2">No admins added yet. Add team members in Cloud.</p>
+                      <p className="text-sm text-muted-foreground col-span-2">{t('projects.detail.noAdmins')}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Project Managers */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <UserCog className="w-4 h-4 text-accent-foreground" />
-                    <Label className="font-display font-semibold text-sm">Project Managers</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserCog className="w-4 h-4 text-accent-foreground" />
+                      <Label className="font-display font-semibold text-sm">{t('team.roles.project-manager')}</Label>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => openQuickInvite('project-manager')} className="text-xs font-display">
+                      <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
+                    </Button>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {teamMembers.filter(m => m.role === 'project-manager').map(member => {
@@ -660,7 +726,7 @@ const ProjectPortal = () => {
                       );
                     })}
                     {teamMembers.filter(m => m.role === 'project-manager').length === 0 && (
-                      <p className="text-sm text-muted-foreground col-span-2">No project managers added yet. Add team members in Cloud.</p>
+                      <p className="text-sm text-muted-foreground col-span-2">{t('projects.detail.noPMs')}</p>
                     )}
                   </div>
                 </div>
@@ -668,12 +734,17 @@ const ProjectPortal = () => {
 
               {/* Assigned Subcontractors */}
               <div className="card-elevated p-5 space-y-4">
-                <h3 className="font-display font-semibold text-lg flex items-center gap-2">
-                  <Users className="w-5 h-5 text-muted-foreground" />
-                  Assigned Subcontractors
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                    <Users className="w-5 h-5 text-muted-foreground" />
+                    {t('projects.detail.assignedSubs')}
+                  </h3>
+                  <Button variant="outline" size="sm" onClick={() => openQuickInvite('subcontractor')} className="text-xs font-display">
+                    <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground font-body">
-                  Toggle subcontractors to give them access to this project's portal and budget line items.
+                  {t('projects.detail.toggleSubsDesc')}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamMembers.filter(m => m.role === 'subcontractor').map(sub => {
@@ -700,7 +771,7 @@ const ProjectPortal = () => {
                     );
                   })}
                   {teamMembers.filter(m => m.role === 'subcontractor').length === 0 && (
-                    <p className="text-sm text-muted-foreground col-span-2">No subcontractors added yet. Add team members in Cloud.</p>
+                    <p className="text-sm text-muted-foreground col-span-2">{t('projects.detail.noSubs')}</p>
                   )}
                 </div>
               </div>
@@ -769,6 +840,45 @@ const ProjectPortal = () => {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Quick Invite Dialog */}
+      <Dialog open={quickInviteOpen} onOpenChange={setQuickInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              {t('projects.detail.inviteTitle', { role: quickInviteRole === 'admin' ? t('team.roles.admin') : quickInviteRole === 'project-manager' ? t('team.roles.project-manager') : t('team.roles.subcontractor') })}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground font-body">{t('projects.detail.inviteDesc')}</p>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.name')} *</label>
+              <Input value={quickInviteForm.name} onChange={e => setQuickInviteForm(f => ({ ...f, name: e.target.value }))} placeholder={t('team.namePlaceholder')} />
+            </div>
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.email')} *</label>
+              <Input type="email" value={quickInviteForm.email} onChange={e => setQuickInviteForm(f => ({ ...f, email: e.target.value }))} placeholder={t('team.emailPlaceholder')} />
+            </div>
+            <div>
+              <label className="text-sm font-medium font-body mb-1.5 block">{t('common.phone')}</label>
+              <Input value={quickInviteForm.phone} onChange={e => setQuickInviteForm(f => ({ ...f, phone: e.target.value }))} placeholder={t('team.phonePlaceholder')} />
+            </div>
+            {quickInviteRole === 'subcontractor' && (
+              <div>
+                <label className="text-sm font-medium font-body mb-1.5 block">{t('team.crewName')}</label>
+                <Input value={quickInviteForm.crew_name} onChange={e => setQuickInviteForm(f => ({ ...f, crew_name: e.target.value }))} placeholder={t('team.crewPlaceholder')} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setQuickInviteOpen(false)}>{t('common.cancel')}</Button>
+            <Button onClick={handleQuickInvite} disabled={quickInviteSending || !quickInviteForm.name.trim() || !quickInviteForm.email.trim()}>
+              {quickInviteSending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              {t('projects.detail.inviteSendBtn')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

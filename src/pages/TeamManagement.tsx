@@ -87,6 +87,7 @@ const TeamManagement = () => {
             role: form.role,
             phone: form.phone,
             crew_name: form.role === 'subcontractor' ? form.crew_name : null,
+            redirect_url: `${window.location.origin}/reset-password`,
           },
         });
 

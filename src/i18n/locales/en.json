@@ -322,7 +322,16 @@
       "item": "Item",
       "qty": "Qty",
       "costType": "Type",
-      "cost": "Cost"
+      "cost": "Cost",
+      "inviteAndAdd": "Invite & Add",
+      "inviteTitle": "Invite {{role}} to Project",
+      "inviteDesc": "Send an email invitation. They'll be added to this project and can set up their password when they accept.",
+      "inviteSendBtn": "Send Invite & Add",
+      "assignedSubs": "Assigned Subcontractors",
+      "toggleSubsDesc": "Toggle subcontractors to give them access to this project's portal and budget line items.",
+      "noAdmins": "No admins added yet. Use 'Invite & Add' to get started.",
+      "noPMs": "No project managers added yet. Use 'Invite & Add' to get started.",
+      "noSubs": "No subcontractors added yet. Use 'Invite & Add' to get started."
     }
   },
   "team": {
