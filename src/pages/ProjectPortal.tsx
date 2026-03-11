@@ -295,6 +295,7 @@ const ProjectPortal = () => {
     if (selected.length === 0) return;
     setSavingBudget(true);
     try {
+      const batchName = budgetFileName || `Budget ${new Date().toLocaleDateString()}`;
       await insertBudgetItems.mutateAsync(
         selected.map(item => ({
           project_id: selectedProject.id,
@@ -307,6 +308,7 @@ const ProjectPortal = () => {
           extended_cost: item.extendedCost,
           cost_type: item.costType,
           cost_code: item.costCode,
+          batch_label: batchName,
         }))
       );
 
