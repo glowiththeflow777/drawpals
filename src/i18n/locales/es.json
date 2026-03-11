@@ -258,6 +258,14 @@
       "paid": "Pagado",
       "invoicedUnpaid": "Facturado (Sin Pagar)",
       "remaining": "Restante"
+    },
+    "bonus": {
+      "title": "Calculadora de Bono del Gerente de Proyecto",
+      "explanation": "Los gerentes de proyecto ganan el 30% del ahorro del presupuesto. Ahorro = Presupuesto Total − Costo Real (Monto Pagado).",
+      "actualCost": "Costo Real",
+      "savings": "Ahorro del Presupuesto",
+      "pmBonus": "Bono del GP",
+      "businessShare": "Parte de la Empresa"
     }
   },
   "projects": {
