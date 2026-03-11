@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ArrowLeft, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat } from 'lucide-react';
+import ProjectDocuments from '@/components/ProjectDocuments';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -852,6 +853,9 @@ const ProjectPortal = () => {
                   );
                 })()}
               </div>
+
+              {/* Documents */}
+              <ProjectDocuments projectId={selectedProject.id} />
             </motion.div>
           )}
         </AnimatePresence>
