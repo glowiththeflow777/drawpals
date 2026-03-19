@@ -5,7 +5,7 @@ import AIForecastWidget from '@/components/AIForecastWidget';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
