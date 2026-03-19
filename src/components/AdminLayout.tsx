@@ -1,4 +1,4 @@
-import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck, FileText, ChevronDown, HardHat } from 'lucide-react';
+import { Building2, LogOut, BarChart3, FolderOpen, Users, ClipboardCheck, FileText, ChevronDown, HardHat, Receipt } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: t('nav.projectsNav'), path: '/admin/projects', icon: FolderOpen },
     { label: t('nav.invoices'), path: '/admin/invoices', icon: FileText },
     { label: t('nav.approvals'), path: '/admin/approvals', icon: ClipboardCheck },
+    { label: 'Draw Sheet', path: '/admin/draw-sheet', icon: Receipt },
     // Only admins see Team and Directory
     ...(activeRole === 'admin' ? [
       { label: t('nav.team'), path: '/admin/team', icon: Users },

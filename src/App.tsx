@@ -16,6 +16,7 @@ import ProjectInvoices from "./pages/ProjectInvoices";
 import ProjectFinancials from "./pages/ProjectFinancials";
 import TeamManagement from "./pages/TeamManagement";
 import SubcontractorDirectory from "./pages/SubcontractorDirectory";
+import PMDrawSheet from "./pages/PMDrawSheet";
 import AdminLayout from "./components/AdminLayout";
 import SubcontractorLayout from "./components/SubcontractorLayout";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -122,6 +123,13 @@ const App = () => (
             <RoleProvider>
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminLayout><SubcontractorDirectory /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
+          <Route path="/admin/draw-sheet" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><PMDrawSheet /></AdminLayout>
               </ProtectedRoute>
             </RoleProvider>
           } />

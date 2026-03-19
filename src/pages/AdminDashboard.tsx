@@ -5,7 +5,7 @@ import AIForecastWidget from '@/components/AIForecastWidget';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -106,12 +106,6 @@ const AdminDashboard = () => {
     ? allBudgetItems.slice(0, 8)
     : allBudgetItems.filter(b => b.project_id === activeProject).slice(0, 8);
 
-  const varianceData = filtered.map(p => ({
-    name: p.name.length > 20 ? p.name.substring(0, 18) + '…' : p.name,
-    [t('adminDashboard.budgetVsActualBudget')]: Number(p.total_budget),
-    [t('adminDashboard.budgetVsActualActual')]: Number(p.amount_invoiced),
-  }));
-
   if (loadingProjects) {
     return (
       <main className="max-w-6xl mx-auto px-4 py-12 flex justify-center">
@@ -190,32 +184,17 @@ const AdminDashboard = () => {
         {/* AI Forecast Widget */}
         <AIForecastWidget />
 
-        {/* Charts */}
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div className="card-elevated p-4">
-            <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetBreakdown')}</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {pieData.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="card-elevated p-4">
-            <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetVsActual')}</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={varianceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(35,15%,85%)" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number) => `$${v.toFixed(0)}`} />
-                <Bar dataKey={t('adminDashboard.budgetVsActualBudget')} fill={CHART_COLORS[0]} name={t('adminDashboard.budgetVsActualBudget')} radius={[4,4,0,0]} />
-                <Bar dataKey={t('adminDashboard.budgetVsActualActual')} fill={CHART_COLORS[1]} name={t('adminDashboard.budgetVsActualActual')} radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Budget Breakdown Chart */}
+        <div className="card-elevated p-4">
+          <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetBreakdown')}</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                {pieData.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx]} />)}
+              </Pie>
+              <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Export */}
