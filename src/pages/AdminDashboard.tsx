@@ -190,32 +190,17 @@ const AdminDashboard = () => {
         {/* AI Forecast Widget */}
         <AIForecastWidget />
 
-        {/* Charts */}
-        <div className="grid lg:grid-cols-2 gap-4">
-          <div className="card-elevated p-4">
-            <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetBreakdown')}</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {pieData.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="card-elevated p-4">
-            <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetVsActual')}</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={varianceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(35,15%,85%)" />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number) => `$${v.toFixed(0)}`} />
-                <Bar dataKey={t('adminDashboard.budgetVsActualBudget')} fill={CHART_COLORS[0]} name={t('adminDashboard.budgetVsActualBudget')} radius={[4,4,0,0]} />
-                <Bar dataKey={t('adminDashboard.budgetVsActualActual')} fill={CHART_COLORS[1]} name={t('adminDashboard.budgetVsActualActual')} radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Budget Breakdown Chart */}
+        <div className="card-elevated p-4">
+          <h3 className="font-display font-semibold mb-4">{t('adminDashboard.budgetBreakdown')}</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                {pieData.map((_, idx) => <Cell key={idx} fill={CHART_COLORS[idx]} />)}
+              </Pie>
+              <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Export */}

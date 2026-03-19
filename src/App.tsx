@@ -126,6 +126,13 @@ const App = () => (
               </ProtectedRoute>
             </RoleProvider>
           } />
+          <Route path="/admin/draw-sheet" element={
+            <RoleProvider>
+              <ProtectedRoute allowedRoles={['admin', 'project-manager']}>
+                <AdminLayout><PMDrawSheet /></AdminLayout>
+              </ProtectedRoute>
+            </RoleProvider>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
