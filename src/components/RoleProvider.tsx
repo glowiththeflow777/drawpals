@@ -50,11 +50,6 @@ export default function RoleProvider({ children }: { children: React.ReactNode }
     );
   }
 
-  if (!user) {
-    // Not logged in — redirect to landing
-    return null;
-  }
-
   return (
     <ActiveRoleProvider value={contextValue}>
       {children}
