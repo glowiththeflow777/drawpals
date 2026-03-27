@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
-import { useCurrentUser, useActiveRole, type AppRole } from '@/hooks/useAuth';
+import { useActiveRole, type AppRole } from '@/hooks/useAuth';
+import { useAuth } from '@/components/AuthProvider';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -8,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, loading } = useCurrentUser();
+  const { user, loading } = useAuth();
   const { activeRole, roles } = useActiveRole();
 
   if (loading) {

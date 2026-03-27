@@ -1,40 +1,15 @@
-import { useEffect, useState, createContext, useContext } from 'react';
+import { createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import type { User } from '@supabase/supabase-js';
+import { useAuth } from '@/components/AuthProvider';
 
 export type AppRole = 'admin' | 'project-manager' | 'subcontractor';
 
-export function useCurrentUser() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!isMounted) return;
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) return;
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { user, loading };
-}
+// Re-export useAuth as useCurrentUser for backward compat
+export const useCurrentUser = useAuth;
 
 export function useCurrentProfile() {
-  const { user } = useCurrentUser();
+  const { user } = useAuth();
   return useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
@@ -52,7 +27,7 @@ export function useCurrentProfile() {
 }
 
 export function useUserRoles() {
-  const { user } = useCurrentUser();
+  const { user } = useAuth();
   return useQuery({
     queryKey: ['user_roles', user?.id],
     queryFn: async () => {
