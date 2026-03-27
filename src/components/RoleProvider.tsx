@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ActiveRoleProvider, useCurrentUser, useUserRoles, type AppRole } from '@/hooks/useAuth';
+import { ActiveRoleProvider, useUserRoles, type AppRole } from '@/hooks/useAuth';
+import { useAuth } from '@/components/AuthProvider';
 import { Loader2 } from 'lucide-react';
 
 export default function RoleProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, loading: userLoading } = useAuth();
   const { data: roles = [], isLoading: rolesLoading } = useUserRoles();
   const navigate = useNavigate();
   const [activeRole, setActiveRole] = useState<AppRole>('subcontractor');
