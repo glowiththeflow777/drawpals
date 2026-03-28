@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
-import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
+import { useProjects, useBudgetLineItems, useInvoices, useSubBudgets } from '@/hooks/useProjects';
 import {
   useDrawSheet, useUpsertDrawSheet,
   useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
