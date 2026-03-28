@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProjects, useBudgetLineItems, useInvoices, useSubBudgets } from '@/hooks/useProjects';
 import {
   useDrawSheet, useDrawSheetHistory, useUpsertDrawSheet,
-  useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
+  useDrawPayments, useAllDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
   useSubPayEntries, useAddSubPayEntry, useDeleteSubPayEntry,
 } from '@/hooks/useDrawSheet';
 import { useAuth } from '@/components/AuthProvider';
