@@ -14,7 +14,7 @@ import {
   useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
   useSubPayEntries, useAddSubPayEntry, useDeleteSubPayEntry,
 } from '@/hooks/useDrawSheet';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/components/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
 
 const FEE_TIERS = [
