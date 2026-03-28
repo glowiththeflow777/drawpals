@@ -1,110 +1,164 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, Download, Send, TrendingUp, Receipt, Wallet, Calculator } from 'lucide-react';
+import { DollarSign, Download, Send, TrendingUp, Calculator, Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useProjects, useInvoices } from '@/hooks/useProjects';
+import { Badge } from '@/components/ui/badge';
+import { useProjects, useBudgetLineItems } from '@/hooks/useProjects';
+import {
+  useDrawSheet, useUpsertDrawSheet,
+  useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
+  useSubPayEntries, useAddSubPayEntry, useDeleteSubPayEntry,
+} from '@/hooks/useDrawSheet';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 
-// Fixed fee tiers
 const FEE_TIERS = [
-  { key: 'interior-buildout', label: 'Interior Build Out', rate: 0.10, color: 'text-primary' },
-  { key: 'interior-construction', label: 'Interior Construction', rate: 0.05, color: 'text-amber-600' },
-  { key: 'exterior', label: 'Exterior', rate: 0.05, color: 'text-sky-600' },
+  { key: 'interior-buildout', label: 'Interior Build Out', rate: 0.10, billedField: 'interior_buildout_billed' as const },
+  { key: 'interior-construction', label: 'Interior Construction', rate: 0.05, billedField: 'interior_construction_billed' as const },
+  { key: 'exterior', label: 'Exterior', rate: 0.05, billedField: 'exterior_billed' as const },
 ] as const;
 
-// Map cost groups to fee tiers (case-insensitive matching)
 function classifyGroup(costGroup: string): typeof FEE_TIERS[number]['key'] {
   const lower = costGroup.toLowerCase();
-  if (lower.includes('exterior') || lower.includes('outdoor') || lower.includes('landscape') || lower.includes('site')) {
-    return 'exterior';
-  }
-  if (lower.includes('construction') || lower.includes('structural') || lower.includes('framing') || lower.includes('foundation') || lower.includes('concrete') || lower.includes('roofing')) {
-    return 'interior-construction';
-  }
-  // Default: interior build-out covers finish work, MEP, cabinets, etc.
+  if (lower.includes('exterior') || lower.includes('outdoor') || lower.includes('landscape') || lower.includes('site')) return 'exterior';
+  if (lower.includes('construction') || lower.includes('structural') || lower.includes('framing') || lower.includes('foundation') || lower.includes('concrete') || lower.includes('roofing')) return 'interior-construction';
   return 'interior-buildout';
 }
 
+const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const PMDrawSheet = () => {
+  const { user } = useAuth();
   const { data: projects = [], isLoading } = useProjects();
-  const [activeProject, setActiveProject] = useState<string>('');
+  const [activeProject, setActiveProject] = useState('');
   const { toast } = useToast();
 
-  // Auto-select first project
   const selectedProjectId = activeProject || projects[0]?.id || '';
   const project = projects.find(p => p.id === selectedProjectId);
 
-  const { data: invoices = [] } = useInvoices(selectedProjectId || undefined);
+  // Budget line items for tier budget auto-calculation
+  const { data: budgetItems = [] } = useBudgetLineItems(selectedProjectId || undefined);
 
-  const approvedInvoices = useMemo(() =>
-    invoices.filter((inv: any) => inv.status === 'approved'),
-    [invoices]
-  );
+  // Draw sheet state from DB
+  const { data: drawSheet, isLoading: loadingSheet } = useDrawSheet(selectedProjectId || undefined, user?.id);
+  const upsertSheet = useUpsertDrawSheet();
 
-  // Calculate fee tiers from approved invoices
-  const tierData = useMemo(() => {
-    if (!project) return [];
+  // Payments & sub pay entries
+  const { data: payments = [] } = useDrawPayments(drawSheet?.id);
+  const addPayment = useAddDrawPayment();
+  const deletePayment = useDeleteDrawPayment();
+  const { data: subPayEntries = [] } = useSubPayEntries(drawSheet?.id);
+  const addSubPay = useAddSubPayEntry();
+  const deleteSubPay = useDeleteSubPayEntry();
 
-    const totalBudget = Number(project.total_budget);
-    const totalBilled = approvedInvoices.reduce((s: number, inv: any) => s + Number(inv.grand_total), 0);
+  // Local form state for billed amounts
+  const [billedAmounts, setBilledAmounts] = useState({
+    interior_buildout_billed: 0,
+    interior_construction_billed: 0,
+    exterior_billed: 0,
+  });
+  const [notes, setNotes] = useState('');
 
-    return FEE_TIERS.map(tier => {
-      // For now, distribute proportionally - in production this would use cost_group classification
-      const tierBudget = totalBudget / FEE_TIERS.length;
-      const tierBilled = totalBilled / FEE_TIERS.length;
-      const feeAmount = tierBilled * tier.rate;
+  // New payment form
+  const [newPaymentDate, setNewPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newPaymentAmount, setNewPaymentAmount] = useState('');
 
-      return {
-        ...tier,
-        budget: tierBudget,
-        billed: tierBilled,
-        feeAmount,
-        invoices: approvedInvoices.map((inv: any) => ({
-          id: inv.id,
-          number: inv.invoice_number,
-          subName: inv.subcontractor_name,
-          date: inv.invoice_date,
-          total: Number(inv.grand_total) / FEE_TIERS.length,
-          fee: (Number(inv.grand_total) / FEE_TIERS.length) * tier.rate,
-        })),
-      };
+  // New sub pay form
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubAmount, setNewSubAmount] = useState('');
+  const [newSubDesc, setNewSubDesc] = useState('');
+
+  // Sync DB → local state
+  useEffect(() => {
+    if (drawSheet) {
+      setBilledAmounts({
+        interior_buildout_billed: Number(drawSheet.interior_buildout_billed) || 0,
+        interior_construction_billed: Number(drawSheet.interior_construction_billed) || 0,
+        exterior_billed: Number(drawSheet.exterior_billed) || 0,
+      });
+      setNotes(drawSheet.notes || '');
+    } else {
+      setBilledAmounts({ interior_buildout_billed: 0, interior_construction_billed: 0, exterior_billed: 0 });
+      setNotes('');
+    }
+  }, [drawSheet]);
+
+  // Auto-calculate tier budgets from master budget line items
+  const tierBudgets = useMemo(() => {
+    const totals: Record<string, number> = { 'interior-buildout': 0, 'interior-construction': 0, exterior: 0 };
+    budgetItems.forEach(item => {
+      const tier = classifyGroup(item.cost_group);
+      totals[tier] += Number(item.extended_cost);
     });
-  }, [project, approvedInvoices]);
+    return totals;
+  }, [budgetItems]);
 
-  // Bonus calculation (30% of savings)
-  const bonusData = useMemo(() => {
-    if (!project) return null;
-    const totalBudget = Number(project.total_budget);
-    const totalPaid = Number(project.amount_paid);
-    const subPayCost = totalPaid;
-    const difference = Math.max(0, totalBudget - subPayCost);
-    const bonus = difference * 0.30;
-
-    return {
-      sowBudget: totalBudget,
-      subPayCost,
-      difference,
-      splitPercent: 30,
-      bonus,
-    };
-  }, [project]);
+  // Tier calculations
+  const tierData = useMemo(() => {
+    return FEE_TIERS.map(tier => {
+      const budget = tierBudgets[tier.key] || 0;
+      const billed = billedAmounts[tier.billedField];
+      const feeAmount = billed * tier.rate;
+      return { ...tier, budget, billed, feeAmount };
+    });
+  }, [tierBudgets, billedAmounts]);
 
   // Totals
   const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
-  const totalPaidFees = 0; // Would track from a payments table
-  const totalOwed = totalFees - totalPaidFees;
+  const totalPaid = payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+  const totalSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalOwed = totalFees - totalPaid;
 
-  const handleExportPDF = () => {
-    window.print();
-    toast({ title: 'Print dialog opened', description: 'Save as PDF from your browser.' });
+  // Bonus: Contract Price (sum of all tier budgets) minus Sub Pay Cost
+  const contractPrice = Object.values(tierBudgets).reduce((s, v) => s + v, 0);
+  const difference = Math.max(0, contractPrice - totalSubPay);
+  const bonus = difference * 0.30;
+
+  // Save draw sheet
+  const handleSave = async (status = 'draft') => {
+    if (!user || !selectedProjectId) return;
+    await upsertSheet.mutateAsync({
+      project_id: selectedProjectId,
+      pm_user_id: user.id,
+      ...billedAmounts,
+      notes,
+      status,
+      last_updated: new Date().toISOString().split('T')[0],
+    });
+    toast({ title: status === 'submitted' ? 'Draw Sheet Submitted' : 'Draft Saved', description: status === 'submitted' ? 'Your draw sheet has been submitted to billing.' : 'Your progress has been saved.' });
   };
 
-  const handleEmailPayroll = () => {
-    toast({ title: 'Payroll Submitted', description: 'Draw sheet has been emailed to billing.' });
+  const handleAddPayment = async () => {
+    if (!drawSheet?.id || !newPaymentAmount) return;
+    // Need to save first if no draw sheet exists
+    if (!drawSheet) {
+      await handleSave();
+    }
+    await addPayment.mutateAsync({
+      draw_sheet_id: drawSheet.id,
+      payment_date: newPaymentDate,
+      amount: parseFloat(newPaymentAmount),
+      notes: '',
+    });
+    setNewPaymentAmount('');
+  };
+
+  const handleAddSubPay = async () => {
+    if (!drawSheet?.id || !newSubName || !newSubAmount) return;
+    await addSubPay.mutateAsync({
+      draw_sheet_id: drawSheet.id,
+      sub_name: newSubName,
+      amount: parseFloat(newSubAmount),
+      description: newSubDesc,
+    });
+    setNewSubName('');
+    setNewSubAmount('');
+    setNewSubDesc('');
   };
 
   if (isLoading) {
@@ -118,54 +172,69 @@ const PMDrawSheet = () => {
   return (
     <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-display font-bold text-2xl">PM Draw Sheet</h2>
-          <p className="text-sm text-muted-foreground">Track your coordination fees and bonus projections</p>
+          <p className="text-sm text-muted-foreground">
+            Track coordination fees, payments, and bonus projections
+            {drawSheet?.last_updated && (
+              <span className="ml-2 text-xs">· Last update: {drawSheet.last_updated}</span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportPDF}>
+          <Button variant="outline" size="sm" onClick={() => handleSave('draft')} disabled={upsertSheet.isPending}>
+            <Save className="w-4 h-4 mr-1" /> Save Draft
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { window.print(); }}>
             <Download className="w-4 h-4 mr-1" /> Export PDF
           </Button>
-          <Button size="sm" onClick={handleEmailPayroll} className="gradient-primary text-primary-foreground">
-            <Send className="w-4 h-4 mr-1" /> Send to Billing
+          <Button size="sm" onClick={() => handleSave('submitted')} disabled={upsertSheet.isPending} className="gradient-primary text-primary-foreground">
+            <Send className="w-4 h-4 mr-1" /> Submit
           </Button>
         </div>
       </div>
 
       {/* Project Selector */}
-      <Select value={selectedProjectId} onValueChange={setActiveProject}>
-        <SelectTrigger className="w-80">
-          <SelectValue placeholder="Select project" />
-        </SelectTrigger>
-        <SelectContent>
-          {projects.map(p => (
-            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex items-center gap-3">
+        <Select value={selectedProjectId} onValueChange={setActiveProject}>
+          <SelectTrigger className="w-80">
+            <SelectValue placeholder="Select project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {drawSheet?.status && (
+          <Badge variant={drawSheet.status === 'submitted' ? 'default' : 'secondary'}>
+            {drawSheet.status}
+          </Badge>
+        )}
+      </div>
 
-      {project && (
+      {project && !loadingSheet && (
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { label: 'Total Fees Earned', value: totalFees, icon: DollarSign, accent: 'text-primary' },
-              { label: 'Paid Out', value: totalPaidFees, icon: Receipt, accent: 'text-success' },
-              { label: 'Owed', value: totalOwed, icon: Wallet, accent: 'text-warning' },
-              { label: 'Projected Bonus', value: bonusData?.bonus || 0, icon: TrendingUp, accent: 'text-emerald-500' },
+              { label: 'Total Fees', value: totalFees, icon: DollarSign, accent: 'text-primary' },
+              { label: 'Paid', value: totalPaid, icon: DollarSign, accent: 'text-green-600' },
+              { label: 'Owed', value: totalOwed, icon: DollarSign, accent: 'text-amber-600' },
+              { label: 'Projected Bonus', value: bonus, icon: TrendingUp, accent: 'text-emerald-500' },
             ].map((stat, i) => (
               <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card-elevated p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <stat.icon className={`w-4 h-4 ${stat.accent}`} />
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
-                <p className={`text-xl font-display font-bold ${stat.accent}`}>${stat.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <p className={`text-xl font-display font-bold ${stat.accent}`}>${fmt(stat.value)}</p>
               </motion.div>
             ))}
           </div>
 
-          {/* Fee Tiers */}
+          {/* Fee Tiers with editable billing */}
           <Accordion type="multiple" defaultValue={FEE_TIERS.map(t => t.key)} className="space-y-3">
             {tierData.map(tier => (
               <AccordionItem key={tier.key} value={tier.key} className="border border-border rounded-lg overflow-hidden">
@@ -177,54 +246,47 @@ const PMDrawSheet = () => {
                         {(tier.rate * 100).toFixed(0)}%
                       </span>
                     </div>
-                    <span className={`font-display font-bold text-lg ${tier.color}`}>
-                      ${tier.feeAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <span className="font-display font-bold text-lg text-primary">
+                      ${fmt(tier.feeAmount)}
                     </span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-0 pb-0">
-                  {/* Tier Summary */}
-                  <div className="px-5 py-3 bg-muted/20 grid grid-cols-3 gap-4 text-sm">
+                <AccordionContent className="px-5 pb-4 space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-muted-foreground text-xs">Budget</p>
-                      <p className="font-display font-semibold">${tier.budget.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Total (Budget)</p>
+                      <p className="font-display font-semibold text-sm">${fmt(tier.budget)}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">Billed</p>
-                      <p className="font-display font-semibold">${tier.billed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                      <label className="text-xs text-muted-foreground mb-1 block">Billed</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={billedAmounts[tier.billedField] || ''}
+                        onChange={e => setBilledAmounts(prev => ({
+                          ...prev,
+                          [tier.billedField]: parseFloat(e.target.value) || 0,
+                        }))}
+                        className="h-8 text-sm font-display"
+                        placeholder="0.00"
+                      />
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-xs">Split</p>
-                      <p className="font-display font-semibold">{(tier.rate * 100).toFixed(0)}%</p>
+                      <p className="text-xs text-muted-foreground mb-1">Split</p>
+                      <p className="font-display font-semibold text-sm">{(tier.rate * 100).toFixed(0)}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Fee Total</p>
+                      <p className="font-display font-bold text-sm text-primary">${fmt(tier.feeAmount)}</p>
                     </div>
                   </div>
-                  {/* Invoice Details */}
-                  {tier.invoices.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Invoice</TableHead>
-                          <TableHead className="text-xs">Subcontractor</TableHead>
-                          <TableHead className="text-xs">Date</TableHead>
-                          <TableHead className="text-xs text-right">Amount</TableHead>
-                          <TableHead className="text-xs text-right">Your Fee</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tier.invoices.map((inv: any) => (
-                          <TableRow key={inv.id}>
-                            <TableCell className="font-medium text-sm">{inv.number || '—'}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{inv.subName}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{new Date(inv.date).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right text-sm">${inv.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right font-display font-semibold text-sm">${inv.fee.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="px-5 py-6 text-center text-sm text-muted-foreground">
-                      No approved invoices yet for this tier.
+                  {tier.budget > 0 && tier.billed > 0 && (
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (tier.billed / tier.budget) * 100)}%` }}
+                      />
                     </div>
                   )}
                 </AccordionContent>
@@ -232,63 +294,139 @@ const PMDrawSheet = () => {
             ))}
           </Accordion>
 
-          {/* Totals */}
-          <div className="card-elevated p-5 space-y-3">
+          {/* Totals & Payments */}
+          <div className="card-elevated p-5 space-y-4">
             <div className="flex justify-between items-center">
-              <span className="font-display font-bold text-lg">Total Fees</span>
-              <span className="font-display font-bold text-xl">${totalFees.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              <span className="font-display font-bold text-lg">TOTAL</span>
+              <span className="font-display font-bold text-xl">${fmt(totalFees)}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">Paid</span>
-              <span className="text-success font-semibold">- ${totalPaidFees.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+
+            {/* Payments section */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground font-medium">Paid</span>
+                <span className="text-green-600 font-semibold">- ${fmt(totalPaid)}</span>
+              </div>
+              {payments.map((p: any) => (
+                <div key={p.id} className="flex justify-between items-center text-xs pl-4">
+                  <span className="text-muted-foreground">{p.payment_date}</span>
+                  <div className="flex items-center gap-2">
+                    <span>${fmt(Number(p.amount))}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deletePayment.mutate({ id: p.id, drawSheetId: drawSheet?.id })}>
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {/* Add payment form */}
+              {drawSheet?.id && (
+                <div className="flex items-center gap-2 pl-4 pt-1">
+                  <Input type="date" value={newPaymentDate} onChange={e => setNewPaymentDate(e.target.value)} className="h-7 text-xs w-36" />
+                  <Input type="number" step="0.01" min="0" placeholder="Amount" value={newPaymentAmount} onChange={e => setNewPaymentAmount(e.target.value)} className="h-7 text-xs w-28" />
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddPayment} disabled={addPayment.isPending}>
+                    <Plus className="w-3 h-3" />
+                  </Button>
+                </div>
+              )}
             </div>
+
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Minus Sub Labor</span>
               <span className="font-semibold">$0.00</span>
             </div>
+
             <div className="border-t border-border pt-3 flex justify-between items-center">
               <span className="font-display font-bold text-lg text-primary">Owed</span>
-              <span className="font-display font-bold text-2xl text-primary">${totalOwed.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              <span className="font-display font-bold text-2xl text-primary">${fmt(totalOwed)}</span>
             </div>
           </div>
 
           {/* Bonus Section */}
-          {bonusData && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-5">
-              <h3 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
-                <Calculator className="w-5 h-5 text-success" />
-                Bonus (in progress)
-              </h3>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-5">
+            <h3 className="font-display font-bold text-lg mb-4 flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-emerald-500" />
+              Bonus (in progress)
+            </h3>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Left: calculations */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">SOW Budget</span>
-                  <span className="font-display font-semibold">${bonusData.sowBudget.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="text-muted-foreground">Contract Price</span>
+                  <span className="font-display font-semibold">${fmt(contractPrice)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Sub Pay Cost</span>
-                  <span className="font-display font-semibold">- ${bonusData.subPayCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="font-display font-semibold">- ${fmt(totalSubPay)}</span>
                 </div>
                 <div className="border-t border-border pt-2 flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Difference</span>
-                  <span className="font-display font-semibold text-success">${bonusData.difference.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="font-display font-semibold text-emerald-500">${fmt(difference)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Split</span>
-                  <span className="font-display font-semibold">{bonusData.splitPercent}%</span>
+                  <span className="font-display font-semibold">30%</span>
                 </div>
                 <div className="border-t border-border pt-3 flex justify-between items-center">
-                  <span className="font-display font-bold text-lg">Your Bonus</span>
-                  <span className="font-display font-bold text-2xl text-success">${bonusData.bonus.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="font-display font-bold text-lg">Bonus</span>
+                  <span className="font-display font-bold text-2xl text-emerald-500">${fmt(bonus)}</span>
                 </div>
               </div>
-            </motion.div>
+
+              {/* Right: sub pay entries */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-medium mb-2">Sub Pay — ${fmt(totalSubPay)}</p>
+                {subPayEntries.map((e: any) => (
+                  <div key={e.id} className="flex justify-between items-center text-sm border-b border-border pb-1">
+                    <div>
+                      <span className="font-medium">{e.sub_name}</span>
+                      {e.description && <span className="text-muted-foreground text-xs ml-2">{e.description}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-semibold">${fmt(Number(e.amount))}</span>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deleteSubPay.mutate({ id: e.id, drawSheetId: drawSheet?.id })}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {/* Add sub pay form */}
+                {drawSheet?.id && (
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <Input placeholder="Sub Name" value={newSubName} onChange={e => setNewSubName(e.target.value)} className="h-7 text-xs w-28" />
+                    <Input type="number" step="0.01" min="0" placeholder="Amount" value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} className="h-7 text-xs w-24" />
+                    <Input placeholder="Work (e.g. Interior Install)" value={newSubDesc} onChange={e => setNewSubDesc(e.target.value)} className="h-7 text-xs w-36" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddSubPay} disabled={addSubPay.isPending}>
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Notes */}
+          <div className="card-elevated p-5">
+            <label className="text-sm font-medium mb-2 block">Notes</label>
+            <Textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Add any notes about this draw period..."
+              className="min-h-[80px]"
+            />
+          </div>
+
+          {!drawSheet?.id && (
+            <p className="text-xs text-muted-foreground text-center">
+              Save your draw sheet first to add payments and sub pay entries.
+            </p>
           )}
         </>
       )}
 
       {!project && projects.length > 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          <Receipt className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <DollarSign className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p>Select a project to view your draw sheet.</p>
         </div>
       )}
