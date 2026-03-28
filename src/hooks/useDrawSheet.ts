@@ -140,3 +140,35 @@ export function useDeleteSubPayEntry() {
     },
   });
 }
+
+// Fetch all submitted draw sheets (for approvals page)
+export function useSubmittedDrawSheets() {
+  return useQuery({
+    queryKey: ['pm_draw_sheets_all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pm_draw_sheets' as any)
+        .select('*')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
+// Update draw sheet status (approve/reject)
+export function useUpdateDrawSheetStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, rejectionNotes }: { id: string; status: string; rejectionNotes?: string }) => {
+      const updates: Record<string, unknown> = { status };
+      if (rejectionNotes !== undefined) updates.rejection_notes = rejectionNotes;
+      const { error } = await supabase.from('pm_draw_sheets' as any).update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pm_draw_sheets_all'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_sheet'] });
+    },
+  });
+}
