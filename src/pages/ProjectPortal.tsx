@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
-  useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
+  useCreateProject, useUpdateProject, useInsertBudgetLineItems, useUpdateBudgetDrawCategory, useToggleAssignment,
   useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
