@@ -148,6 +148,7 @@ const PMDrawSheet = () => {
   const handleSave = async (status = 'draft') => {
     if (!user || !selectedProjectId) return;
     await upsertSheet.mutateAsync({
+      id: drawSheet?.id || undefined,
       project_id: selectedProjectId,
       pm_user_id: user.id,
       ...billedAmounts,
@@ -156,6 +157,11 @@ const PMDrawSheet = () => {
       last_updated: new Date().toISOString().split('T')[0],
     });
     toast({ title: status === 'submitted' ? 'Draw Sheet Submitted' : 'Draft Saved', description: status === 'submitted' ? 'Your draw sheet has been submitted to billing.' : 'Your progress has been saved.' });
+    // On submit, clear local fields so PM starts fresh for next period
+    if (status === 'submitted') {
+      setBilledAmounts({ interior_buildout_billed: 0, interior_construction_billed: 0, exterior_billed: 0 });
+      setNotes('');
+    }
   };
 
   const handleAddPayment = async () => {
