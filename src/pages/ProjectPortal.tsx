@@ -1147,6 +1147,23 @@ const ProjectPortal = () => {
                     );
                   }
 
+                  // Get unique cost groups and their current draw categories
+                  const costGroupMap = new Map<string, { total: number; drawCategory: string }>();
+                  items.forEach(item => {
+                    const group = item.cost_group || 'Ungrouped';
+                    const existing = costGroupMap.get(group) || { total: 0, drawCategory: (item as any).draw_category || '' };
+                    existing.total += Number(item.extended_cost);
+                    if (!existing.drawCategory && (item as any).draw_category) existing.drawCategory = (item as any).draw_category;
+                    costGroupMap.set(group, existing);
+                  });
+
+                  const DRAW_CATEGORIES = [
+                    { value: '', label: 'Unmapped' },
+                    { value: 'interior-buildout', label: 'Interior Build Out (10%)' },
+                    { value: 'interior-construction', label: 'Interior Construction (5%)' },
+                    { value: 'exterior', label: 'Exterior (5%)' },
+                  ];
+
                   // Group items by batch_label
                   const batches = new Map<string, typeof items>();
                   items.forEach(item => {
