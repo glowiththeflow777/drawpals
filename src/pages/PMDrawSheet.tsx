@@ -115,9 +115,21 @@ const PMDrawSheet = () => {
       const budget = tierBudgets[tier.key] || 0;
       const billed = billedAmounts[tier.billedField];
       const feeAmount = billed * tier.rate;
-      return { ...tier, budget, billed, feeAmount };
+      // History: previous submitted/approved sheets
+      const history = drawSheetHistory.map((sheet: any) => ({
+        id: sheet.id,
+        date: sheet.last_updated || sheet.created_at?.split('T')[0],
+        billed: Number(sheet[tier.billedField]) || 0,
+        fee: (Number(sheet[tier.billedField]) || 0) * tier.rate,
+        status: sheet.status,
+      }));
+      const totalHistoryBilled = history.reduce((s: number, h: any) => s + h.billed, 0);
+      const cumulativeBilled = totalHistoryBilled + billed;
+      const pctBilled = budget > 0 ? (cumulativeBilled / budget) * 100 : 0;
+      const totalHistoryPaid = history.filter((h: any) => h.status === 'approved').reduce((s: number, h: any) => s + h.fee, 0);
+      return { ...tier, budget, billed, feeAmount, history, totalHistoryBilled, cumulativeBilled, pctBilled, totalHistoryPaid };
     });
-  }, [tierBudgets, billedAmounts]);
+  }, [tierBudgets, billedAmounts, drawSheetHistory]);
 
   // Totals
   const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
