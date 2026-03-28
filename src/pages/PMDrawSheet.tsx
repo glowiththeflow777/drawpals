@@ -124,20 +124,24 @@ const PMDrawSheet = () => {
   const totalSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
   const totalOwed = totalFees - totalPaid;
 
-  // Bonus: Contract Price (sum of all tier budgets) minus Sub Pay Cost
-  const contractPrice = Object.values(tierBudgets).reduce((s, v) => s + v, 0);
-  const difference = Math.max(0, contractPrice - totalSubPay);
-  const bonus = difference * 0.30;
+  // Bonus calculation
+  // Project Budget = total of all sub budgets (what you manage subs against)
+  // Sub Pay Cost = amount_paid on the project (auto-tracked from approved invoices)
+  const subBudgetTotal = useMemo(() => {
+    // We need sub budget line items totals - for now use the sub_budgets data
+    // The project's total_budget is the master budget; amount_paid tracks approved invoice totals
+    return Number(project?.total_budget || 0);
+  }, [project]);
 
-  // Save draw sheet
-  const handleSave = async (status = 'draft') => {
-    if (!user || !selectedProjectId) return;
-    await upsertSheet.mutateAsync({
-      project_id: selectedProjectId,
-      pm_user_id: user.id,
-      ...billedAmounts,
-      notes,
-      status,
+  // Auto-tracked sub payments from approved invoices
+  const autoSubPayCost = Number(project?.amount_paid || 0);
+
+  // Manual sub pay entries (supplementary tracking e.g. direct payments outside invoices)
+  const manualSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalSubPayCost = autoSubPayCost + manualSubPay;
+
+  const difference = Math.max(0, subBudgetTotal - totalSubPayCost);
+  const bonus = difference * 0.30;
       last_updated: new Date().toISOString().split('T')[0],
     });
     toast({ title: status === 'submitted' ? 'Draw Sheet Submitted' : 'Draft Saved', description: status === 'submitted' ? 'Your draw sheet has been submitted to billing.' : 'Your progress has been saved.' });
