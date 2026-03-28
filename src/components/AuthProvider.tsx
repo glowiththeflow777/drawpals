@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
@@ -14,18 +14,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    let initialSessionResolved = false;
+
+    const applySession = (session: Session | null) => {
+      if (!isMounted) return;
+      setUser(session?.user ?? null);
+
+      if (initialSessionResolved) {
+        setLoading(false);
+      }
+    };
+
     // Set up listener BEFORE getSession per Supabase best practices
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
+      applySession(session);
     });
 
     supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      initialSessionResolved = true;
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
