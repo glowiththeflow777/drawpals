@@ -56,6 +56,7 @@ const PMDrawSheet = () => {
 
   // Draw sheet state from DB
   const { data: drawSheet, isLoading: loadingSheet } = useDrawSheet(selectedProjectId || undefined, user?.id);
+  const { data: drawSheetHistory = [] } = useDrawSheetHistory(selectedProjectId || undefined, user?.id);
   const upsertSheet = useUpsertDrawSheet();
 
   // Payments & sub pay entries
