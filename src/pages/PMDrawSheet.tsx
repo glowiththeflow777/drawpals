@@ -110,12 +110,17 @@ const PMDrawSheet = () => {
   // Auto-calculate tier budgets from master budget line items
   const tierBudgets = useMemo(() => {
     const totals: Record<string, number> = { 'interior-buildout': 0, 'interior-construction': 0, exterior: 0 };
-    budgetItems.forEach(item => {
-      const tier = classifyGroup(item);
-      totals[tier] += Number(item.extended_cost);
-    });
+    if (budgetItems.length > 0) {
+      budgetItems.forEach(item => {
+        const tier = classifyGroup(item);
+        totals[tier] += Number(item.extended_cost);
+      });
+    } else if (project?.total_budget) {
+      // Fallback: if no line items exist, put entire project budget under interior-buildout
+      totals['interior-buildout'] = Number(project.total_budget);
+    }
     return totals;
-  }, [budgetItems]);
+  }, [budgetItems, project?.total_budget]);
 
   // Tier calculations
   const tierData = useMemo(() => {
