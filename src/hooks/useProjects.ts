@@ -120,6 +120,7 @@ export function useUpdateBudgetDrawCategory() {
   });
 }
 
+export function useCreateTeamMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (member: TablesInsert<'team_members'>) => {
