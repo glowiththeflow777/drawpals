@@ -23,6 +23,7 @@ export type Database = {
           cost_type: string
           created_at: string
           description: string
+          draw_category: string
           extended_cost: number
           id: string
           line_item_no: number
@@ -38,6 +39,7 @@ export type Database = {
           cost_type?: string
           created_at?: string
           description?: string
+          draw_category?: string
           extended_cost?: number
           id?: string
           line_item_no?: number
@@ -53,6 +55,7 @@ export type Database = {
           cost_type?: string
           created_at?: string
           description?: string
+          draw_category?: string
           extended_cost?: number
           id?: string
           line_item_no?: number
