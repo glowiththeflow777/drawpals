@@ -309,6 +309,126 @@ export type Database = {
         }
         Relationships: []
       }
+      pm_draw_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          draw_sheet_id: string
+          id: string
+          notes: string
+          payment_date: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          draw_sheet_id: string
+          id?: string
+          notes?: string
+          payment_date?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          draw_sheet_id?: string
+          id?: string
+          notes?: string
+          payment_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_draw_payments_draw_sheet_id_fkey"
+            columns: ["draw_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "pm_draw_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_draw_sheets: {
+        Row: {
+          created_at: string
+          exterior_billed: number
+          id: string
+          interior_buildout_billed: number
+          interior_construction_billed: number
+          last_updated: string
+          notes: string
+          pm_user_id: string
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          exterior_billed?: number
+          id?: string
+          interior_buildout_billed?: number
+          interior_construction_billed?: number
+          last_updated?: string
+          notes?: string
+          pm_user_id: string
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          exterior_billed?: number
+          id?: string
+          interior_buildout_billed?: number
+          interior_construction_billed?: number
+          last_updated?: string
+          notes?: string
+          pm_user_id?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_draw_sheets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pm_sub_pay_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          draw_sheet_id: string
+          id: string
+          sub_name: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string
+          draw_sheet_id: string
+          id?: string
+          sub_name?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          draw_sheet_id?: string
+          id?: string
+          sub_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pm_sub_pay_entries_draw_sheet_id_fkey"
+            columns: ["draw_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "pm_draw_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
