@@ -402,7 +402,7 @@ const PMDrawSheet = () => {
                 <span className="text-muted-foreground font-medium">Paid</span>
                 <span className="text-green-600 font-semibold">- ${fmt(totalPaid)}</span>
               </div>
-              {payments.map((p: any) => (
+              {allPayments.map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center text-xs pl-4">
                   <span className="text-muted-foreground">{p.payment_date}</span>
                   <div className="flex items-center gap-2">
