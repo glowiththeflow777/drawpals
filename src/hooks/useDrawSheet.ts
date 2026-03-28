@@ -234,6 +234,8 @@ export function useUpdateDrawSheetStatus() {
       qc.invalidateQueries({ queryKey: ['pm_draw_sheets_all'] });
       qc.invalidateQueries({ queryKey: ['pm_draw_sheet'] });
       qc.invalidateQueries({ queryKey: ['pm_draw_payments'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_payments_all'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_sheet_history'] });
     },
   });
 }

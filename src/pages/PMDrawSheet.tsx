@@ -135,7 +135,7 @@ const PMDrawSheet = () => {
 
   // Totals
   const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
-  const totalPaid = payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+  const totalPaid = allPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
   const totalSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
   const totalOwed = totalFees - totalPaid;
 
