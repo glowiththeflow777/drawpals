@@ -376,16 +376,26 @@ const PMDrawSheet = () => {
               {/* Left: calculations */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Contract Price</span>
-                  <span className="font-display font-semibold">${fmt(contractPrice)}</span>
+                  <span className="text-muted-foreground">Project Budget</span>
+                  <span className="font-display font-semibold">${fmt(subBudgetTotal)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Sub Pay Cost</span>
-                  <span className="font-display font-semibold">- ${fmt(totalSubPay)}</span>
+                  <span className="text-muted-foreground">Approved Invoices (auto)</span>
+                  <span className="font-display font-semibold">- ${fmt(autoSubPayCost)}</span>
+                </div>
+                {manualSubPay > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground">Other Sub Payments</span>
+                    <span className="font-display font-semibold">- ${fmt(manualSubPay)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-muted-foreground">Total Sub Pay Cost</span>
+                  <span className="font-display font-semibold">- ${fmt(totalSubPayCost)}</span>
                 </div>
                 <div className="border-t border-border pt-2 flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Difference</span>
-                  <span className="font-display font-semibold text-emerald-500">${fmt(difference)}</span>
+                  <span className="text-muted-foreground">Savings</span>
+                  <span className={`font-display font-semibold ${difference > 0 ? 'text-emerald-500' : 'text-destructive'}`}>${fmt(difference)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Split</span>
@@ -397,34 +407,53 @@ const PMDrawSheet = () => {
                 </div>
               </div>
 
-              {/* Right: sub pay entries */}
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground font-medium mb-2">Sub Pay — ${fmt(totalSubPay)}</p>
-                {subPayEntries.map((e: any) => (
-                  <div key={e.id} className="flex justify-between items-center text-sm border-b border-border pb-1">
-                    <div>
-                      <span className="font-medium">{e.sub_name}</span>
-                      {e.description && <span className="text-muted-foreground text-xs ml-2">{e.description}</span>}
+              {/* Right: breakdown */}
+              <div className="space-y-3">
+                {/* Auto-tracked approved invoices */}
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-2">Approved Invoices — ${fmt(autoSubPayCost)}</p>
+                  {approvedInvoices.length > 0 ? approvedInvoices.map((inv: any) => (
+                    <div key={inv.id} className="flex justify-between items-center text-xs border-b border-border pb-1 mb-1">
+                      <div>
+                        <span className="font-medium">{inv.subcontractor_name || 'Invoice'}</span>
+                        <span className="text-muted-foreground ml-2">#{inv.invoice_number}</span>
+                      </div>
+                      <span className="font-display font-semibold">${fmt(Number(inv.grand_total))}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-display font-semibold">${fmt(Number(e.amount))}</span>
-                      <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deleteSubPay.mutate({ id: e.id, drawSheetId: drawSheet?.id })}>
-                        <Trash2 className="w-3 h-3 text-destructive" />
+                  )) : (
+                    <p className="text-xs text-muted-foreground">No approved invoices yet.</p>
+                  )}
+                </div>
+
+                {/* Manual sub pay entries */}
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-2">Other Sub Payments — ${fmt(manualSubPay)}</p>
+                  {subPayEntries.map((e: any) => (
+                    <div key={e.id} className="flex justify-between items-center text-xs border-b border-border pb-1 mb-1">
+                      <div>
+                        <span className="font-medium">{e.sub_name}</span>
+                        {e.description && <span className="text-muted-foreground ml-2">{e.description}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display font-semibold">${fmt(Number(e.amount))}</span>
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => deleteSubPay.mutate({ id: e.id, drawSheetId: drawSheet?.id })}>
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Add sub pay form */}
+                  {drawSheet?.id && (
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <Input placeholder="Sub Name" value={newSubName} onChange={e => setNewSubName(e.target.value)} className="h-7 text-xs w-28" />
+                      <Input type="number" step="0.01" min="0" placeholder="Amount" value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} className="h-7 text-xs w-24" />
+                      <Input placeholder="Work (e.g. Interior Install)" value={newSubDesc} onChange={e => setNewSubDesc(e.target.value)} className="h-7 text-xs w-36" />
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddSubPay} disabled={addSubPay.isPending}>
+                        <Plus className="w-3 h-3" />
                       </Button>
                     </div>
-                  </div>
-                ))}
-                {/* Add sub pay form */}
-                {drawSheet?.id && (
-                  <div className="flex items-center gap-2 pt-1 flex-wrap">
-                    <Input placeholder="Sub Name" value={newSubName} onChange={e => setNewSubName(e.target.value)} className="h-7 text-xs w-28" />
-                    <Input type="number" step="0.01" min="0" placeholder="Amount" value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} className="h-7 text-xs w-24" />
-                    <Input placeholder="Work (e.g. Interior Install)" value={newSubDesc} onChange={e => setNewSubDesc(e.target.value)} className="h-7 text-xs w-36" />
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleAddSubPay} disabled={addSubPay.isPending}>
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
