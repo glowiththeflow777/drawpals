@@ -59,8 +59,10 @@ const PMDrawSheet = () => {
   const { data: drawSheetHistory = [] } = useDrawSheetHistory(selectedProjectId || undefined, user?.id);
   const upsertSheet = useUpsertDrawSheet();
 
-  // Payments & sub pay entries
+  // Payments & sub pay entries (current draft)
   const { data: payments = [] } = useDrawPayments(drawSheet?.id);
+  // ALL payments across all sheets for this project+PM (for running total)
+  const { data: allPayments = [] } = useAllDrawPayments(selectedProjectId || undefined, user?.id);
   const addPayment = useAddDrawPayment();
   const deletePayment = useDeleteDrawPayment();
   const { data: subPayEntries = [] } = useSubPayEntries(drawSheet?.id);
