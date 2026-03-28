@@ -169,6 +169,7 @@ export function useUpdateDrawSheetStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pm_draw_sheets_all'] });
       qc.invalidateQueries({ queryKey: ['pm_draw_sheet'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_payments'] });
     },
   });
 }
