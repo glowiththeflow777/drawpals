@@ -295,13 +295,13 @@ const PMDrawSheet = () => {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-5 pb-4 space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Total (Budget)</p>
                       <p className="font-display font-semibold text-sm">${fmt(tier.budget)}</p>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Billed</label>
+                      <label className="text-xs text-muted-foreground mb-1 block">Current Billing</label>
                       <Input
                         type="number"
                         step="0.01"
@@ -320,16 +320,66 @@ const PMDrawSheet = () => {
                       <p className="font-display font-semibold text-sm">{(tier.rate * 100).toFixed(0)}%</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Fee Total</p>
+                      <p className="text-xs text-muted-foreground mb-1">Fee This Period</p>
                       <p className="font-display font-bold text-sm text-primary">${fmt(tier.feeAmount)}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Cumulative Billed</p>
+                      <p className="font-display font-semibold text-sm">${fmt(tier.cumulativeBilled)}
+                        {tier.budget > 0 && (
+                          <span className="text-xs text-muted-foreground ml-1">({tier.pctBilled.toFixed(1)}%)</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  {tier.budget > 0 && tier.billed > 0 && (
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${Math.min(100, (tier.billed / tier.budget) * 100)}%` }}
-                      />
+
+                  {/* Progress bar: cumulative billed vs budget */}
+                  {tier.budget > 0 && tier.cumulativeBilled > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Billed vs Budget</span>
+                        <span>{Math.min(100, tier.pctBilled).toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${Math.min(100, tier.pctBilled)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Previous billing history */}
+                  {tier.history.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Previous Billing History</p>
+                      <div className="space-y-1">
+                        {tier.history.map((h: any) => (
+                          <div key={h.id} className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{h.date}</span>
+                              <Badge variant={h.status === 'approved' ? 'default' : h.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px] h-4">
+                                {h.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-display font-medium">${fmt(h.billed)}</span>
+                              <span className="text-muted-foreground">→ fee ${fmt(h.fee)}</span>
+                              {h.status === 'approved' && (
+                                <span className="text-green-600 text-[10px] font-medium">PAID</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center text-xs font-medium pt-1 border-t border-border">
+                          <span className="text-muted-foreground">Total Previously Billed</span>
+                          <span className="font-display">${fmt(tier.totalHistoryBilled)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-medium">
+                          <span className="text-muted-foreground">Total Fees Paid</span>
+                          <span className="font-display text-green-600">${fmt(tier.totalHistoryPaid)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </AccordionContent>
