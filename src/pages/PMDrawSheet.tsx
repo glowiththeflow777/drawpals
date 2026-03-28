@@ -111,7 +111,7 @@ const PMDrawSheet = () => {
   const tierBudgets = useMemo(() => {
     const totals: Record<string, number> = { 'interior-buildout': 0, 'interior-construction': 0, exterior: 0 };
     budgetItems.forEach(item => {
-      const tier = classifyGroup(item.cost_group);
+      const tier = classifyGroup(item);
       totals[tier] += Number(item.extended_cost);
     });
     return totals;
