@@ -122,6 +122,7 @@ const ProjectPortal = () => {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const insertBudgetItems = useInsertBudgetLineItems();
+  const updateDrawCategory = useUpdateBudgetDrawCategory();
   const toggleAssignment = useToggleAssignment();
   const addAssignment = useAddAssignment();
   const updateAssignmentStatus = useUpdateAssignmentStatus();
