@@ -41,8 +41,18 @@ const PMDrawSheet = () => {
   const selectedProjectId = activeProject || projects[0]?.id || '';
   const project = projects.find(p => p.id === selectedProjectId);
 
-  // Budget line items for tier budget auto-calculation
+  // Budget line items for tier budget auto-calculation (master budget)
   const { data: budgetItems = [] } = useBudgetLineItems(selectedProjectId || undefined);
+
+  // Sub budgets for project budget (what subs are paid against)
+  const { data: subBudgets = [] } = useSubBudgets(selectedProjectId || undefined);
+
+  // Approved invoices for auto-tracking sub payments
+  const { data: allInvoices = [] } = useInvoices(selectedProjectId || undefined);
+  const approvedInvoices = useMemo(() =>
+    allInvoices.filter((inv: any) => inv.status === 'approved'),
+    [allInvoices]
+  );
 
   // Draw sheet state from DB
   const { data: drawSheet, isLoading: loadingSheet } = useDrawSheet(selectedProjectId || undefined, user?.id);
