@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useProjects, useBudgetLineItems, useInvoices, useSubBudgets } from '@/hooks/useProjects';
 import {
   useDrawSheet, useDrawSheetHistory, useUpsertDrawSheet,
-  useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
+  useDrawPayments, useAllDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
   useSubPayEntries, useAddSubPayEntry, useDeleteSubPayEntry,
 } from '@/hooks/useDrawSheet';
 import { useAuth } from '@/components/AuthProvider';
@@ -59,8 +59,10 @@ const PMDrawSheet = () => {
   const { data: drawSheetHistory = [] } = useDrawSheetHistory(selectedProjectId || undefined, user?.id);
   const upsertSheet = useUpsertDrawSheet();
 
-  // Payments & sub pay entries
+  // Payments & sub pay entries (current draft)
   const { data: payments = [] } = useDrawPayments(drawSheet?.id);
+  // ALL payments across all sheets for this project+PM (for running total)
+  const { data: allPayments = [] } = useAllDrawPayments(selectedProjectId || undefined, user?.id);
   const addPayment = useAddDrawPayment();
   const deletePayment = useDeleteDrawPayment();
   const { data: subPayEntries = [] } = useSubPayEntries(drawSheet?.id);
@@ -133,7 +135,7 @@ const PMDrawSheet = () => {
 
   // Totals
   const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
-  const totalPaid = payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+  const totalPaid = allPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
   const totalSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
   const totalOwed = totalFees - totalPaid;
 
@@ -400,7 +402,7 @@ const PMDrawSheet = () => {
                 <span className="text-muted-foreground font-medium">Paid</span>
                 <span className="text-green-600 font-semibold">- ${fmt(totalPaid)}</span>
               </div>
-              {payments.map((p: any) => (
+              {allPayments.map((p: any) => (
                 <div key={p.id} className="flex justify-between items-center text-xs pl-4">
                   <span className="text-muted-foreground">{p.payment_date}</span>
                   <div className="flex items-center gap-2">

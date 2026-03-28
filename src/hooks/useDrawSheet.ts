@@ -99,6 +99,32 @@ export function useDrawPayments(drawSheetId?: string) {
   });
 }
 
+// Fetch ALL payments across all draw sheets for a project+PM
+export function useAllDrawPayments(projectId?: string, pmUserId?: string) {
+  return useQuery({
+    queryKey: ['pm_draw_payments_all', projectId, pmUserId],
+    enabled: !!projectId && !!pmUserId,
+    queryFn: async () => {
+      // First get all draw sheet IDs for this project+PM
+      const { data: sheets, error: sheetsErr } = await supabase
+        .from('pm_draw_sheets' as any)
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('pm_user_id', pmUserId);
+      if (sheetsErr) throw sheetsErr;
+      const sheetIds = (sheets as any[])?.map((s: any) => s.id) || [];
+      if (sheetIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('pm_draw_payments' as any)
+        .select('*')
+        .in('draw_sheet_id', sheetIds)
+        .order('payment_date', { ascending: false });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+}
+
 export function useAddDrawPayment() {
   const qc = useQueryClient();
   return useMutation({
@@ -208,6 +234,8 @@ export function useUpdateDrawSheetStatus() {
       qc.invalidateQueries({ queryKey: ['pm_draw_sheets_all'] });
       qc.invalidateQueries({ queryKey: ['pm_draw_sheet'] });
       qc.invalidateQueries({ queryKey: ['pm_draw_payments'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_payments_all'] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_sheet_history'] });
     },
   });
 }
