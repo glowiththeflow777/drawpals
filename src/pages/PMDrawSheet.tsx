@@ -330,8 +330,12 @@ const PMDrawSheet = () => {
                       <p className="font-display font-semibold text-sm">{(tier.rate * 100).toFixed(0)}%</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Fee This Period</p>
-                      <p className="font-display font-bold text-sm text-primary">${fmt(tier.feeAmount)}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Fee (from Budget)</p>
+                      <p className="font-display font-bold text-sm text-primary">${fmt(tier.feeFromBudget)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Fee This Draw</p>
+                      <p className="font-display font-semibold text-sm">${fmt(tier.feeFromBilled)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Cumulative Billed</p>
