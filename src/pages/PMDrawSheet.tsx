@@ -300,7 +300,7 @@ const PMDrawSheet = () => {
                       </span>
                     </div>
                     <span className="font-display font-bold text-lg text-primary">
-                      ${fmt(tier.feeAmount)}
+                      ${fmt(tier.feeFromBudget)}
                     </span>
                   </div>
                 </AccordionTrigger>
