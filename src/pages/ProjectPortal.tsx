@@ -19,7 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
-  useCreateProject, useUpdateProject, useInsertBudgetLineItems, useToggleAssignment,
+  useCreateProject, useUpdateProject, useInsertBudgetLineItems, useUpdateBudgetDrawCategory, useToggleAssignment,
   useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
@@ -122,6 +122,7 @@ const ProjectPortal = () => {
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
   const insertBudgetItems = useInsertBudgetLineItems();
+  const updateDrawCategory = useUpdateBudgetDrawCategory();
   const toggleAssignment = useToggleAssignment();
   const addAssignment = useAddAssignment();
   const updateAssignmentStatus = useUpdateAssignmentStatus();
@@ -1146,6 +1147,23 @@ const ProjectPortal = () => {
                     );
                   }
 
+                  // Get unique cost groups and their current draw categories
+                  const costGroupMap = new Map<string, { total: number; drawCategory: string }>();
+                  items.forEach(item => {
+                    const group = item.cost_group || 'Ungrouped';
+                    const existing = costGroupMap.get(group) || { total: 0, drawCategory: (item as any).draw_category || '' };
+                    existing.total += Number(item.extended_cost);
+                    if (!existing.drawCategory && (item as any).draw_category) existing.drawCategory = (item as any).draw_category;
+                    costGroupMap.set(group, existing);
+                  });
+
+                  const DRAW_CATEGORIES = [
+                    { value: '', label: 'Unmapped' },
+                    { value: 'interior-buildout', label: 'Interior Build Out (10%)' },
+                    { value: 'interior-construction', label: 'Interior Construction (5%)' },
+                    { value: 'exterior', label: 'Exterior (5%)' },
+                  ];
+
                   // Group items by batch_label
                   const batches = new Map<string, typeof items>();
                   items.forEach(item => {
@@ -1212,6 +1230,44 @@ const ProjectPortal = () => {
 
                   return (
                     <div className="space-y-4">
+                      {/* Draw Category Mapping */}
+                      <div className="border border-border rounded-lg overflow-hidden">
+                        <div className="bg-muted/30 px-4 py-3 flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-primary" />
+                          <span className="font-display font-semibold text-sm">Map Cost Groups to Draw Categories</span>
+                          <span className="text-xs text-muted-foreground">(for PM fee calculation)</span>
+                        </div>
+                        <div className="p-4 space-y-2">
+                          {Array.from(costGroupMap.entries()).map(([group, info]) => (
+                            <div key={group} className="flex items-center justify-between gap-3 text-sm">
+                              <div className="flex-1 min-w-0">
+                                <span className="font-medium truncate block">{group}</span>
+                                <span className="text-xs text-muted-foreground">${info.total.toLocaleString()}</span>
+                              </div>
+                              <Select
+                                value={info.drawCategory || '__unmapped__'}
+                                onValueChange={(val) => {
+                                  if (!selectedProject) return;
+                                  updateDrawCategory.mutate({
+                                    projectId: selectedProject.id,
+                                    costGroup: group,
+                                    drawCategory: val === '__unmapped__' ? '' : val,
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="w-56 h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {DRAW_CATEGORIES.map(c => (
+                                    <SelectItem key={c.value || '__unmapped__'} value={c.value || '__unmapped__'}>{c.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                       {Array.from(batches.entries()).map(([label, batchItems], idx) => (
                         <div key={label} className="border border-border rounded-lg overflow-hidden">
                           <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">

@@ -23,8 +23,14 @@ const FEE_TIERS = [
   { key: 'exterior', label: 'Exterior', rate: 0.05, billedField: 'exterior_billed' as const },
 ] as const;
 
-function classifyGroup(costGroup: string): typeof FEE_TIERS[number]['key'] {
-  const lower = costGroup.toLowerCase();
+function classifyGroup(item: any): typeof FEE_TIERS[number]['key'] {
+  // Use explicit draw_category if mapped, otherwise fall back to heuristic
+  if (item.draw_category) {
+    if (item.draw_category === 'interior-buildout') return 'interior-buildout';
+    if (item.draw_category === 'interior-construction') return 'interior-construction';
+    if (item.draw_category === 'exterior') return 'exterior';
+  }
+  const lower = (item.cost_group || '').toLowerCase();
   if (lower.includes('exterior') || lower.includes('outdoor') || lower.includes('landscape') || lower.includes('site')) return 'exterior';
   if (lower.includes('construction') || lower.includes('structural') || lower.includes('framing') || lower.includes('foundation') || lower.includes('concrete') || lower.includes('roofing')) return 'interior-construction';
   return 'interior-buildout';
@@ -105,7 +111,7 @@ const PMDrawSheet = () => {
   const tierBudgets = useMemo(() => {
     const totals: Record<string, number> = { 'interior-buildout': 0, 'interior-construction': 0, exterior: 0 };
     budgetItems.forEach(item => {
-      const tier = classifyGroup(item.cost_group);
+      const tier = classifyGroup(item);
       totals[tier] += Number(item.extended_cost);
     });
     return totals;
