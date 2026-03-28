@@ -45,6 +45,7 @@ export function useUpsertDrawSheet() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sheet: {
+      id?: string;
       project_id: string;
       pm_user_id: string;
       interior_buildout_billed: number;
@@ -54,16 +55,30 @@ export function useUpsertDrawSheet() {
       status: string;
       last_updated: string;
     }) => {
-      const { data, error } = await supabase
-        .from('pm_draw_sheets' as any)
-        .upsert(sheet, { onConflict: 'project_id,pm_user_id' })
-        .select()
-        .single();
-      if (error) throw error;
-      return data as any;
+      if (sheet.id) {
+        // Update existing draft
+        const { data, error } = await supabase
+          .from('pm_draw_sheets' as any)
+          .update(sheet)
+          .eq('id', sheet.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data as any;
+      } else {
+        // Insert new sheet
+        const { data, error } = await supabase
+          .from('pm_draw_sheets' as any)
+          .insert(sheet)
+          .select()
+          .single();
+        if (error) throw error;
+        return data as any;
+      }
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['pm_draw_sheet', vars.project_id, vars.pm_user_id] });
+      qc.invalidateQueries({ queryKey: ['pm_draw_sheet_history', vars.project_id, vars.pm_user_id] });
     },
   });
 }
