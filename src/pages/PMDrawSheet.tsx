@@ -142,6 +142,16 @@ const PMDrawSheet = () => {
 
   const difference = Math.max(0, subBudgetTotal - totalSubPayCost);
   const bonus = difference * 0.30;
+
+  // Save draw sheet
+  const handleSave = async (status = 'draft') => {
+    if (!user || !selectedProjectId) return;
+    await upsertSheet.mutateAsync({
+      project_id: selectedProjectId,
+      pm_user_id: user.id,
+      ...billedAmounts,
+      notes,
+      status,
       last_updated: new Date().toISOString().split('T')[0],
     });
     toast({ title: status === 'submitted' ? 'Draw Sheet Submitted' : 'Draft Saved', description: status === 'submitted' ? 'Your draw sheet has been submitted to billing.' : 'Your progress has been saved.' });
