@@ -10,7 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Badge } from '@/components/ui/badge';
 import { useProjects, useBudgetLineItems, useInvoices, useSubBudgets } from '@/hooks/useProjects';
 import {
-  useDrawSheet, useUpsertDrawSheet,
+  useDrawSheet, useDrawSheetHistory, useUpsertDrawSheet,
   useDrawPayments, useAddDrawPayment, useDeleteDrawPayment,
   useSubPayEntries, useAddSubPayEntry, useDeleteSubPayEntry,
 } from '@/hooks/useDrawSheet';
@@ -56,6 +56,7 @@ const PMDrawSheet = () => {
 
   // Draw sheet state from DB
   const { data: drawSheet, isLoading: loadingSheet } = useDrawSheet(selectedProjectId || undefined, user?.id);
+  const { data: drawSheetHistory = [] } = useDrawSheetHistory(selectedProjectId || undefined, user?.id);
   const upsertSheet = useUpsertDrawSheet();
 
   // Payments & sub pay entries
@@ -114,9 +115,21 @@ const PMDrawSheet = () => {
       const budget = tierBudgets[tier.key] || 0;
       const billed = billedAmounts[tier.billedField];
       const feeAmount = billed * tier.rate;
-      return { ...tier, budget, billed, feeAmount };
+      // History: previous submitted/approved sheets
+      const history = drawSheetHistory.map((sheet: any) => ({
+        id: sheet.id,
+        date: sheet.last_updated || sheet.created_at?.split('T')[0],
+        billed: Number(sheet[tier.billedField]) || 0,
+        fee: (Number(sheet[tier.billedField]) || 0) * tier.rate,
+        status: sheet.status,
+      }));
+      const totalHistoryBilled = history.reduce((s: number, h: any) => s + h.billed, 0);
+      const cumulativeBilled = totalHistoryBilled + billed;
+      const pctBilled = budget > 0 ? (cumulativeBilled / budget) * 100 : 0;
+      const totalHistoryPaid = history.filter((h: any) => h.status === 'approved').reduce((s: number, h: any) => s + h.fee, 0);
+      return { ...tier, budget, billed, feeAmount, history, totalHistoryBilled, cumulativeBilled, pctBilled, totalHistoryPaid };
     });
-  }, [tierBudgets, billedAmounts]);
+  }, [tierBudgets, billedAmounts, drawSheetHistory]);
 
   // Totals
   const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
@@ -147,6 +160,7 @@ const PMDrawSheet = () => {
   const handleSave = async (status = 'draft') => {
     if (!user || !selectedProjectId) return;
     await upsertSheet.mutateAsync({
+      id: drawSheet?.id || undefined,
       project_id: selectedProjectId,
       pm_user_id: user.id,
       ...billedAmounts,
@@ -155,6 +169,11 @@ const PMDrawSheet = () => {
       last_updated: new Date().toISOString().split('T')[0],
     });
     toast({ title: status === 'submitted' ? 'Draw Sheet Submitted' : 'Draft Saved', description: status === 'submitted' ? 'Your draw sheet has been submitted to billing.' : 'Your progress has been saved.' });
+    // On submit, clear local fields so PM starts fresh for next period
+    if (status === 'submitted') {
+      setBilledAmounts({ interior_buildout_billed: 0, interior_construction_billed: 0, exterior_billed: 0 });
+      setNotes('');
+    }
   };
 
   const handleAddPayment = async () => {
@@ -276,13 +295,13 @@ const PMDrawSheet = () => {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-5 pb-4 space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Total (Budget)</p>
                       <p className="font-display font-semibold text-sm">${fmt(tier.budget)}</p>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground mb-1 block">Billed</label>
+                      <label className="text-xs text-muted-foreground mb-1 block">Current Billing</label>
                       <Input
                         type="number"
                         step="0.01"
@@ -301,16 +320,66 @@ const PMDrawSheet = () => {
                       <p className="font-display font-semibold text-sm">{(tier.rate * 100).toFixed(0)}%</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Fee Total</p>
+                      <p className="text-xs text-muted-foreground mb-1">Fee This Period</p>
                       <p className="font-display font-bold text-sm text-primary">${fmt(tier.feeAmount)}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Cumulative Billed</p>
+                      <p className="font-display font-semibold text-sm">${fmt(tier.cumulativeBilled)}
+                        {tier.budget > 0 && (
+                          <span className="text-xs text-muted-foreground ml-1">({tier.pctBilled.toFixed(1)}%)</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  {tier.budget > 0 && tier.billed > 0 && (
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${Math.min(100, (tier.billed / tier.budget) * 100)}%` }}
-                      />
+
+                  {/* Progress bar: cumulative billed vs budget */}
+                  {tier.budget > 0 && tier.cumulativeBilled > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Billed vs Budget</span>
+                        <span>{Math.min(100, tier.pctBilled).toFixed(1)}%</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${Math.min(100, tier.pctBilled)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Previous billing history */}
+                  {tier.history.length > 0 && (
+                    <div className="border-t border-border pt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Previous Billing History</p>
+                      <div className="space-y-1">
+                        {tier.history.map((h: any) => (
+                          <div key={h.id} className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">{h.date}</span>
+                              <Badge variant={h.status === 'approved' ? 'default' : h.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px] h-4">
+                                {h.status}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-display font-medium">${fmt(h.billed)}</span>
+                              <span className="text-muted-foreground">→ fee ${fmt(h.fee)}</span>
+                              {h.status === 'approved' && (
+                                <span className="text-green-600 text-[10px] font-medium">PAID</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center text-xs font-medium pt-1 border-t border-border">
+                          <span className="text-muted-foreground">Total Previously Billed</span>
+                          <span className="font-display">${fmt(tier.totalHistoryBilled)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs font-medium">
+                          <span className="text-muted-foreground">Total Fees Paid</span>
+                          <span className="font-display text-green-600">${fmt(tier.totalHistoryPaid)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </AccordionContent>
