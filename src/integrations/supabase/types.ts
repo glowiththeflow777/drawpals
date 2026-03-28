@@ -355,6 +355,7 @@ export type Database = {
           notes: string
           pm_user_id: string
           project_id: string
+          rejection_notes: string
           status: string
           updated_at: string
         }
@@ -368,6 +369,7 @@ export type Database = {
           notes?: string
           pm_user_id: string
           project_id: string
+          rejection_notes?: string
           status?: string
           updated_at?: string
         }
@@ -381,6 +383,7 @@ export type Database = {
           notes?: string
           pm_user_id?: string
           project_id?: string
+          rejection_notes?: string
           status?: string
           updated_at?: string
         }
