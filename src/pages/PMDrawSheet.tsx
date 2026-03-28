@@ -122,7 +122,9 @@ const PMDrawSheet = () => {
     return FEE_TIERS.map(tier => {
       const budget = tierBudgets[tier.key] || 0;
       const billed = billedAmounts[tier.billedField];
-      const feeAmount = billed * tier.rate;
+      // Total fee is calculated from master budget, not billed amounts
+      const feeFromBudget = budget * tier.rate;
+      const feeFromBilled = billed * tier.rate;
       // History: previous submitted/approved sheets
       const history = drawSheetHistory.map((sheet: any) => ({
         id: sheet.id,
@@ -135,12 +137,12 @@ const PMDrawSheet = () => {
       const cumulativeBilled = totalHistoryBilled + billed;
       const pctBilled = budget > 0 ? (cumulativeBilled / budget) * 100 : 0;
       const totalHistoryPaid = history.filter((h: any) => h.status === 'approved').reduce((s: number, h: any) => s + h.fee, 0);
-      return { ...tier, budget, billed, feeAmount, history, totalHistoryBilled, cumulativeBilled, pctBilled, totalHistoryPaid };
+      return { ...tier, budget, billed, feeFromBudget, feeFromBilled, history, totalHistoryBilled, cumulativeBilled, pctBilled, totalHistoryPaid };
     });
   }, [tierBudgets, billedAmounts, drawSheetHistory]);
 
-  // Totals
-  const totalFees = tierData.reduce((s, t) => s + t.feeAmount, 0);
+  // Total Fees = coordination fees earned from the master budget
+  const totalFees = tierData.reduce((s, t) => s + t.feeFromBudget, 0);
   const totalPaid = allPayments.reduce((s: number, p: any) => s + Number(p.amount), 0);
   const totalSubPay = subPayEntries.reduce((s: number, e: any) => s + Number(e.amount), 0);
   const totalOwed = totalFees - totalPaid;
