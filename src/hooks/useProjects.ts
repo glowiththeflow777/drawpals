@@ -105,7 +105,21 @@ export function useInsertBudgetLineItems() {
   });
 }
 
-export function useCreateTeamMember() {
+export function useUpdateBudgetDrawCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, costGroup, drawCategory }: { projectId: string; costGroup: string; drawCategory: string }) => {
+      const { error } = await supabase
+        .from('budget_line_items')
+        .update({ draw_category: drawCategory } as any)
+        .eq('project_id', projectId)
+        .eq('cost_group', costGroup);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['budget_line_items'] }),
+  });
+}
+
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (member: TablesInsert<'team_members'>) => {
