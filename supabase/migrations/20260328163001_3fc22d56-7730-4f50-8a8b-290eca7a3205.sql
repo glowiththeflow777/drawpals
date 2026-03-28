@@ -1,0 +1,1 @@
+ALTER TABLE public.pm_draw_sheets DROP CONSTRAINT pm_draw_sheets_project_id_pm_user_id_key;
