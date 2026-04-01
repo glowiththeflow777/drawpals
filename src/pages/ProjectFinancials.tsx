@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, DollarSign, FileText, CheckCircle2, Wallet, TrendingUp, ChevronRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, DollarSign, FileText, CheckCircle2, Wallet, TrendingUp, ChevronRight, ChevronDown, Layers, PiggyBank, Award, Building2, UserCheck, Calculator } from 'lucide-react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useProjects, useBudgetLineItems, useBillingHistory, useInvoiceLineItemsDetailed, useInvoices } from '@/hooks/useProjects';
+import { useProjects, useBudgetLineItems, useBillingHistory, useInvoiceLineItemsDetailed, useInvoices, usePmDrawPaymentsForProject, useSubBidTotal } from '@/hooks/useProjects';
 
 type Section = 'budget' | 'invoiced' | 'approved' | 'remaining';
 
@@ -17,13 +17,27 @@ const ProjectFinancials = () => {
   const { data: billingHistory = new Map() } = useBillingHistory(projectId);
   const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(projectId);
   const { data: invoices = [] } = useInvoices(projectId);
+  const { data: pmFeeCollected = 0 } = usePmDrawPaymentsForProject(projectId);
+  const { data: computedSubBidTotal = 0 } = useSubBidTotal(projectId);
 
   const project = projects.find(p => p.id === projectId);
 
   const totalBudget = Number(project?.total_budget || 0);
+  const masterBudget = Number((project as any)?.master_budget || 0) || totalBudget;
+  const pmFeeRate = Number((project as any)?.pm_fee_rate ?? 0.10);
+  const subBidTotal = Number((project as any)?.sub_bid_total || 0) || computedSubBidTotal;
+  const actualSubPaid = Number((project as any)?.actual_sub_paid || 0) || Number(project?.amount_paid || 0);
   const invoiced = Number(project?.amount_invoiced || 0);
   const approved = Number(project?.amount_paid || 0);
   const remaining = totalBudget - invoiced;
+
+  // Derived financial metrics
+  const budgetRemaining = masterBudget - subBidTotal;
+  const savings = masterBudget - actualSubPaid;
+  const pmSavingsBonus = savings > 0 ? savings * 0.30 : 0;
+  const businessShare = savings > 0 ? savings * 0.70 : 0;
+  const pmCoordinationFee = masterBudget * pmFeeRate;
+  const pmFeeRemaining = pmCoordinationFee - pmFeeCollected;
 
   const stats: { key: Section; label: string; value: number; icon: React.ElementType; color: string }[] = [
     { key: 'budget', label: 'Total Budget', value: totalBudget, icon: Wallet, color: 'text-primary' },
@@ -380,6 +394,48 @@ const ProjectFinancials = () => {
             )}
           </button>
         ))}
+      </div>
+
+      {/* Budget Layers Overview */}
+      <div className="card-elevated p-5 space-y-4">
+        <h2 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Layers className="w-4 h-4" />
+          Budget Layers & PM Financials
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'Master Budget', value: masterBudget, icon: Building2, color: 'text-primary' },
+            { label: 'Sub Bid Total', value: subBidTotal, icon: FileText, color: 'text-amber-600' },
+            { label: 'Budget Remaining', value: budgetRemaining, icon: TrendingUp, color: 'text-sky-600' },
+            { label: 'Actual Sub Paid', value: actualSubPaid, icon: CheckCircle2, color: 'text-emerald-600' },
+            { label: 'Savings', value: savings, icon: PiggyBank, color: savings > 0 ? 'text-emerald-600' : 'text-destructive' },
+          ].map(item => (
+            <div key={item.label} className="bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                <p className="text-xs text-muted-foreground font-body">{item.label}</p>
+              </div>
+              <p className="text-lg font-display font-bold">${item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border pt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'PM Savings Bonus (30%)', value: pmSavingsBonus, icon: Award, color: 'text-amber-600' },
+            { label: 'Business Share (70%)', value: businessShare, icon: Building2, color: 'text-primary' },
+            { label: `PM Coord. Fee (${(pmFeeRate * 100).toFixed(0)}%)`, value: pmCoordinationFee, icon: Calculator, color: 'text-violet-600' },
+            { label: 'PM Fee Collected', value: pmFeeCollected, icon: UserCheck, color: 'text-emerald-600' },
+            { label: 'PM Fee Remaining', value: pmFeeRemaining, icon: DollarSign, color: pmFeeRemaining > 0 ? 'text-amber-600' : 'text-emerald-600' },
+          ].map(item => (
+            <div key={item.label} className="bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                <p className="text-xs text-muted-foreground font-body">{item.label}</p>
+              </div>
+              <p className="text-lg font-display font-bold">${item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Section details */}

@@ -558,35 +558,50 @@ export type Database = {
       }
       projects: {
         Row: {
+          actual_sub_paid: number
           address: string
           amount_invoiced: number
           amount_paid: number
           created_at: string
           id: string
+          jobtread_job_id: string
+          master_budget: number
           name: string
+          pm_fee_rate: number
           status: Database["public"]["Enums"]["project_status"]
+          sub_bid_total: number
           total_budget: number
           updated_at: string
         }
         Insert: {
+          actual_sub_paid?: number
           address: string
           amount_invoiced?: number
           amount_paid?: number
           created_at?: string
           id?: string
+          jobtread_job_id?: string
+          master_budget?: number
           name: string
+          pm_fee_rate?: number
           status?: Database["public"]["Enums"]["project_status"]
+          sub_bid_total?: number
           total_budget?: number
           updated_at?: string
         }
         Update: {
+          actual_sub_paid?: number
           address?: string
           amount_invoiced?: number
           amount_paid?: number
           created_at?: string
           id?: string
+          jobtread_job_id?: string
+          master_budget?: number
           name?: string
+          pm_fee_rate?: number
           status?: Database["public"]["Enums"]["project_status"]
+          sub_bid_total?: number
           total_budget?: number
           updated_at?: string
         }

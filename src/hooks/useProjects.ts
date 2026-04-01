@@ -455,6 +455,52 @@ export function useSubBudgetForMember(projectId?: string, teamMemberId?: string)
 
 
 
+// PM draw payments for a project (sum of all payments across all draw sheets)
+export function usePmDrawPaymentsForProject(projectId?: string) {
+  return useQuery({
+    queryKey: ['pm_draw_payments_project', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data: sheets, error: sErr } = await supabase
+        .from('pm_draw_sheets')
+        .select('id')
+        .eq('project_id', projectId!);
+      if (sErr) throw sErr;
+      if (!sheets || sheets.length === 0) return 0;
+      const sheetIds = sheets.map(s => s.id);
+      const { data, error } = await supabase
+        .from('pm_draw_payments')
+        .select('amount')
+        .in('draw_sheet_id', sheetIds);
+      if (error) throw error;
+      return (data || []).reduce((sum, p) => sum + Number(p.amount), 0);
+    },
+  });
+}
+
+// Sub budgets total cost for a project
+export function useSubBidTotal(projectId?: string) {
+  return useQuery({
+    queryKey: ['sub_bid_total', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data: budgets, error: bErr } = await supabase
+        .from('sub_budgets')
+        .select('id')
+        .eq('project_id', projectId!);
+      if (bErr) throw bErr;
+      if (!budgets || budgets.length === 0) return 0;
+      const budgetIds = budgets.map(b => b.id);
+      const { data, error } = await supabase
+        .from('sub_budget_line_items')
+        .select('extended_cost')
+        .in('sub_budget_id', budgetIds);
+      if (error) throw error;
+      return (data || []).reduce((sum, li) => sum + Number(li.extended_cost), 0);
+    },
+  });
+}
+
 export function useRemoveAssignment() {
   const qc = useQueryClient();
   return useMutation({
