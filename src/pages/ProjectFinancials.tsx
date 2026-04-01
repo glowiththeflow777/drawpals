@@ -17,13 +17,27 @@ const ProjectFinancials = () => {
   const { data: billingHistory = new Map() } = useBillingHistory(projectId);
   const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(projectId);
   const { data: invoices = [] } = useInvoices(projectId);
+  const { data: pmFeeCollected = 0 } = usePmDrawPaymentsForProject(projectId);
+  const { data: computedSubBidTotal = 0 } = useSubBidTotal(projectId);
 
   const project = projects.find(p => p.id === projectId);
 
   const totalBudget = Number(project?.total_budget || 0);
+  const masterBudget = Number((project as any)?.master_budget || 0) || totalBudget;
+  const pmFeeRate = Number((project as any)?.pm_fee_rate ?? 0.10);
+  const subBidTotal = Number((project as any)?.sub_bid_total || 0) || computedSubBidTotal;
+  const actualSubPaid = Number((project as any)?.actual_sub_paid || 0) || Number(project?.amount_paid || 0);
   const invoiced = Number(project?.amount_invoiced || 0);
   const approved = Number(project?.amount_paid || 0);
   const remaining = totalBudget - invoiced;
+
+  // Derived financial metrics
+  const budgetRemaining = masterBudget - subBidTotal;
+  const savings = masterBudget - actualSubPaid;
+  const pmSavingsBonus = savings > 0 ? savings * 0.30 : 0;
+  const businessShare = savings > 0 ? savings * 0.70 : 0;
+  const pmCoordinationFee = masterBudget * pmFeeRate;
+  const pmFeeRemaining = pmCoordinationFee - pmFeeCollected;
 
   const stats: { key: Section; label: string; value: number; icon: React.ElementType; color: string }[] = [
     { key: 'budget', label: 'Total Budget', value: totalBudget, icon: Wallet, color: 'text-primary' },
