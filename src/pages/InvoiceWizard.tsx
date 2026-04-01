@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, ChevronLeft, ChevronRight, Check, Upload, Plus, Trash2, UserPlus, Loader2, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -112,6 +113,19 @@ const InvoiceWizard = () => {
       const pc = field === 'percentComplete' ? Number(value) : (updated[idx].percentComplete || 0);
       updated[idx].drawAmount = Math.round(cp * pc / 100 * 100) / 100;
     }
+    if (field === 'drawAmount') {
+      // For direct billing: cap at remaining budget
+      const budgetItemId = (updated[idx] as any).budgetItemId;
+      const totalBudget = updated[idx].contractPrice || 0;
+      const previouslyBilled = billingHistory.get(budgetItemId) || 0;
+      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
+      const capped = Math.min(Number(value), maxAllowed);
+      updated[idx].drawAmount = Math.max(0, capped);
+      // Recalculate percent complete from draw amount
+      if (totalBudget > 0) {
+        updated[idx].percentComplete = Math.round(((previouslyBilled + updated[idx].drawAmount!) / totalBudget) * 100);
+      }
+    }
     setLineItems(updated);
   };
 
@@ -126,8 +140,36 @@ const InvoiceWizard = () => {
 
   const handleSubmit = async () => {
     if (!user || !projectId) return;
+
+    // Validate no line item exceeds remaining budget
+    const overBudgetItems = lineItems.filter((li: any) => {
+      if (!li.budgetItemId) return false;
+      const totalBudget = li.contractPrice || 0;
+      const previouslyBilled = billingHistory.get(li.budgetItemId) || 0;
+      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
+      return (li.drawAmount || 0) > maxAllowed;
+    });
+    if (overBudgetItems.length > 0) {
+      toast({ title: 'Over budget', description: 'One or more line items exceed the remaining budget. Please adjust amounts.', variant: 'destructive' });
+      return;
+    }
+
     setSubmitting(true);
     try {
+      // Upload attachments to storage
+      const uploadedPaths: string[] = [];
+      for (const file of attachments) {
+        const filePath = `${projectId}/${user.id}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('project-documents')
+          .upload(filePath, file);
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+        } else {
+          uploadedPaths.push(filePath);
+        }
+      }
+
       await createInvoice.mutateAsync({
         project_id: projectId,
         submitted_by: user.id,
@@ -140,7 +182,7 @@ const InvoiceWizard = () => {
         change_order_total: coTotal,
         credit_total: creditTotal,
         grand_total: grandTotal,
-        notes: '',
+        notes: uploadedPaths.length > 0 ? `Attachments: ${uploadedPaths.join(', ')}` : '',
         line_items: lineItems
           .filter((li: any) => li.budgetItemId)
           .map((li: any) => ({
@@ -578,40 +620,79 @@ const InvoiceWizard = () => {
                                       })()}
                                     </div>
                                   </button>
-                                  {isSelected && liIdx >= 0 && (
-                                    <div className="px-4 pb-3 pt-1 bg-primary/5 flex items-center gap-3" onClick={e => e.stopPropagation()}>
-                                      <div className="flex-1">
-                                        <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="100"
-                                          placeholder="0"
-                                          className="mt-1 h-8 text-sm"
-                                          value={lineItems[liIdx]?.percentComplete || ''}
-                                          onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
-                                        />
+                                  {isSelected && liIdx >= 0 && (() => {
+                                    const budgetItemId = (lineItems[liIdx] as any).budgetItemId;
+                                    const totalBudget = Number(item.extended_cost);
+                                    const previouslyBilled = billingHistory.get(budgetItemId) || 0;
+                                    const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
+
+                                    return (
+                                    <div className="px-4 pb-3 pt-1 bg-primary/5 space-y-2" onClick={e => e.stopPropagation()}>
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <span>Budget: ${totalBudget.toLocaleString()}</span>
+                                        <span>·</span>
+                                        <span>Previously billed: ${previouslyBilled.toLocaleString()}</span>
+                                        <span>·</span>
+                                        <span className="font-semibold text-foreground">Max this period: ${maxAllowed.toLocaleString()}</span>
                                       </div>
-                                      <div className="flex-1">
-                                        <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
-                                        <Input
-                                          type="number"
-                                          readOnly
-                                          className="mt-1 h-8 text-sm bg-muted font-semibold"
-                                          value={lineItems[liIdx]?.drawAmount || 0}
-                                        />
+                                      <div className="flex items-center gap-3">
+                                        {isAdminEntry ? (
+                                          <>
+                                            <div className="flex-1">
+                                              <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
+                                              <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                placeholder="0"
+                                                className="mt-1 h-8 text-sm"
+                                                value={lineItems[liIdx]?.percentComplete || ''}
+                                                onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
+                                              />
+                                            </div>
+                                            <div className="flex-1">
+                                              <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
+                                              <Input
+                                                type="number"
+                                                readOnly
+                                                className="mt-1 h-8 text-sm bg-muted font-semibold"
+                                                value={lineItems[liIdx]?.drawAmount || 0}
+                                              />
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <div className="flex-1">
+                                            <Label className="text-xs font-body">Billing This Period ($)</Label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              max={maxAllowed}
+                                              step="0.01"
+                                              placeholder="0.00"
+                                              className="mt-1 h-8 text-sm"
+                                              value={lineItems[liIdx]?.drawAmount || ''}
+                                              onChange={e => updateLineItem(liIdx, 'drawAmount', Number(e.target.value))}
+                                            />
+                                          </div>
+                                        )}
+                                        <div className="flex-1">
+                                          <Label className="text-xs font-body">Remaining After</Label>
+                                          <Input
+                                            type="number"
+                                            readOnly
+                                            className="mt-1 h-8 text-sm bg-muted font-semibold"
+                                            value={Math.max(0, maxAllowed - (lineItems[liIdx]?.drawAmount || 0))}
+                                          />
+                                        </div>
                                       </div>
-                                      <div className="flex-1">
-                                        <Label className="text-xs font-body">Remaining</Label>
-                                        <Input
-                                          type="number"
-                                          readOnly
-                                          className="mt-1 h-8 text-sm bg-muted font-semibold"
-                                          value={Math.max(0, Number(item.extended_cost) - (billingHistory.get(item.id) || 0) - (lineItems[liIdx]?.drawAmount || 0))}
-                                        />
-                                      </div>
+                                      {(lineItems[liIdx]?.drawAmount || 0) > maxAllowed && (
+                                        <p className="text-xs text-destructive font-semibold">
+                                          Amount exceeds remaining budget — it will be capped at ${maxAllowed.toLocaleString()}
+                                        </p>
+                                      )}
                                     </div>
-                                  )}
+                                    );
+                                  })()}
                                 </div>
                               );
                             })}
