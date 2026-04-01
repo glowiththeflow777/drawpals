@@ -396,6 +396,48 @@ const ProjectFinancials = () => {
         ))}
       </div>
 
+      {/* Budget Layers Overview */}
+      <div className="card-elevated p-5 space-y-4">
+        <h2 className="text-sm font-display font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+          <Layers className="w-4 h-4" />
+          Budget Layers & PM Financials
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'Master Budget', value: masterBudget, icon: Building2, color: 'text-primary' },
+            { label: 'Sub Bid Total', value: subBidTotal, icon: FileText, color: 'text-amber-600' },
+            { label: 'Budget Remaining', value: budgetRemaining, icon: TrendingUp, color: 'text-sky-600' },
+            { label: 'Actual Sub Paid', value: actualSubPaid, icon: CheckCircle2, color: 'text-emerald-600' },
+            { label: 'Savings', value: savings, icon: PiggyBank, color: savings > 0 ? 'text-emerald-600' : 'text-destructive' },
+          ].map(item => (
+            <div key={item.label} className="bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                <p className="text-xs text-muted-foreground font-body">{item.label}</p>
+              </div>
+              <p className="text-lg font-display font-bold">${item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border pt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: 'PM Savings Bonus (30%)', value: pmSavingsBonus, icon: Award, color: 'text-amber-600' },
+            { label: 'Business Share (70%)', value: businessShare, icon: Building2, color: 'text-primary' },
+            { label: `PM Coord. Fee (${(pmFeeRate * 100).toFixed(0)}%)`, value: pmCoordinationFee, icon: Calculator, color: 'text-violet-600' },
+            { label: 'PM Fee Collected', value: pmFeeCollected, icon: UserCheck, color: 'text-emerald-600' },
+            { label: 'PM Fee Remaining', value: pmFeeRemaining, icon: DollarSign, color: pmFeeRemaining > 0 ? 'text-amber-600' : 'text-emerald-600' },
+          ].map(item => (
+            <div key={item.label} className="bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
+                <p className="text-xs text-muted-foreground font-body">{item.label}</p>
+              </div>
+              <p className="text-lg font-display font-bold">${item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Section details */}
       {activeSection ? (
         <motion.div
