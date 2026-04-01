@@ -139,8 +139,36 @@ const InvoiceWizard = () => {
 
   const handleSubmit = async () => {
     if (!user || !projectId) return;
+
+    // Validate no line item exceeds remaining budget
+    const overBudgetItems = lineItems.filter((li: any) => {
+      if (!li.budgetItemId) return false;
+      const totalBudget = li.contractPrice || 0;
+      const previouslyBilled = billingHistory.get(li.budgetItemId) || 0;
+      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
+      return (li.drawAmount || 0) > maxAllowed;
+    });
+    if (overBudgetItems.length > 0) {
+      toast({ title: 'Over budget', description: 'One or more line items exceed the remaining budget. Please adjust amounts.', variant: 'destructive' });
+      return;
+    }
+
     setSubmitting(true);
     try {
+      // Upload attachments to storage
+      const uploadedPaths: string[] = [];
+      for (const file of attachments) {
+        const filePath = `${projectId}/${user.id}/${Date.now()}-${file.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('project-documents')
+          .upload(filePath, file);
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+        } else {
+          uploadedPaths.push(filePath);
+        }
+      }
+
       await createInvoice.mutateAsync({
         project_id: projectId,
         submitted_by: user.id,
@@ -153,7 +181,7 @@ const InvoiceWizard = () => {
         change_order_total: coTotal,
         credit_total: creditTotal,
         grand_total: grandTotal,
-        notes: '',
+        notes: uploadedPaths.length > 0 ? `Attachments: ${uploadedPaths.join(', ')}` : '',
         line_items: lineItems
           .filter((li: any) => li.budgetItemId)
           .map((li: any) => ({
