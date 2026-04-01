@@ -112,6 +112,19 @@ const InvoiceWizard = () => {
       const pc = field === 'percentComplete' ? Number(value) : (updated[idx].percentComplete || 0);
       updated[idx].drawAmount = Math.round(cp * pc / 100 * 100) / 100;
     }
+    if (field === 'drawAmount') {
+      // For direct billing: cap at remaining budget
+      const budgetItemId = (updated[idx] as any).budgetItemId;
+      const totalBudget = updated[idx].contractPrice || 0;
+      const previouslyBilled = billingHistory.get(budgetItemId) || 0;
+      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
+      const capped = Math.min(Number(value), maxAllowed);
+      updated[idx].drawAmount = Math.max(0, capped);
+      // Recalculate percent complete from draw amount
+      if (totalBudget > 0) {
+        updated[idx].percentComplete = Math.round(((previouslyBilled + updated[idx].drawAmount!) / totalBudget) * 100);
+      }
+    }
     setLineItems(updated);
   };
 
