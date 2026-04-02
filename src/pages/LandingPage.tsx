@@ -32,7 +32,6 @@ const LandingPage = () => {
   const [setupEmail, setSetupEmail] = useState('');
   const [setupPassword, setSetupPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [setupAvailable] = useState(false);
