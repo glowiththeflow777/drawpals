@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, HardHat, ArrowRight, Mail, Lock, Loader2, User, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,23 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/components/AuthProvider';
 
 const LandingPage = () => {
   const { t, i18n } = useTranslation();
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect already-authenticated users to their dashboard
+  useEffect(() => {
+    if (authLoading || !user) return;
+    const stored = localStorage.getItem('activeRole');
+    if (stored === 'admin' || stored === 'project-manager') {
+      navigate('/admin', { replace: true });
+    } else {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
   const [mode, setMode] = useState<'landing' | 'login' | 'setup'>('landing');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
