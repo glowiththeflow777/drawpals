@@ -183,10 +183,10 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
       qc.invalidateQueries({ queryKey: ['sub_budget_line_items'] });
       qc.invalidateQueries({ queryKey: ['projects'] });
 
-      const subName = selectedSubId && selectedSubId !== '__none__' ? (subs.find(s => s.id === selectedSubId)?.crew_name || subs.find(s => s.id === selectedSubId)?.name || '') : '';
+      const subName = effectiveSubId ? (subs.find(s => s.id === effectiveSubId)?.crew_name || subs.find(s => s.id === effectiveSubId)?.name || '') : '';
       toast({
         title: 'Budget imported!',
-        description: `${masterItems.length} master items imported${selectedSubId && selectedSubId !== '__none__' ? ` and ${parsedRows.filter(r => r.costType === 'Labor' || r.costType === 'Subcontractor').length} labor items assigned to ${subName}` : ''}.`,
+        description: `${masterItems.length} master items imported${effectiveSubId ? ` and ${parsedRows.filter(r => r.costType === 'Labor' || r.costType === 'Subcontractor').length} labor items assigned to ${subName}` : ''}.`,
       });
 
       // Reset and close
