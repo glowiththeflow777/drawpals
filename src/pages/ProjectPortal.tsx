@@ -1013,59 +1013,129 @@ const ProjectPortal = () => {
 
                   const grandTotal = items.reduce((s, i) => s + Number(i.extended_cost), 0);
 
-                  const renderBatchTable = (batchItems: typeof items) => (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">#</th>
-                            <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Item</th>
-                            <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Description</th>
-                            <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">Qty</th>
-                            <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Unit</th>
-                            <th className="text-right p-3 font-display font-semibold text-muted-foreground text-xs">Cost</th>
-                            <th className="text-left p-3 font-display font-semibold text-muted-foreground text-xs">Type</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                            let lastGroup = '';
-                            return batchItems.map(item => {
-                              const showGroupHeader = item.cost_group && item.cost_group !== lastGroup;
-                              if (item.cost_group) lastGroup = item.cost_group;
-                              return (
-                                <React.Fragment key={item.id}>
-                                  {showGroupHeader && (
-                                    <tr className="bg-muted/50">
-                                      <td colSpan={7} className="p-3 font-display font-bold text-sm text-foreground">
-                                        {item.cost_group}
-                                      </td>
+                  // Build hierarchical tree from semicolon-separated cost_group
+                  type SectionNode = {
+                    name: string;
+                    items: typeof items;
+                    children: Map<string, SectionNode>;
+                    total: number;
+                  };
+
+                  const buildTree = (batchItems: typeof items): SectionNode => {
+                    const root: SectionNode = { name: 'Root', items: [], children: new Map(), total: 0 };
+                    batchItems.forEach(item => {
+                      const parts = (item.cost_group || 'Ungrouped').split(';').map(s => s.trim()).filter(Boolean);
+                      let node = root;
+                      parts.forEach(part => {
+                        if (!node.children.has(part)) {
+                          node.children.set(part, { name: part, items: [], children: new Map(), total: 0 });
+                        }
+                        node = node.children.get(part)!;
+                      });
+                      node.items.push(item);
+                      node.total += Number(item.extended_cost);
+                      // propagate totals up
+                      let n2 = root;
+                      parts.forEach(part => {
+                        n2 = n2.children.get(part)!;
+                      });
+                    });
+
+                    // Recalculate totals recursively
+                    const calcTotal = (node: SectionNode): number => {
+                      const childTotal = Array.from(node.children.values()).reduce((s, c) => s + calcTotal(c), 0);
+                      node.total = node.items.reduce((s, i) => s + Number(i.extended_cost), 0) + childTotal;
+                      return node.total;
+                    };
+                    calcTotal(root);
+                    return root;
+                  };
+
+                  const RenderSection = ({ node, depth = 0 }: { node: SectionNode; depth?: number }) => {
+                    const [open, setOpen] = React.useState(depth < 1);
+                    const hasContent = node.items.length > 0 || node.children.size > 0;
+                    if (!hasContent) return null;
+
+                    const sectionColors = [
+                      'bg-primary/10 border-primary/20',
+                      'bg-accent/30 border-accent/40',
+                      'bg-muted/50 border-border',
+                    ];
+                    const colorClass = sectionColors[Math.min(depth, sectionColors.length - 1)];
+
+                    return (
+                      <div className={`${depth > 0 ? 'ml-3 mt-2' : 'mt-3'}`}>
+                        <button
+                          type="button"
+                          onClick={() => setOpen(!open)}
+                          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border ${colorClass} hover:opacity-90 transition-all`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                            <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>{node.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({Array.from(node.children.values()).reduce((s, c) => s + c.items.length, 0) + node.items.length} items)
+                            </span>
+                          </div>
+                          <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>
+                            ${node.total.toLocaleString()}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className={depth === 0 ? 'pl-2' : ''}>
+                            {Array.from(node.children.entries()).map(([key, child]) => (
+                              <RenderSection key={key} node={child} depth={depth + 1} />
+                            ))}
+                            {node.items.length > 0 && (
+                              <div className="overflow-x-auto mt-2">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-border">
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">#</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Item</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Description</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">Qty</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Unit</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">Cost</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Type</th>
                                     </tr>
-                                  )}
-                                  <tr className="border-b border-border/50 hover:bg-muted/30">
-                                    <td className="p-3">{item.line_item_no}</td>
-                                    <td className="p-3 font-body font-medium">{item.cost_item_name}</td>
-                                    <td className="p-3 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
-                                    <td className="p-3 text-right">{Number(item.quantity).toLocaleString()}</td>
-                                    <td className="p-3 text-muted-foreground text-xs">{item.unit}</td>
-                                    <td className="p-3 text-right font-display font-semibold">${Number(item.extended_cost).toLocaleString()}</td>
-                                    <td className="p-3"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
-                                  </tr>
-                                </React.Fragment>
-                              );
-                            });
-                          })()}
-                        </tbody>
-                        <tfoot>
-                          <tr className="border-t border-border">
-                            <td colSpan={5} className="p-3 text-right font-display font-semibold text-sm">Subtotal</td>
-                            <td className="p-3 text-right font-display font-bold">${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</td>
-                            <td></td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  );
+                                  </thead>
+                                  <tbody>
+                                    {node.items.map(item => (
+                                      <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
+                                        <td className="p-2">{item.line_item_no}</td>
+                                        <td className="p-2 font-body font-medium">{item.cost_item_name}</td>
+                                        <td className="p-2 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
+                                        <td className="p-2 text-right">{Number(item.quantity).toLocaleString()}</td>
+                                        <td className="p-2 text-muted-foreground text-xs">{item.unit}</td>
+                                        <td className="p-2 text-right font-display font-semibold">${Number(item.extended_cost).toLocaleString()}</td>
+                                        <td className="p-2"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  const renderBatchTable = (batchItems: typeof items) => {
+                    const tree = buildTree(batchItems);
+                    return (
+                      <div className="px-2 pb-3">
+                        {Array.from(tree.children.entries()).map(([key, child]) => (
+                          <RenderSection key={key} node={child} depth={0} />
+                        ))}
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border px-4">
+                          <span className="font-display font-semibold text-sm">Subtotal</span>
+                          <span className="font-display font-bold">${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  };
 
                   return (
                     <div className="space-y-4">
