@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { useSubBudgets, useSubBudgetLineItems, useCreateSubBudget } from '@/hooks/useProjects';
+import { useSubBudgets, useSubBudgetLineItems, useCreateSubBudget, useDeleteSubBudget } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
 
 // The internal field names we map spreadsheet columns to
