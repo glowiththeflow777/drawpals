@@ -141,6 +141,8 @@ const ProjectPortal = () => {
   const [quickParsedItems, setQuickParsedItems] = useState<QuickParsedItem[]>([]);
 
   const [budgetExpanded, setBudgetExpanded] = useState(false);
+  const [subBudgetExpanded, setSubBudgetExpanded] = useState(false);
+  const [proposalExpanded, setProposalExpanded] = useState(false);
   const [drawMapOpen, setDrawMapOpen] = useState(false);
 
   // Quick invite dialog state
