@@ -1278,9 +1278,37 @@ const ProjectPortal = () => {
                               <span className="font-display font-semibold text-sm">{label}</span>
                               <span className="text-xs text-muted-foreground">({batchItems.length} items)</span>
                             </div>
-                            <span className="font-display font-bold text-sm">
-                              ${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-display font-bold text-sm">
+                                ${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}
+                              </span>
+                              {confirmDeleteBatch === label ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    disabled={deleteMasterBatch.isPending}
+                                    onClick={async () => {
+                                      try {
+                                        await deleteMasterBatch.mutateAsync({ projectId: selectedProject!.id, batchLabel: label });
+                                        toast({ title: 'Batch deleted', description: `"${label}" has been removed.` });
+                                        setConfirmDeleteBatch(null);
+                                      } catch (e: any) {
+                                        toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                                      }
+                                    }}
+                                  >
+                                    {deleteMasterBatch.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setConfirmDeleteBatch(null)}>Cancel</Button>
+                                </div>
+                              ) : (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteBatch(label)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           {renderBatchTable(batchItems)}
                         </div>
