@@ -1,0 +1,1 @@
+ALTER TABLE public.sub_budgets DROP CONSTRAINT IF EXISTS sub_budgets_project_id_team_member_id_key;
