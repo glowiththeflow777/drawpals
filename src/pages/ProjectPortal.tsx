@@ -1026,17 +1026,11 @@ const ProjectPortal = () => {
                       ({allBudgetItems.filter(b => b.project_id === selectedProject.id).length} items)
                     </span>
                   </button>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={handleBudgetReupload}
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full"
-                    />
-                    <Button variant="outline" size="sm" className="font-display text-xs">
-                      <Upload className="w-3 h-3 mr-1" /> Add Budget Items
-                    </Button>
-                  </div>
+                  <BudgetImport
+                    projectId={selectedProject.id}
+                    assignedMembers={getProjectAssignments(selectedProject.id)}
+                    currentUserId={currentUserId}
+                  />
                 </div>
                 {budgetExpanded && (() => {
                   const items = allBudgetItems.filter(b => b.project_id === selectedProject.id);
