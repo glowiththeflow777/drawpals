@@ -442,6 +442,8 @@ export function useDeleteSubBudget() {
     onSuccess: (projectId) => {
       qc.invalidateQueries({ queryKey: ['sub_budgets', projectId] });
       qc.invalidateQueries({ queryKey: ['sub_budget_line_items'] });
+      qc.invalidateQueries({ queryKey: ['sub_bid_total', projectId] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
