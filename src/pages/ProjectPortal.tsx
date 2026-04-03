@@ -110,6 +110,33 @@ const ProjectPortal = () => {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: allAssignments = [] } = useProjectAssignments();
 
+  // Sub line items for selected project (for Sub Budget & Proposal views)
+  const { data: subLineItems = [] } = useQuery({
+    queryKey: ['all_sub_budget_line_items', selectedProject?.id],
+    enabled: !!selectedProject?.id,
+    queryFn: async () => {
+      const { data: budgets } = await supabase
+        .from('sub_budgets')
+        .select('id, proposal_name, team_member_id, bid_percentage, team_members(name, crew_name)')
+        .eq('project_id', selectedProject!.id);
+      if (!budgets || budgets.length === 0) return [];
+      const budgetIds = budgets.map(b => b.id);
+      const { data: items } = await supabase
+        .from('sub_budget_line_items')
+        .select('*')
+        .in('sub_budget_id', budgetIds);
+      return (items || []).map(item => {
+        const budget = budgets.find(b => b.id === item.sub_budget_id);
+        return {
+          ...item,
+          sub_name: (budget as any)?.team_members?.crew_name || (budget as any)?.team_members?.name || 'Unknown',
+          proposal_name: budget?.proposal_name || 'Proposal',
+          bid_percentage: budget?.bid_percentage || 100,
+        };
+      });
+    },
+  });
+
   // Mutations
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
