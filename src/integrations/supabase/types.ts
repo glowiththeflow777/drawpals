@@ -171,6 +171,7 @@ export type Database = {
           invoice_id: string
           line_item_no: number
           percent_complete: number
+          sub_budget_line_item_id: string | null
         }
         Insert: {
           budget_line_item_id: string
@@ -182,6 +183,7 @@ export type Database = {
           invoice_id: string
           line_item_no?: number
           percent_complete?: number
+          sub_budget_line_item_id?: string | null
         }
         Update: {
           budget_line_item_id?: string
@@ -193,6 +195,7 @@ export type Database = {
           invoice_id?: string
           line_item_no?: number
           percent_complete?: number
+          sub_budget_line_item_id?: string | null
         }
         Relationships: [
           {
@@ -207,6 +210,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_sub_budget_line_item_id_fkey"
+            columns: ["sub_budget_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "sub_budget_line_items"
             referencedColumns: ["id"]
           },
         ]
@@ -610,6 +620,7 @@ export type Database = {
       sub_budget_line_items: {
         Row: {
           batch_label: string
+          contract_price: number
           cost_code: string
           cost_group: string
           cost_item_name: string
@@ -625,6 +636,7 @@ export type Database = {
         }
         Insert: {
           batch_label?: string
+          contract_price?: number
           cost_code?: string
           cost_group?: string
           cost_item_name?: string
@@ -640,6 +652,7 @@ export type Database = {
         }
         Update: {
           batch_label?: string
+          contract_price?: number
           cost_code?: string
           cost_group?: string
           cost_item_name?: string
@@ -665,26 +678,32 @@ export type Database = {
       }
       sub_budgets: {
         Row: {
+          bid_percentage: number
           created_at: string
           file_name: string
           id: string
           project_id: string
+          proposal_name: string
           team_member_id: string
           uploaded_by: string
         }
         Insert: {
+          bid_percentage?: number
           created_at?: string
           file_name?: string
           id?: string
           project_id: string
+          proposal_name?: string
           team_member_id: string
           uploaded_by: string
         }
         Update: {
+          bid_percentage?: number
           created_at?: string
           file_name?: string
           id?: string
           project_id?: string
+          proposal_name?: string
           team_member_id?: string
           uploaded_by?: string
         }
