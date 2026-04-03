@@ -539,7 +539,7 @@ export function usePmDrawPaymentsForProject(projectId?: string) {
   });
 }
 
-// Sub budgets total cost for a project
+// Sub budgets: internal cost total vs contracted proposal total
 export function useSubBidTotal(projectId?: string) {
   return useQuery({
     queryKey: ['sub_bid_total', projectId],
@@ -550,14 +550,16 @@ export function useSubBidTotal(projectId?: string) {
         .select('id')
         .eq('project_id', projectId!);
       if (bErr) throw bErr;
-      if (!budgets || budgets.length === 0) return 0;
+      if (!budgets || budgets.length === 0) return { costTotal: 0, contractTotal: 0 };
       const budgetIds = budgets.map(b => b.id);
       const { data, error } = await supabase
         .from('sub_budget_line_items')
-        .select('extended_cost')
+        .select('extended_cost, contract_price')
         .in('sub_budget_id', budgetIds);
       if (error) throw error;
-      return (data || []).reduce((sum, li) => sum + Number(li.extended_cost), 0);
+      const costTotal = (data || []).reduce((sum, li) => sum + Number(li.extended_cost), 0);
+      const contractTotal = (data || []).reduce((sum, li) => sum + Number(li.contract_price || li.extended_cost), 0);
+      return { costTotal, contractTotal };
     },
   });
 }
