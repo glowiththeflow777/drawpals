@@ -37,15 +37,43 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
 
-  // Group master items by cost group
-  const groups = useMemo(() => {
-    const map = new Map<string, typeof masterItems>();
-    masterItems.forEach(item => {
-      const group = item.cost_group || 'Ungrouped';
-      if (!map.has(group)) map.set(group, []);
-      map.get(group)!.push(item);
+  // Group master items by cost type → cost group
+  const costTypeSections = useMemo(() => {
+    const typeOrder = ['Labor', 'Subcontractor', 'Materials'];
+    const typeConfig: Record<string, { icon: typeof Hammer; label: string; color: string; bgColor: string }> = {
+      Labor: { icon: Hammer, label: 'Labor', color: 'text-blue-600', bgColor: 'bg-blue-500/10 border-blue-500/20' },
+      Subcontractor: { icon: HardHat, label: 'Subcontractor', color: 'text-amber-600', bgColor: 'bg-amber-500/10 border-amber-500/20' },
+      Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
+    };
+
+    const sections: { type: string; config: typeof typeConfig[string]; groups: Map<string, typeof masterItems> }[] = [];
+
+    typeOrder.forEach(type => {
+      const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
+      if (typeItems.length === 0) return;
+      const groups = new Map<string, typeof masterItems>();
+      typeItems.forEach(item => {
+        const group = item.cost_group || 'Ungrouped';
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group)!.push(item);
+      });
+      sections.push({ type, config: typeConfig[type] || typeConfig['Labor'], groups });
     });
-    return map;
+
+    // Catch any other cost types
+    const knownTypes = new Set(typeOrder);
+    const otherItems = masterItems.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
+    if (otherItems.length > 0) {
+      const groups = new Map<string, typeof masterItems>();
+      otherItems.forEach(item => {
+        const group = item.cost_group || 'Ungrouped';
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group)!.push(item);
+      });
+      sections.push({ type: 'Other', config: { icon: Package, label: 'Other', color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' }, groups });
+    }
+
+    return sections;
   }, [masterItems]);
 
   const getContractPrice = (item: typeof masterItems[0]) => {
