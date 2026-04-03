@@ -1141,55 +1141,50 @@ const ProjectPortal = () => {
                   return (
                     <div className="space-y-4">
                       {/* Draw Category Mapping */}
-                      {(() => {
-                        const [drawMapOpen, setDrawMapOpen] = React.useState(false);
-                        return (
-                          <div className="border border-border rounded-lg overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => setDrawMapOpen(!drawMapOpen)}
-                              className="w-full bg-muted/30 px-4 py-3 flex items-center gap-2 hover:bg-muted/50 transition-colors"
-                            >
-                              {drawMapOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                              <Shield className="w-4 h-4 text-primary" />
-                              <span className="font-display font-semibold text-sm">Map Cost Groups to Draw Categories</span>
-                              <span className="text-xs text-muted-foreground">(for PM fee calculation)</span>
-                            </button>
-                            {drawMapOpen && (
-                              <div className="p-4 space-y-2">
-                                {Array.from(costGroupMap.entries()).map(([group, info]) => (
-                                  <div key={group} className="flex items-center justify-between gap-3 text-sm">
-                                    <div className="flex-1 min-w-0">
-                                      <span className="font-medium truncate block">{group}</span>
-                                      <span className="text-xs text-muted-foreground">${info.total.toLocaleString()}</span>
-                                    </div>
-                                    <Select
-                                      value={info.drawCategory || '__unmapped__'}
-                                      onValueChange={(val) => {
-                                        if (!selectedProject) return;
-                                        updateDrawCategory.mutate({
-                                          projectId: selectedProject.id,
-                                          costGroup: group,
-                                          drawCategory: val === '__unmapped__' ? '' : val,
-                                        });
-                                      }}
-                                    >
-                                      <SelectTrigger className="w-56 h-8 text-xs">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {DRAW_CATEGORIES.map(c => (
-                                          <SelectItem key={c.value || '__unmapped__'} value={c.value || '__unmapped__'}>{c.label}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                ))}
+                      <div className="border border-border rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setDrawMapOpen(!drawMapOpen)}
+                          className="w-full bg-muted/30 px-4 py-3 flex items-center gap-2 hover:bg-muted/50 transition-colors"
+                        >
+                          {drawMapOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                          <Shield className="w-4 h-4 text-primary" />
+                          <span className="font-display font-semibold text-sm">Map Cost Groups to Draw Categories</span>
+                          <span className="text-xs text-muted-foreground">(for PM fee calculation)</span>
+                        </button>
+                        {drawMapOpen && (
+                          <div className="p-4 space-y-2">
+                            {Array.from(costGroupMap.entries()).map(([group, info]) => (
+                              <div key={group} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium truncate block">{group}</span>
+                                  <span className="text-xs text-muted-foreground">${info.total.toLocaleString()}</span>
+                                </div>
+                                <Select
+                                  value={info.drawCategory || '__unmapped__'}
+                                  onValueChange={(val) => {
+                                    if (!selectedProject) return;
+                                    updateDrawCategory.mutate({
+                                      projectId: selectedProject.id,
+                                      costGroup: group,
+                                      drawCategory: val === '__unmapped__' ? '' : val,
+                                    });
+                                  }}
+                                >
+                                  <SelectTrigger className="w-56 h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DRAW_CATEGORIES.map(c => (
+                                      <SelectItem key={c.value || '__unmapped__'} value={c.value || '__unmapped__'}>{c.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
-                            )}
+                            ))}
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
                       {Array.from(batches.entries()).map(([label, batchItems], idx) => (
                         <div key={label} className="border border-border rounded-lg overflow-hidden">
                           <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">
