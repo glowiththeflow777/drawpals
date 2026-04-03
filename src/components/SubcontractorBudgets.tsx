@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { useSubBudgets, useSubBudgetLineItems, useCreateSubBudget } from '@/hooks/useProjects';
+import { useSubBudgets, useSubBudgetLineItems, useCreateSubBudget, useDeleteSubBudget } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
 
 // The internal field names we map spreadsheet columns to
@@ -242,6 +242,7 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                     subBudget={sb}
                     isExpanded={viewingBudgetId === sb.id}
                     onToggle={() => setViewingBudgetId(prev => prev === sb.id ? null : sb.id)}
+                    projectId={projectId}
                   />
                 ))}
               </div>
@@ -458,18 +459,29 @@ const SubBudgetRow: React.FC<{
   subBudget: any;
   isExpanded: boolean;
   onToggle: () => void;
-}> = ({ subBudget, isExpanded, onToggle }) => {
+  projectId: string;
+}> = ({ subBudget, isExpanded, onToggle, projectId }) => {
   const { data: lineItems = [] } = useSubBudgetLineItems(isExpanded ? subBudget.id : undefined);
+  const { toast } = useToast();
+  const deleteSubBudget = useDeleteSubBudget();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const sub = subBudget.team_members;
   const total = lineItems.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
 
+  const handleDelete = async () => {
+    try {
+      await deleteSubBudget.mutateAsync({ subBudgetId: subBudget.id, projectId });
+      toast({ title: 'Budget deleted', description: `Budget for ${sub?.name || 'team member'} has been removed.` });
+      setConfirmDelete(false);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors text-left"
-      >
-        <div className="flex items-center gap-3">
+      <div className="w-full flex items-center justify-between p-3 hover:bg-muted/30 transition-colors">
+        <button onClick={onToggle} className="flex items-center gap-3 flex-1 text-left">
           <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-display font-bold">
             {sub?.name?.[0] || '?'}
           </div>
@@ -477,14 +489,28 @@ const SubBudgetRow: React.FC<{
             <p className="font-display font-medium text-sm">{sub?.crew_name || sub?.name || 'Unknown'}</p>
             <p className="text-xs text-muted-foreground">{subBudget.file_name}</p>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
+        </button>
+        <div className="flex items-center gap-2">
           <span className="font-display font-semibold text-sm">
             {isExpanded ? `$${total.toLocaleString()}` : ''}
           </span>
-          {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+          {confirmDelete ? (
+            <div className="flex items-center gap-1">
+              <Button variant="destructive" size="sm" className="text-xs h-7" onClick={handleDelete} disabled={deleteSubBudget.isPending}>
+                {deleteSubBudget.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Confirm'}
+              </Button>
+              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            </div>
+          ) : (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          <button onClick={onToggle}>
+            {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+          </button>
         </div>
-      </button>
+      </div>
 
       <AnimatePresence>
         {isExpanded && lineItems.length > 0 && (

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw } from 'lucide-react';
+import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw, Trash2 } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
 import FinancialDashboard from '@/components/FinancialDashboard';
 import SubcontractorBudgets from '@/components/SubcontractorBudgets';
@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useUpdateBudgetDrawCategory, useToggleAssignment,
-  useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
+  useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment, useDeleteMasterBudgetBatch,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
@@ -127,6 +127,8 @@ const ProjectPortal = () => {
   const addAssignment = useAddAssignment();
   const updateAssignmentStatus = useUpdateAssignmentStatus();
   const removeAssignment = useRemoveAssignment();
+  const deleteMasterBatch = useDeleteMasterBudgetBatch();
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
@@ -1276,9 +1278,37 @@ const ProjectPortal = () => {
                               <span className="font-display font-semibold text-sm">{label}</span>
                               <span className="text-xs text-muted-foreground">({batchItems.length} items)</span>
                             </div>
-                            <span className="font-display font-bold text-sm">
-                              ${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-display font-bold text-sm">
+                                ${batchItems.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}
+                              </span>
+                              {confirmDeleteBatch === label ? (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="text-xs h-7"
+                                    disabled={deleteMasterBatch.isPending}
+                                    onClick={async () => {
+                                      try {
+                                        await deleteMasterBatch.mutateAsync({ projectId: selectedProject!.id, batchLabel: label });
+                                        toast({ title: 'Batch deleted', description: `"${label}" has been removed.` });
+                                        setConfirmDeleteBatch(null);
+                                      } catch (e: any) {
+                                        toast({ title: 'Error', description: e.message, variant: 'destructive' });
+                                      }
+                                    }}
+                                  >
+                                    {deleteMasterBatch.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Delete'}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setConfirmDeleteBatch(null)}>Cancel</Button>
+                                </div>
+                              ) : (
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteBatch(label)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                           {renderBatchTable(batchItems)}
                         </div>
