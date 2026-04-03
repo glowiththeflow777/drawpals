@@ -151,23 +151,7 @@ const ProjectPortal = () => {
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
 
-  // Budget upload wizard state (3-step: file → column mapping → review/select)
-  const [budgetUploadOpen, setBudgetUploadOpen] = useState(false);
-  const [budgetWizardStep, setBudgetWizardStep] = useState<1 | 2>(1); // 1 = column mapping, 2 = review/select
-  const [budgetRawRows, setBudgetRawRows] = useState<Record<string, any>[]>([]);
-  const [budgetHeaders, setBudgetHeaders] = useState<string[]>([]);
-  const [budgetColumnMapping, setBudgetColumnMapping] = useState<Record<MasterFieldKey, string>>({} as any);
-  const [budgetParsedItems, setBudgetParsedItems] = useState<ParsedLineItem[]>([]);
-  const [budgetSelectedIds, setBudgetSelectedIds] = useState<Set<string>>(new Set());
-  const [budgetFileName, setBudgetFileName] = useState('');
-  const [savingBudget, setSavingBudget] = useState(false);
   const [budgetExpanded, setBudgetExpanded] = useState(false);
-
-  // Column mapping preview (first 3 rows)
-  const budgetMappingPreview = useMemo(() => {
-    if (budgetRawRows.length === 0) return [];
-    return masterApplyMapping(budgetRawRows.slice(0, 3), budgetColumnMapping);
-  }, [budgetRawRows, budgetColumnMapping]);
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
