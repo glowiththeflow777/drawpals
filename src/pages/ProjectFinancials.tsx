@@ -23,6 +23,35 @@ const ProjectFinancials = () => {
   const { data: computedSubTotals } = useSubBidTotal(projectId);
   const computedSubBudgetTotal = computedSubTotals?.costTotal ?? 0;
   const computedProposalTotal = computedSubTotals?.contractTotal ?? 0;
+  const { data: subBudgets = [] } = useSubBudgets(projectId);
+
+  // Fetch all sub budget line items for this project in one query
+  const { data: allSubLineItems = [] } = useQuery({
+    queryKey: ['all_sub_budget_line_items', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data: budgets } = await supabase
+        .from('sub_budgets')
+        .select('id, proposal_name, team_member_id, bid_percentage, team_members(name, crew_name)')
+        .eq('project_id', projectId!);
+      if (!budgets || budgets.length === 0) return [];
+      const budgetIds = budgets.map(b => b.id);
+      const { data: items } = await supabase
+        .from('sub_budget_line_items')
+        .select('*')
+        .in('sub_budget_id', budgetIds);
+      // Attach budget metadata to each item
+      return (items || []).map(item => {
+        const budget = budgets.find(b => b.id === item.sub_budget_id);
+        return {
+          ...item,
+          sub_name: (budget as any)?.team_members?.crew_name || (budget as any)?.team_members?.name || 'Unknown',
+          proposal_name: budget?.proposal_name || 'Proposal',
+          bid_percentage: budget?.bid_percentage || 100,
+        };
+      });
+    },
+  });
 
   const project = projects.find(p => p.id === projectId);
 
