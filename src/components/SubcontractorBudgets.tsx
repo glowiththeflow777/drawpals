@@ -36,8 +36,8 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
         >
           {expanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
           <HardHat className="w-5 h-5 text-muted-foreground" />
-          Subcontractor Budgets
-          <span className="text-sm font-normal text-muted-foreground">({subBudgets.length} proposals)</span>
+          Subcontractor Proposals
+          <span className="text-sm font-normal text-muted-foreground">({subBudgets.length})</span>
         </button>
         <Button variant="outline" size="sm" onClick={() => setProposalOpen(true)} className="text-xs font-display">
           <Plus className="w-3 h-3 mr-1" /> Create Proposal

@@ -18,14 +18,17 @@ const ProjectFinancials = () => {
   const { data: invoiceLineItems = [] } = useInvoiceLineItemsDetailed(projectId);
   const { data: invoices = [] } = useInvoices(projectId);
   const { data: pmFeeCollected = 0 } = usePmDrawPaymentsForProject(projectId);
-  const { data: computedSubBidTotal = 0 } = useSubBidTotal(projectId);
+  const { data: computedSubTotals } = useSubBidTotal(projectId);
+  const computedSubBudgetTotal = computedSubTotals?.costTotal ?? 0;
+  const computedProposalTotal = computedSubTotals?.contractTotal ?? 0;
 
   const project = projects.find(p => p.id === projectId);
 
   const totalBudget = Number(project?.total_budget || 0);
   const masterBudget = Number((project as any)?.master_budget || 0) || totalBudget;
   const pmFeeRate = Number((project as any)?.pm_fee_rate ?? 0.10);
-  const subBidTotal = Number((project as any)?.sub_bid_total || 0) || computedSubBidTotal;
+  const subBidTotal = computedSubBudgetTotal; // Internal cost from master budget items
+  const proposalTotal = computedProposalTotal; // What subs are actually contracted for
   const actualSubPaid = Number((project as any)?.actual_sub_paid || 0) || Number(project?.amount_paid || 0);
   const invoiced = Number(project?.amount_invoiced || 0);
   const approved = Number(project?.amount_paid || 0);
@@ -402,10 +405,11 @@ const ProjectFinancials = () => {
           <Layers className="w-4 h-4" />
           Budget Layers & PM Financials
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Master Budget', value: masterBudget, icon: Building2, color: 'text-primary' },
-            { label: 'Sub Bid Total', value: subBidTotal, icon: FileText, color: 'text-amber-600' },
+            { label: 'Sub Budget', value: subBidTotal, icon: FileText, color: 'text-amber-600', subtitle: 'Internal cost' },
+            { label: 'Proposal Total', value: proposalTotal, icon: UserCheck, color: 'text-violet-600', subtitle: 'Contracted' },
             { label: 'Budget Remaining', value: budgetRemaining, icon: TrendingUp, color: 'text-sky-600' },
             { label: 'Actual Sub Paid', value: actualSubPaid, icon: CheckCircle2, color: 'text-emerald-600' },
             { label: 'Savings', value: savings, icon: PiggyBank, color: savings > 0 ? 'text-emerald-600' : 'text-destructive' },
