@@ -136,7 +136,7 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
       if (masterErr) throw masterErr;
 
       // 2. Insert sub budget (Labor + Subcontractor items only, using Extended Cost)
-      if (selectedSubId && selectedSubId !== '__none__') {
+      if (effectiveSubId) {
         const subRows = parsedRows.filter(r => r.costType === 'Labor' || r.costType === 'Subcontractor');
         if (subRows.length > 0) {
           // Upsert the sub_budget record
