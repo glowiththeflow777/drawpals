@@ -108,23 +108,16 @@ const InvoiceWizard = () => {
   const updateLineItem = (idx: number, field: string, value: string | number) => {
     const updated = [...lineItems];
     (updated[idx] as any)[field] = value;
-    if (field === 'percentComplete' || field === 'contractPrice') {
-      const cp = field === 'contractPrice' ? Number(value) : (updated[idx].contractPrice || 0);
-      const pc = field === 'percentComplete' ? Number(value) : (updated[idx].percentComplete || 0);
-      updated[idx].drawAmount = Math.round(cp * pc / 100 * 100) / 100;
-    }
-    if (field === 'drawAmount') {
-      // For direct billing: cap at remaining budget
+    if (field === 'percentComplete') {
+      // Cumulative % complete billing
+      const cp = updated[idx].contractPrice || 0;
       const budgetItemId = (updated[idx] as any).budgetItemId;
-      const totalBudget = updated[idx].contractPrice || 0;
       const previouslyBilled = billingHistory.get(budgetItemId) || 0;
-      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
-      const capped = Math.min(Number(value), maxAllowed);
-      updated[idx].drawAmount = Math.max(0, capped);
-      // Recalculate percent complete from draw amount
-      if (totalBudget > 0) {
-        updated[idx].percentComplete = Math.round(((previouslyBilled + updated[idx].drawAmount!) / totalBudget) * 100);
-      }
+      const newPct = Math.min(100, Math.max(0, Number(value)));
+      updated[idx].percentComplete = newPct;
+      // Draw = (newPct% × contract) - previously billed
+      const totalOwed = Math.round(cp * newPct / 100 * 100) / 100;
+      updated[idx].drawAmount = Math.max(0, Math.round((totalOwed - previouslyBilled) * 100) / 100);
     }
     setLineItems(updated);
   };
