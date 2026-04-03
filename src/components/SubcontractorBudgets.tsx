@@ -242,6 +242,12 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                     subBudget={sb}
                     isExpanded={viewingBudgetId === sb.id}
                     onToggle={() => setViewingBudgetId(prev => prev === sb.id ? null : sb.id)}
+                    projectId={projectId}
+                  />
+                    key={sb.id}
+                    subBudget={sb}
+                    isExpanded={viewingBudgetId === sb.id}
+                    onToggle={() => setViewingBudgetId(prev => prev === sb.id ? null : sb.id)}
                   />
                 ))}
               </div>
