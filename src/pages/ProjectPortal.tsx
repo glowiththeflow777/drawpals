@@ -127,6 +127,8 @@ const ProjectPortal = () => {
   const addAssignment = useAddAssignment();
   const updateAssignmentStatus = useUpdateAssignmentStatus();
   const removeAssignment = useRemoveAssignment();
+  const deleteMasterBatch = useDeleteMasterBudgetBatch();
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
