@@ -33,10 +33,17 @@ function parseCurrency(val: any): number {
   return parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
 }
 
+function autoDrawCategory(costGroup: string): string {
+  const topLevel = costGroup.split(';')[0]?.trim().toLowerCase() || '';
+  if (topLevel.includes('interior') && topLevel.includes('build')) return 'interior-buildout';
+  if (topLevel.includes('interior') && topLevel.includes('construct')) return 'interior-construction';
+  if (topLevel.includes('exterior')) return 'exterior';
+  return '';
+}
+
 function parseJobTreadCSV(rows: Record<string, any>[]): ParsedRow[] {
   return rows
     .filter(row => {
-      // Only keep actual line items (rows with a Cost Item Name and a Cost Type)
       const name = String(row['Cost Item Name'] || '').trim();
       const costType = String(row['Cost Type'] || '').trim();
       return name !== '' && costType !== '';
