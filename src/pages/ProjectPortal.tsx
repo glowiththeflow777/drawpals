@@ -95,6 +95,7 @@ const ProjectPortal = () => {
   const [newBudget, setNewBudget] = useState('');
 
   const [budgetExpanded, setBudgetExpanded] = useState(false);
+  const [drawMapOpen, setDrawMapOpen] = useState(false);
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
