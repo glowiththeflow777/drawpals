@@ -113,6 +113,7 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
 
   const handleImport = async () => {
     if (parsedRows.length === 0) return;
+    const effectiveSubId = selectedSubId === '__none__' ? '' : selectedSubId;
     setSaving(true);
     try {
       const batchLabel = fileName || `Budget ${new Date().toLocaleDateString()}`;
