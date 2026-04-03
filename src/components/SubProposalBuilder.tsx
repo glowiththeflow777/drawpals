@@ -421,10 +421,25 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
 
             {/* Master budget checklist */}
             <div className="space-y-2">
-              <Label className="text-sm font-display font-semibold">
-                Select Line Items ({selectedIds.size} of {masterItems.length} selected)
-              </Label>
-
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-display font-semibold">
+                  Select Line Items ({selectedIds.size} of {masterItems.length} selected)
+                </Label>
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-xs text-muted-foreground hover:text-foreground">
+                    Clear search
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search items... e.g. painting, drywall, framing"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
               {masterItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   No master budget items found. Import a master budget first.
