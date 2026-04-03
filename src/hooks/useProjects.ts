@@ -427,6 +427,42 @@ export function useCreateSubBudget() {
   });
 }
 
+export function useDeleteSubBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ subBudgetId, projectId }: { subBudgetId: string; projectId: string }) => {
+      // Delete line items first, then the budget
+      await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', subBudgetId);
+      const { error } = await supabase.from('sub_budgets' as any).delete().eq('id', subBudgetId);
+      if (error) throw error;
+      return projectId;
+    },
+    onSuccess: (projectId) => {
+      qc.invalidateQueries({ queryKey: ['sub_budgets', projectId] });
+      qc.invalidateQueries({ queryKey: ['sub_budget_line_items'] });
+    },
+  });
+}
+
+export function useDeleteMasterBudgetBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, batchLabel }: { projectId: string; batchLabel: string }) => {
+      const { error } = await supabase
+        .from('budget_line_items')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('batch_label', batchLabel);
+      if (error) throw error;
+      return projectId;
+    },
+    onSuccess: (projectId) => {
+      qc.invalidateQueries({ queryKey: ['budget_line_items', projectId] });
+      qc.invalidateQueries({ queryKey: ['budget_line_items'] });
+    },
+  });
+}
+
 // Fetch sub budget line items for a specific sub in a project (for invoice wizard)
 export function useSubBudgetForMember(projectId?: string, teamMemberId?: string) {
   return useQuery({
