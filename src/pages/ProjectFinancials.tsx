@@ -405,10 +405,11 @@ const ProjectFinancials = () => {
           <Layers className="w-4 h-4" />
           Budget Layers & PM Financials
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: 'Master Budget', value: masterBudget, icon: Building2, color: 'text-primary' },
-            { label: 'Sub Bid Total', value: subBidTotal, icon: FileText, color: 'text-amber-600' },
+            { label: 'Sub Budget', value: subBidTotal, icon: FileText, color: 'text-amber-600', subtitle: 'Internal cost' },
+            { label: 'Proposal Total', value: proposalTotal, icon: UserCheck, color: 'text-violet-600', subtitle: 'Contracted' },
             { label: 'Budget Remaining', value: budgetRemaining, icon: TrendingUp, color: 'text-sky-600' },
             { label: 'Actual Sub Paid', value: actualSubPaid, icon: CheckCircle2, color: 'text-emerald-600' },
             { label: 'Savings', value: savings, icon: PiggyBank, color: savings > 0 ? 'text-emerald-600' : 'text-destructive' },
