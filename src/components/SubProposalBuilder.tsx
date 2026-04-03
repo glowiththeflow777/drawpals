@@ -345,14 +345,6 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                     </div>
                   );
                 })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>
