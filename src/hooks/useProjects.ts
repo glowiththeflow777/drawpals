@@ -244,6 +244,7 @@ export function useCreateInvoice() {
       notes: string;
       line_items?: {
         budget_line_item_id: string;
+        sub_budget_line_item_id?: string;
         line_item_no: number;
         description: string;
         contract_price: number;
@@ -260,6 +261,7 @@ export function useCreateInvoice() {
         const rows = line_items.map(li => ({
           invoice_id: data.id,
           budget_line_item_id: li.budget_line_item_id,
+          sub_budget_line_item_id: li.sub_budget_line_item_id || null,
           line_item_no: li.line_item_no,
           description: li.description,
           contract_price: li.contract_price,
