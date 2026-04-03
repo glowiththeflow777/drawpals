@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useUpdateBudgetDrawCategory, useToggleAssignment,
@@ -127,6 +127,33 @@ const ProjectPortal = () => {
   const [selectedProject, setSelectedProject] = useState<DbProject | null>(null);
   const [creating, setCreating] = useState(false);
 
+  // Sub line items for selected project (Sub Budget & Proposal views)
+  const { data: subLineItems = [] } = useQuery({
+    queryKey: ['all_sub_budget_line_items', selectedProject?.id],
+    enabled: !!selectedProject?.id,
+    queryFn: async () => {
+      const { data: budgets } = await supabase
+        .from('sub_budgets')
+        .select('id, proposal_name, team_member_id, bid_percentage, team_members(name, crew_name)')
+        .eq('project_id', selectedProject!.id);
+      if (!budgets || budgets.length === 0) return [];
+      const budgetIds = budgets.map(b => b.id);
+      const { data: items } = await supabase
+        .from('sub_budget_line_items')
+        .select('*')
+        .in('sub_budget_id', budgetIds);
+      return (items || []).map(item => {
+        const budget = budgets.find(b => b.id === item.sub_budget_id);
+        return {
+          ...item,
+          sub_name: (budget as any)?.team_members?.crew_name || (budget as any)?.team_members?.name || 'Unknown',
+          proposal_name: budget?.proposal_name || 'Proposal',
+          bid_percentage: budget?.bid_percentage || 100,
+        };
+      });
+    },
+  });
+
   // Edit project state
   const [editingProject, setEditingProject] = useState(false);
   const [editName, setEditName] = useState('');
@@ -141,6 +168,8 @@ const ProjectPortal = () => {
   const [quickParsedItems, setQuickParsedItems] = useState<QuickParsedItem[]>([]);
 
   const [budgetExpanded, setBudgetExpanded] = useState(false);
+  const [subBudgetExpanded, setSubBudgetExpanded] = useState(false);
+  const [proposalExpanded, setProposalExpanded] = useState(false);
   const [drawMapOpen, setDrawMapOpen] = useState(false);
 
   // Quick invite dialog state
@@ -829,6 +858,265 @@ const ProjectPortal = () => {
                 assignedMembers={getProjectAssignments(selectedProject.id)}
                 currentUserId={currentUserId}
               />
+
+              {/* Subcontractor Budget (Internal Cost View) */}
+              <div className="card-elevated p-5 space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setSubBudgetExpanded(!subBudgetExpanded)}
+                  className="flex items-center gap-2 font-display font-semibold text-lg hover:text-primary transition-colors"
+                >
+                  {subBudgetExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                  <HardHat className="w-5 h-5 text-muted-foreground" />
+                  Subcontractor Budget
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({subLineItems.length} items)
+                  </span>
+                </button>
+                {subBudgetExpanded && (() => {
+                  if (subLineItems.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground font-body">No subcontractor budgets yet. Create a proposal first.</p>
+                      </div>
+                    );
+                  }
+
+                  type SectionNode = { name: string; items: any[]; children: Map<string, SectionNode>; total: number };
+
+                  const buildTreeSub = (treeItems: any[], valueKey: string): SectionNode => {
+                    const root: SectionNode = { name: 'Root', items: [], children: new Map(), total: 0 };
+                    treeItems.forEach(item => {
+                      const parts = (item.cost_group || 'Ungrouped').split(';').map((s: string) => s.trim()).filter(Boolean);
+                      let node = root;
+                      parts.forEach((part: string) => {
+                        if (!node.children.has(part)) {
+                          node.children.set(part, { name: part, items: [], children: new Map(), total: 0 });
+                        }
+                        node = node.children.get(part)!;
+                      });
+                      node.items.push(item);
+                      node.total += Number(item[valueKey]);
+                    });
+                    const calcTotal = (node: SectionNode): number => {
+                      const childTotal = Array.from(node.children.values()).reduce((s, c) => s + calcTotal(c), 0);
+                      node.total = node.items.reduce((s, i) => s + Number(i[valueKey]), 0) + childTotal;
+                      return node.total;
+                    };
+                    calcTotal(root);
+                    return root;
+                  };
+
+                  const RenderSubSection = ({ node, depth = 0, valueKey }: { node: SectionNode; depth?: number; valueKey: string }) => {
+                    const [open, setOpen] = React.useState(depth < 1);
+                    const hasContent = node.items.length > 0 || node.children.size > 0;
+                    if (!hasContent) return null;
+                    const sectionColors = ['bg-primary/10 border-primary/20', 'bg-accent/30 border-accent/40', 'bg-muted/50 border-border'];
+                    const colorClass = sectionColors[Math.min(depth, sectionColors.length - 1)];
+
+                    return (
+                      <div className={`${depth > 0 ? 'ml-3 mt-2' : 'mt-3'}`}>
+                        <button type="button" onClick={() => setOpen(!open)}
+                          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border ${colorClass} hover:opacity-90 transition-all`}>
+                          <div className="flex items-center gap-2">
+                            {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                            <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>{node.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({Array.from(node.children.values()).reduce((s, c) => s + c.items.length, 0) + node.items.length} items)
+                            </span>
+                          </div>
+                          <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>
+                            ${node.total.toLocaleString()}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className={depth === 0 ? 'pl-2' : ''}>
+                            {Array.from(node.children.entries()).map(([key, child]) => (
+                              <RenderSubSection key={key} node={child} depth={depth + 1} valueKey={valueKey} />
+                            ))}
+                            {node.items.length > 0 && (
+                              <div className="overflow-x-auto mt-2">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-border">
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">#</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Item</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Description</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Sub</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">Qty</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Unit</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">{valueKey === 'contract_price' ? 'Contract' : 'Cost'}</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Type</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {node.items.map((item: any) => (
+                                      <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
+                                        <td className="p-2">{item.line_item_no}</td>
+                                        <td className="p-2 font-body font-medium">{item.cost_item_name}</td>
+                                        <td className="p-2 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
+                                        <td className="p-2 text-xs text-muted-foreground">{item.sub_name}</td>
+                                        <td className="p-2 text-right">{Number(item.quantity).toLocaleString()}</td>
+                                        <td className="p-2 text-muted-foreground text-xs">{item.unit}</td>
+                                        <td className="p-2 text-right font-display font-semibold">${Number(item[valueKey] || item.extended_cost).toLocaleString()}</td>
+                                        <td className="p-2"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  const tree = buildTreeSub(subLineItems, 'extended_cost');
+                  const grandTotal = subLineItems.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
+
+                  return (
+                    <div className="space-y-2">
+                      {Array.from(tree.children.entries()).map(([key, child]) => (
+                        <RenderSubSection key={key} node={child} depth={0} valueKey="extended_cost" />
+                      ))}
+                      <div className="flex items-center justify-between p-4 bg-primary/5 border-2 border-primary/20 rounded-lg mt-3">
+                        <span className="font-display font-bold text-lg">Sub Budget Total</span>
+                        <span className="font-display font-bold text-xl">${grandTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Subcontractor Proposals (Contract Price View) */}
+              <div className="card-elevated p-5 space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setProposalExpanded(!proposalExpanded)}
+                  className="flex items-center gap-2 font-display font-semibold text-lg hover:text-primary transition-colors"
+                >
+                  {proposalExpanded ? <ChevronDown className="w-5 h-5 text-muted-foreground" /> : <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+                  <CheckCircle2 className="w-5 h-5 text-muted-foreground" />
+                  Subcontractor Proposals
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({subLineItems.length} items)
+                  </span>
+                </button>
+                {proposalExpanded && (() => {
+                  if (subLineItems.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground font-body">No proposals yet. Create one from the Subcontractor Proposals section above.</p>
+                      </div>
+                    );
+                  }
+
+                  type SectionNode = { name: string; items: any[]; children: Map<string, SectionNode>; total: number };
+
+                  const buildTreeProp = (treeItems: any[]): SectionNode => {
+                    const root: SectionNode = { name: 'Root', items: [], children: new Map(), total: 0 };
+                    treeItems.forEach(item => {
+                      const parts = (item.cost_group || 'Ungrouped').split(';').map((s: string) => s.trim()).filter(Boolean);
+                      let node = root;
+                      parts.forEach((part: string) => {
+                        if (!node.children.has(part)) {
+                          node.children.set(part, { name: part, items: [], children: new Map(), total: 0 });
+                        }
+                        node = node.children.get(part)!;
+                      });
+                      node.items.push(item);
+                    });
+                    const calcTotal = (node: SectionNode): number => {
+                      const childTotal = Array.from(node.children.values()).reduce((s, c) => s + calcTotal(c), 0);
+                      node.total = node.items.reduce((s, i) => s + Number(i.contract_price || i.extended_cost), 0) + childTotal;
+                      return node.total;
+                    };
+                    calcTotal(root);
+                    return root;
+                  };
+
+                  const RenderPropSection = ({ node, depth = 0 }: { node: SectionNode; depth?: number }) => {
+                    const [open, setOpen] = React.useState(depth < 1);
+                    const hasContent = node.items.length > 0 || node.children.size > 0;
+                    if (!hasContent) return null;
+                    const sectionColors = ['bg-primary/10 border-primary/20', 'bg-accent/30 border-accent/40', 'bg-muted/50 border-border'];
+                    const colorClass = sectionColors[Math.min(depth, sectionColors.length - 1)];
+
+                    return (
+                      <div className={`${depth > 0 ? 'ml-3 mt-2' : 'mt-3'}`}>
+                        <button type="button" onClick={() => setOpen(!open)}
+                          className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border ${colorClass} hover:opacity-90 transition-all`}>
+                          <div className="flex items-center gap-2">
+                            {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                            <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>{node.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({Array.from(node.children.values()).reduce((s, c) => s + c.items.length, 0) + node.items.length} items)
+                            </span>
+                          </div>
+                          <span className={`font-display ${depth === 0 ? 'font-bold text-sm' : 'font-semibold text-xs'}`}>
+                            ${node.total.toLocaleString()}
+                          </span>
+                        </button>
+                        {open && (
+                          <div className={depth === 0 ? 'pl-2' : ''}>
+                            {Array.from(node.children.entries()).map(([key, child]) => (
+                              <RenderPropSection key={key} node={child} depth={depth + 1} />
+                            ))}
+                            {node.items.length > 0 && (
+                              <div className="overflow-x-auto mt-2">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="border-b border-border">
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">#</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Item</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Description</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Sub</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">Cost</th>
+                                      <th className="text-right p-2 font-display font-semibold text-muted-foreground text-xs">Contract</th>
+                                      <th className="text-left p-2 font-display font-semibold text-muted-foreground text-xs">Type</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {node.items.map((item: any) => (
+                                      <tr key={item.id} className="border-b border-border/50 hover:bg-muted/30">
+                                        <td className="p-2">{item.line_item_no}</td>
+                                        <td className="p-2 font-body font-medium">{item.cost_item_name}</td>
+                                        <td className="p-2 text-muted-foreground text-xs max-w-[200px] truncate">{item.description}</td>
+                                        <td className="p-2 text-xs text-muted-foreground">{item.sub_name}</td>
+                                        <td className="p-2 text-right text-muted-foreground">${Number(item.extended_cost).toLocaleString()}</td>
+                                        <td className="p-2 text-right font-display font-semibold">${Number(item.contract_price || item.extended_cost).toLocaleString()}</td>
+                                        <td className="p-2"><span className="px-2 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span></td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  const tree = buildTreeProp(subLineItems);
+                  const proposalGrandTotal = subLineItems.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
+
+                  return (
+                    <div className="space-y-2">
+                      {Array.from(tree.children.entries()).map(([key, child]) => (
+                        <RenderPropSection key={key} node={child} depth={0} />
+                      ))}
+                      <div className="flex items-center justify-between p-4 bg-primary/5 border-2 border-primary/20 rounded-lg mt-3">
+                        <span className="font-display font-bold text-lg">Proposal Total</span>
+                        <span className="font-display font-bold text-xl">${proposalGrandTotal.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
 
               {/* Master Budget */}
               <div className="card-elevated p-5 space-y-4">
