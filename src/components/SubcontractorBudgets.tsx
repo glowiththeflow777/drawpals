@@ -1,34 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
-import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, ArrowRight, ArrowLeft, Trash2 } from 'lucide-react';
+import { Upload, ChevronRight, ChevronDown, HardHat, Loader2, Trash2, CheckCircle2, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useSubBudgets, useSubBudgetLineItems, useCreateSubBudget, useDeleteSubBudget } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
 
-// The internal field names we map spreadsheet columns to
-const BUDGET_FIELDS = [
-  { key: 'lineItemNo', label: 'Line Item #', required: false },
-  { key: 'costGroup', label: 'Cost Group', required: false },
-  { key: 'costItemName', label: 'Cost Item Name', required: true },
-  { key: 'description', label: 'Description', required: false },
-  { key: 'quantity', label: 'Quantity', required: false },
-  { key: 'unit', label: 'Unit', required: false },
-  { key: 'extendedCost', label: 'Extended Cost', required: true },
-  { key: 'costType', label: 'Cost Type', required: false },
-  { key: 'costCode', label: 'Cost Code', required: false },
-] as const;
-
-type FieldKey = typeof BUDGET_FIELDS[number]['key'];
-
-interface ParsedLineItem {
-  id: string;
-  lineItemNo: number;
+interface ParsedSubItem {
   costGroup: string;
   costItemName: string;
   description: string;
@@ -39,54 +21,42 @@ interface ParsedLineItem {
   costCode: string;
 }
 
+function parseCurrency(val: any): number {
+  if (val == null || val === '') return 0;
+  return parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
+}
+
+/** Parse a JobTread CSV and return ONLY Labor & Subcontractor items at Extended Cost */
+function parseSubBudgetFromJobTread(rows: Record<string, any>[]): { subItems: ParsedSubItem[]; totalItems: number; skippedCount: number } {
+  const allItems = rows.filter(row => {
+    const name = String(row['Cost Item Name'] || '').trim();
+    const costType = String(row['Cost Type'] || '').trim();
+    return name !== '' && costType !== '';
+  });
+
+  const subItems: ParsedSubItem[] = allItems
+    .filter(row => {
+      const ct = String(row['Cost Type'] || '').trim();
+      return ct === 'Labor' || ct === 'Subcontractor';
+    })
+    .map(row => ({
+      costGroup: String(row['Cost Group'] || ''),
+      costItemName: String(row['Cost Item Name'] || ''),
+      description: String(row['Description'] || ''),
+      quantity: parseCurrency(row['Quantity']),
+      unit: String(row['Unit'] || 'Each'),
+      extendedCost: parseCurrency(row['Extended Cost']),
+      costType: String(row['Cost Type'] || 'Labor'),
+      costCode: '',
+    }));
+
+  return { subItems, totalItems: allItems.length, skippedCount: allItems.length - subItems.length };
+}
+
 interface SubcontractorBudgetsProps {
   projectId: string;
   assignedMembers: DbTeamMember[];
   currentUserId: string;
-}
-
-// Auto-detect column mapping using regex patterns
-function autoDetectMapping(headers: string[]): Record<FieldKey, string> {
-  const fieldPatterns: [FieldKey, RegExp[]][] = [
-    ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
-    ['costGroup', [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
-    ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
-    ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
-    ['quantity', [/^quantity$/i, /^qty\.?$/i]],
-    ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
-    ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
-    ['costType', [/^cost\s*type$/i, /^type$/i]],
-    ['costCode', [/^cost\s*code$/i, /^code$/i]],
-  ];
-  const mapping: Record<string, string> = {};
-  const used = new Set<string>();
-  for (const [field, patterns] of fieldPatterns) {
-    for (const pattern of patterns) {
-      const match = headers.find(h => !used.has(h) && pattern.test(h.trim()));
-      if (match) { mapping[field] = match; used.add(match); break; }
-    }
-  }
-  return mapping as Record<FieldKey, string>;
-}
-
-function applyMapping(rows: Record<string, any>[], mapping: Record<FieldKey, string>): ParsedLineItem[] {
-  const col = (f: FieldKey) => mapping[f] || '';
-  return rows.map((row, idx) => {
-    const cost = parseFloat(String(row[col('extendedCost')] ?? '').replace(/[^0-9.-]/g, '')) || 0;
-    const lineNo = Number(row[col('lineItemNo')]);
-    return {
-      id: `p-${idx}`,
-      lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
-      costGroup: String(row[col('costGroup')] || ''),
-      costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
-      description: String(row[col('description')] || ''),
-      quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
-      unit: String(row[col('unit')] || 'Each'),
-      extendedCost: cost,
-      costType: String(row[col('costType')] || 'Labor'),
-      costCode: String(row[col('costCode')] || ''),
-    };
-  }).filter(i => i.costItemName || i.extendedCost > 0);
 }
 
 const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
@@ -105,67 +75,49 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
   const [saving, setSaving] = useState(false);
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
 
-  // Upload wizard steps: 1 = pick sub + file, 2 = column mapping, 3 = review/select items
-  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
-  const [rawRows, setRawRows] = useState<Record<string, any>[]>([]);
-  const [spreadsheetHeaders, setSpreadsheetHeaders] = useState<string[]>([]);
-  const [columnMapping, setColumnMapping] = useState<Record<FieldKey, string>>({} as any);
-  const [parsedItems, setParsedItems] = useState<ParsedLineItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Parsed data
+  const [parsedSubItems, setParsedSubItems] = useState<ParsedSubItem[]>([]);
+  const [parseStats, setParseStats] = useState<{ totalItems: number; skippedCount: number } | null>(null);
+
+  const subs = assignedMembers.filter(m => m.role === 'subcontractor');
+
+  const subTotal = useMemo(() => parsedSubItems.reduce((s, i) => s + i.extendedCost, 0), [parsedSubItems]);
 
   const resetUpload = () => {
     setUploadOpen(false);
-    setWizardStep(1);
-    setRawRows([]);
-    setSpreadsheetHeaders([]);
-    setColumnMapping({} as any);
-    setParsedItems([]);
-    setSelectedIds(new Set());
+    setParsedSubItems([]);
+    setParseStats(null);
     setFileName('');
     setSelectedSubId('');
   };
 
-  const parseFile = (file: File) => {
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        if (rows.length === 0) {
-          toast({ title: 'Empty file', description: 'No rows found in the spreadsheet.', variant: 'destructive' });
-          return;
+        const { subItems, totalItems, skippedCount } = parseSubBudgetFromJobTread(rows);
+        setParsedSubItems(subItems);
+        setParseStats({ totalItems, skippedCount });
+        if (subItems.length === 0) {
+          toast({ title: 'No labor items found', description: 'The file did not contain any Labor or Subcontractor cost type items.', variant: 'destructive' });
         }
-        const headers = Object.keys(rows[0]);
-        setRawRows(rows);
-        setSpreadsheetHeaders(headers);
-        setColumnMapping(autoDetectMapping(headers));
-        setWizardStep(2);
       } catch {
         toast({ title: 'Parse error', description: 'Could not read the file.', variant: 'destructive' });
       }
     };
     reader.readAsArrayBuffer(file);
+    e.target.value = '';
   };
-
-  const handleMappingConfirm = () => {
-    const items = applyMapping(rawRows, columnMapping);
-    setParsedItems(items);
-    setSelectedIds(new Set(items.map(i => i.id)));
-    setWizardStep(3);
-  };
-
-  // Preview of mapping: show first 3 rows mapped
-  const mappingPreview = useMemo(() => {
-    if (rawRows.length === 0) return [];
-    return applyMapping(rawRows.slice(0, 3), columnMapping);
-  }, [rawRows, columnMapping]);
 
   const handleUpload = async () => {
-    if (!selectedSubId || parsedItems.length === 0) return;
-    const selected = parsedItems.filter(i => selectedIds.has(i.id));
-    if (selected.length === 0) return;
+    if (!selectedSubId || parsedSubItems.length === 0) return;
     setSaving(true);
     try {
       await createSubBudget.mutateAsync({
@@ -173,8 +125,8 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
         team_member_id: selectedSubId,
         uploaded_by: currentUserId,
         file_name: fileName,
-        line_items: selected.map(i => ({
-          line_item_no: i.lineItemNo,
+        line_items: parsedSubItems.map((i, idx) => ({
+          line_item_no: idx + 1,
           cost_group: i.costGroup,
           cost_item_name: i.costItemName,
           description: i.description,
@@ -186,29 +138,14 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
           batch_label: fileName,
         })),
       });
-      toast({ title: 'Sub budget uploaded', description: `Budget uploaded for ${assignedMembers.find(s => s.id === selectedSubId)?.name || 'team member'}.` });
+      const subName = subs.find(s => s.id === selectedSubId)?.crew_name || subs.find(s => s.id === selectedSubId)?.name || 'team member';
+      toast({ title: 'Sub budget uploaded', description: `${parsedSubItems.length} labor items assigned to ${subName}.` });
       resetUpload();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
-  };
-
-  const toggleItem = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    setSelectedIds(prev => prev.size === parsedItems.length ? new Set() : new Set(parsedItems.map(i => i.id)));
-  };
-
-  const updateMapping = (field: FieldKey, header: string) => {
-    setColumnMapping(prev => ({ ...prev, [field]: header === '__none__' ? '' : header }));
   };
 
   return (
@@ -251,202 +188,131 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Upload Dialog */}
+      {/* Upload Dialog — streamlined single step */}
       <Dialog open={uploadOpen} onOpenChange={(open) => { if (!open) resetUpload(); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-display">
-              Upload Subcontractor Budget
-              <span className="text-sm font-normal text-muted-foreground ml-2">— Step {wizardStep} of 3</span>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              Upload Sub Budget
             </DialogTitle>
           </DialogHeader>
 
-          {/* Step 1: Select sub + upload file */}
-          {wizardStep === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-display font-semibold mb-1 block">Select Team Member</label>
-                <Select value={selectedSubId} onValueChange={setSelectedSubId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a team member..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignedMembers.map(m => (
-                      <SelectItem key={m.id} value={m.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{m.crew_name || m.name}</span>
-                          <span className="text-muted-foreground text-xs">— {m.email}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">{m.role}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {assignedMembers.length === 0 && (
-                  <p className="text-xs text-destructive mt-1">No team members assigned to this project. Assign members first.</p>
-                )}
-              </div>
+          <div className="space-y-4">
+            {/* Select subcontractor */}
+            <div>
+              <label className="text-sm font-display font-semibold mb-1 block">Assign to Subcontractor</label>
+              <Select value={selectedSubId} onValueChange={setSelectedSubId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a subcontractor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {subs.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.crew_name || s.name} — {s.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {subs.length === 0 && (
+                <p className="text-xs text-destructive mt-1">No subcontractors assigned to this project. Assign members first.</p>
+              )}
+            </div>
 
-              <div>
-                <label className="text-sm font-display font-semibold mb-1 block">Budget File (Excel/CSV)</label>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file) { setFileName(file.name); parseFile(file); }
-                      e.target.value = '';
-                    }}
-                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
-                    <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-1" />
-                    <p className="text-sm text-muted-foreground">
-                      {fileName ? <span className="text-foreground font-medium">{fileName}</span> : 'Drag & drop or tap to upload'}
-                    </p>
-                  </div>
+            {/* File upload */}
+            <div>
+              <label className="text-sm font-display font-semibold mb-1 block">Budget File (JobTread CSV / Excel)</label>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFile}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
+                  <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-sm text-muted-foreground">
+                    {fileName ? <span className="text-foreground font-medium">{fileName}</span> : 'Drag & drop or tap to upload'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Only Labor & Subcontractor cost types will be imported at Extended Cost</p>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Step 2: Column Mapping */}
-          {wizardStep === 2 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Map your spreadsheet columns to budget fields. We auto-detected some — adjust as needed.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {BUDGET_FIELDS.map(field => (
-                  <div key={field.key} className="space-y-1">
-                    <label className="text-xs font-display font-semibold flex items-center gap-1">
-                      {field.label}
-                      {field.required && <span className="text-destructive">*</span>}
-                    </label>
-                    <Select
-                      value={columnMapping[field.key] || '__none__'}
-                      onValueChange={(v) => updateMapping(field.key, v)}
-                    >
-                      <SelectTrigger className="h-9 text-sm truncate" title={columnMapping[field.key] || ''}>
-                        <SelectValue placeholder="— Not mapped —" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-60 overflow-y-auto">
-                        <SelectItem value="__none__">— Not mapped —</SelectItem>
-                        {spreadsheetHeaders.map(h => (
-                          <SelectItem key={h} value={h} className="truncate max-w-[300px]" title={h}>{h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+            {/* Auto-filtered summary */}
+            {parseStats && parsedSubItems.length > 0 && (
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/30 px-4 py-2">
+                  <span className="font-display font-semibold text-sm">Import Preview</span>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-2xl font-display font-bold">{parseStats.totalItems}</p>
+                      <p className="text-xs text-muted-foreground">Total in File</p>
+                    </div>
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <p className="text-2xl font-display font-bold text-primary">{parsedSubItems.length}</p>
+                      <p className="text-xs text-muted-foreground">Labor Items</p>
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-2xl font-display font-bold">${subTotal.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">Sub Cost Total</p>
+                    </div>
                   </div>
-                ))}
-              </div>
 
-              {/* Live preview */}
-              {mappingPreview.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-display font-semibold text-muted-foreground">Preview (first {mappingPreview.length} rows)</p>
+                  {parseStats.skippedCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {parseStats.skippedCount} non-labor items (Materials, etc.) were automatically excluded.
+                    </p>
+                  )}
+
+                  {/* Line items preview */}
                   <div className="border border-border rounded-lg overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted">
+                    <div className="overflow-x-auto max-h-56 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-muted">
                           <tr>
-                            <th className="p-2 text-left font-display">#</th>
-                            <th className="p-2 text-left font-display">Item Name</th>
-                            <th className="p-2 text-left font-display">Group</th>
-                            <th className="p-2 text-left font-display">Description</th>
-                            <th className="p-2 text-right font-display">Cost</th>
+                            <th className="text-left p-2 text-xs font-display">#</th>
+                            <th className="text-left p-2 text-xs font-display">Item</th>
+                            <th className="text-left p-2 text-xs font-display">Group</th>
+                            <th className="text-left p-2 text-xs font-display">Type</th>
+                            <th className="text-right p-2 text-xs font-display">Cost</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {mappingPreview.map((item, i) => (
-                            <tr key={i} className="border-t border-border/50">
-                              <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
+                          {parsedSubItems.map((item, idx) => (
+                            <tr key={idx} className="border-t border-border/50">
+                              <td className="p-2 text-muted-foreground">{idx + 1}</td>
                               <td className="p-2">{item.costItemName}</td>
-                              <td className="p-2 text-muted-foreground">{item.costGroup}</td>
-                              <td className="p-2 text-muted-foreground truncate max-w-[200px]">{item.description}</td>
+                              <td className="p-2 text-xs text-muted-foreground truncate max-w-[150px]">{item.costGroup}</td>
+                              <td className="p-2 text-xs text-muted-foreground">{item.costType}</td>
                               <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+                    <div className="border-t border-border p-3 bg-muted/50 flex justify-between">
+                      <span className="text-sm text-muted-foreground">Total</span>
+                      <span className="font-display font-bold">${subTotal.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 3: Review & select items */}
-          {wizardStep === 3 && parsedItems.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-display font-semibold">{selectedIds.size} of {parsedItems.length} items selected</p>
-                <Button variant="ghost" size="sm" onClick={toggleAll} className="text-xs">
-                  {selectedIds.size === parsedItems.length ? 'Deselect All' : 'Select All'}
-                </Button>
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto max-h-56 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-muted">
-                      <tr>
-                        <th className="p-2 w-8"><Checkbox checked={selectedIds.size === parsedItems.length} onCheckedChange={toggleAll} /></th>
-                        <th className="text-left p-2 text-xs font-display">#</th>
-                        <th className="text-left p-2 text-xs font-display">Item</th>
-                        <th className="text-left p-2 text-xs font-display">Group</th>
-                        <th className="text-right p-2 text-xs font-display">Cost</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedItems.map(item => {
-                        const sel = selectedIds.has(item.id);
-                        return (
-                          <tr key={item.id} className={`border-t border-border/50 cursor-pointer ${sel ? '' : 'opacity-40'}`} onClick={() => toggleItem(item.id)}>
-                            <td className="p-2" onClick={e => e.stopPropagation()}><Checkbox checked={sel} onCheckedChange={() => toggleItem(item.id)} /></td>
-                            <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
-                            <td className="p-2">{item.costItemName}</td>
-                            <td className="p-2 text-xs text-muted-foreground">{item.costGroup}</td>
-                            <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="border-t border-border p-3 bg-muted/50 flex justify-between">
-                  <span className="text-sm text-muted-foreground">Selected Total</span>
-                  <span className="font-display font-bold">${parsedItems.filter(i => selectedIds.has(i.id)).reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          <DialogFooter className="flex justify-between gap-2">
-            <div>
-              {wizardStep > 1 && (
-                <Button variant="ghost" size="sm" onClick={() => setWizardStep((wizardStep - 1) as 1 | 2)}>
-                  <ArrowLeft className="w-3 h-3 mr-1" /> Back
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={resetUpload}>Cancel</Button>
-              {wizardStep === 2 && (
-                <Button onClick={handleMappingConfirm} disabled={!columnMapping.extendedCost && !columnMapping.costItemName}>
-                  Continue <ArrowRight className="w-3 h-3 ml-1" />
-                </Button>
-              )}
-              {wizardStep === 3 && (
-                <Button
-                  onClick={handleUpload}
-                  disabled={!selectedSubId || selectedIds.size === 0 || saving}
-                  className="gradient-primary text-primary-foreground"
-                >
-                  {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Saving...</> : 'Upload Budget'}
-                </Button>
-              )}
-            </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetUpload}>Cancel</Button>
+            <Button
+              onClick={handleUpload}
+              disabled={saving || !selectedSubId || parsedSubItems.length === 0}
+              className="gradient-primary text-primary-foreground"
+            >
+              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+              Upload {parsedSubItems.length} Items
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
