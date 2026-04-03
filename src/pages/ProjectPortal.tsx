@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useProjects, useBudgetLineItems, useTeamMembers, useProjectAssignments,
   useCreateProject, useUpdateProject, useInsertBudgetLineItems, useUpdateBudgetDrawCategory, useToggleAssignment,
-  useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment,
+  useAddAssignment, useUpdateAssignmentStatus, useRemoveAssignment, useDeleteMasterBudgetBatch,
   type DbProject, type DbBudgetLineItem, type DbTeamMember,
 } from '@/hooks/useProjects';
 import type { Database } from '@/integrations/supabase/types';
