@@ -352,12 +352,11 @@ const ProjectPortal = () => {
     if (!newName || !newAddress) return;
     setCreating(true);
     try {
-      const budgetTotal = quickParsedItems.length > 0 ? quickParsedTotal : Number(newBudget) || 0;
-
+      // Create project with 0 budget; trigger will set total_budget when line items are inserted
       const newProject = await createProject.mutateAsync({
         name: newName,
         address: newAddress,
-        total_budget: budgetTotal,
+        total_budget: 0,
       });
 
       if (quickParsedItems.length > 0) {

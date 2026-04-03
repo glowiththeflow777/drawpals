@@ -452,14 +452,6 @@ export function useDeleteMasterBudgetBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, batchLabel }: { projectId: string; batchLabel: string }) => {
-      // Get the total of items being deleted so we can subtract from project totals
-      const { data: itemsToDelete } = await supabase
-        .from('budget_line_items')
-        .select('extended_cost')
-        .eq('project_id', projectId)
-        .eq('batch_label', batchLabel);
-      const deletedTotal = (itemsToDelete || []).reduce((s, i) => s + Number(i.extended_cost), 0);
-
       const { error } = await supabase
         .from('budget_line_items')
         .delete()
@@ -467,17 +459,7 @@ export function useDeleteMasterBudgetBatch() {
         .eq('batch_label', batchLabel);
       if (error) throw error;
 
-      // Update project total_budget and master_budget
-      if (deletedTotal > 0) {
-        const { data: proj } = await supabase.from('projects').select('total_budget, master_budget').eq('id', projectId).single();
-        if (proj) {
-          await supabase.from('projects').update({
-            total_budget: Math.max(0, Number(proj.total_budget) - deletedTotal),
-            master_budget: Math.max(0, Number(proj.master_budget) - deletedTotal),
-          }).eq('id', projectId);
-        }
-      }
-
+      // total_budget is auto-synced by database trigger on budget_line_items
       return projectId;
     },
     onSuccess: (projectId) => {
