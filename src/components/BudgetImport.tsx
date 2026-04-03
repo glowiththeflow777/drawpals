@@ -138,6 +138,7 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
         cost_type: r.costType,
         cost_code: r.costCode,
         batch_label: batchLabel,
+        draw_category: autoDrawCategory(r.costGroup),
       }));
       const { error: masterErr } = await supabase.from('budget_line_items').insert(masterItems);
       if (masterErr) throw masterErr;
