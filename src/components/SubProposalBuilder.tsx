@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus } from 'lucide-react';
+import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,7 +50,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState('');
   // Step 2: details dialog for new sub
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [newSubDetails, setNewSubDetails] = useState<NewSubDetails>({
@@ -70,10 +70,20 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
     };
 
+    const q = searchQuery.toLowerCase().trim();
+    const filtered = q
+      ? masterItems.filter(i =>
+          i.cost_item_name.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.cost_group.toLowerCase().includes(q) ||
+          i.cost_code.toLowerCase().includes(q) ||
+          i.cost_type.toLowerCase().includes(q))
+      : masterItems;
+
     const sections: { type: string; config: typeof typeConfig[string]; groups: Map<string, typeof masterItems> }[] = [];
 
     typeOrder.forEach(type => {
-      const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
+      const typeItems = filtered.filter(i => (i.cost_type || 'Labor') === type);
       if (typeItems.length === 0) return;
       const groups = new Map<string, typeof masterItems>();
       typeItems.forEach(item => {
@@ -85,7 +95,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     });
 
     const knownTypes = new Set(typeOrder);
-    const otherItems = masterItems.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
+    const otherItems = filtered.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
     if (otherItems.length > 0) {
       const groups = new Map<string, typeof masterItems>();
       otherItems.forEach(item => {
@@ -97,7 +107,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     }
 
     return sections;
-  }, [masterItems]);
+  }, [masterItems, searchQuery]);
 
   const getContractPrice = (item: typeof masterItems[0]) => {
     if (overrides.has(item.id)) return overrides.get(item.id)!;
@@ -136,6 +146,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     setBidPercentage(60);
     setSelectedIds(new Set());
     setOverrides(new Map());
+    setSearchQuery('');
     setPendingBudgetId(null);
     setPendingTeamMemberId(null);
   };
@@ -411,10 +422,25 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
 
             {/* Master budget checklist */}
             <div className="space-y-2">
-              <Label className="text-sm font-display font-semibold">
-                Select Line Items ({selectedIds.size} of {masterItems.length} selected)
-              </Label>
-
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-display font-semibold">
+                  Select Line Items ({selectedIds.size} of {masterItems.length} selected)
+                </Label>
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-xs text-muted-foreground hover:text-foreground">
+                    Clear search
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search items... e.g. painting, drywall, framing"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
               {masterItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   No master budget items found. Import a master budget first.
