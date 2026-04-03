@@ -108,23 +108,16 @@ const InvoiceWizard = () => {
   const updateLineItem = (idx: number, field: string, value: string | number) => {
     const updated = [...lineItems];
     (updated[idx] as any)[field] = value;
-    if (field === 'percentComplete' || field === 'contractPrice') {
-      const cp = field === 'contractPrice' ? Number(value) : (updated[idx].contractPrice || 0);
-      const pc = field === 'percentComplete' ? Number(value) : (updated[idx].percentComplete || 0);
-      updated[idx].drawAmount = Math.round(cp * pc / 100 * 100) / 100;
-    }
-    if (field === 'drawAmount') {
-      // For direct billing: cap at remaining budget
+    if (field === 'percentComplete') {
+      // Cumulative % complete billing
+      const cp = updated[idx].contractPrice || 0;
       const budgetItemId = (updated[idx] as any).budgetItemId;
-      const totalBudget = updated[idx].contractPrice || 0;
       const previouslyBilled = billingHistory.get(budgetItemId) || 0;
-      const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
-      const capped = Math.min(Number(value), maxAllowed);
-      updated[idx].drawAmount = Math.max(0, capped);
-      // Recalculate percent complete from draw amount
-      if (totalBudget > 0) {
-        updated[idx].percentComplete = Math.round(((previouslyBilled + updated[idx].drawAmount!) / totalBudget) * 100);
-      }
+      const newPct = Math.min(100, Math.max(0, Number(value)));
+      updated[idx].percentComplete = newPct;
+      // Draw = (newPct% × contract) - previously billed
+      const totalOwed = Math.round(cp * newPct / 100 * 100) / 100;
+      updated[idx].drawAmount = Math.max(0, Math.round((totalOwed - previouslyBilled) * 100) / 100);
     }
     setLineItems(updated);
   };
@@ -503,7 +496,7 @@ const InvoiceWizard = () => {
                         <SelectContent>
                           {allSubBudgets.map((sb: any) => (
                             <SelectItem key={sb.id} value={sb.id}>
-                              {sb.team_members?.name || sb.team_members?.crew_name || 'Unknown'} — {sb.file_name}
+                              {sb.team_members?.crew_name || sb.team_members?.name || 'Unknown'} — {sb.proposal_name || sb.file_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -514,18 +507,18 @@ const InvoiceWizard = () => {
                 )}
 
                 <p className="text-muted-foreground font-body text-sm">
-                  Tap each budget line item you're billing for, then set the % complete.
+                  Select items you're billing for, then set your cumulative % complete.
                 </p>
 
                 {activeBudgetItems.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground font-body">
                       {!isAdminEntry
-                        ? 'No budget has been uploaded for you on this project yet. Contact your project manager.'
+                        ? 'No proposal has been created for you on this project yet. Contact your project manager.'
                         : effectiveBudgetSource === 'sub' && allSubBudgets.length === 0
-                        ? 'No sub budgets have been uploaded for this project yet.'
+                        ? 'No proposals have been created for this project yet.'
                         : effectiveBudgetSource === 'sub'
-                        ? 'No line items found in the selected sub budget.'
+                        ? 'No line items found in the selected proposal.'
                         : 'No budget items found for this project.'}
                     </p>
                   </div>
@@ -550,8 +543,11 @@ const InvoiceWizard = () => {
                           </div>
                           <div className="divide-y divide-border/50">
                             {items.map(item => {
+                              const contractPrice = Number(item.contract_price || item.extended_cost);
                               const isSelected = selectedIds.has(item.id);
                               const liIdx = lineItems.findIndex(li => (li as any).budgetItemId === item.id);
+                              const previouslyBilled = billingHistory.get(item.id) || 0;
+                              const prevPct = contractPrice > 0 ? Math.round((previouslyBilled / contractPrice) * 100) : 0;
 
                               return (
                                 <div key={item.id}>
@@ -567,8 +563,8 @@ const InvoiceWizard = () => {
                                             budgetItemId: item.id,
                                             lineItemNo: item.line_item_no,
                                             description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
-                                            contractPrice: Number(item.extended_cost),
-                                            percentComplete: 0,
+                                            contractPrice,
+                                            percentComplete: prevPct,
                                             drawAmount: 0,
                                           } as any,
                                         ]);
@@ -588,111 +584,68 @@ const InvoiceWizard = () => {
                                         <span className="font-display text-sm font-medium">
                                           <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
                                           {item.cost_item_name}
-                                          {item.cost_type && (
-                                            <span className="text-xs text-muted-foreground ml-1.5">({item.cost_type})</span>
-                                          )}
                                         </span>
                                         <span className="text-xs font-display font-semibold ml-2 flex-shrink-0">
-                                          ${Number(item.extended_cost).toLocaleString()}
+                                          ${contractPrice.toLocaleString()}
                                         </span>
                                       </div>
-                                      {item.description && item.description !== item.cost_item_name && (
-                                        <p className="text-xs text-muted-foreground truncate">{item.description}</p>
+                                      {/* Progress bar */}
+                                      {previouslyBilled > 0 && (
+                                        <div className="flex items-center gap-3 mt-1">
+                                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(prevPct, 100)}%` }} />
+                                          </div>
+                                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                            {prevPct}% complete · ${(contractPrice - previouslyBilled).toLocaleString()} left
+                                          </span>
+                                        </div>
                                       )}
-                                      {(() => {
-                                        const billed = billingHistory.get(item.id) || 0;
-                                        const total = Number(item.extended_cost);
-                                        const remaining = total - billed;
-                                        if (billed > 0) {
-                                          const pctBilled = total > 0 ? Math.round((billed / total) * 100) : 0;
-                                          return (
-                                            <div className="flex items-center gap-3 mt-1">
-                                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(pctBilled, 100)}%` }} />
-                                              </div>
-                                              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                                ${billed.toLocaleString()} billed · ${remaining.toLocaleString()} left
-                                              </span>
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
                                     </div>
                                   </button>
-                                  {isSelected && liIdx >= 0 && (() => {
-                                    const budgetItemId = (lineItems[liIdx] as any).budgetItemId;
-                                    const totalBudget = Number(item.extended_cost);
-                                    const previouslyBilled = billingHistory.get(budgetItemId) || 0;
-                                    const maxAllowed = Math.max(0, totalBudget - previouslyBilled);
 
-                                    return (
+                                  {/* Cumulative % complete input */}
+                                  {isSelected && liIdx >= 0 && (
                                     <div className="px-4 pb-3 pt-1 bg-primary/5 space-y-2" onClick={e => e.stopPropagation()}>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>Budget: ${totalBudget.toLocaleString()}</span>
-                                        <span>·</span>
-                                        <span>Previously billed: ${previouslyBilled.toLocaleString()}</span>
-                                        <span>·</span>
-                                        <span className="font-semibold text-foreground">Max this period: ${maxAllowed.toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        {isAdminEntry ? (
-                                          <>
-                                            <div className="flex-1">
-                                              <Label className="text-xs font-body">{t('invoiceWizard.step3.percentComplete')}</Label>
-                                              <Input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                placeholder="0"
-                                                className="mt-1 h-8 text-sm"
-                                                value={lineItems[liIdx]?.percentComplete || ''}
-                                                onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
-                                              />
-                                            </div>
-                                            <div className="flex-1">
-                                              <Label className="text-xs font-body">{t('invoiceWizard.step3.drawAmount')}</Label>
-                                              <Input
-                                                type="number"
-                                                readOnly
-                                                className="mt-1 h-8 text-sm bg-muted font-semibold"
-                                                value={lineItems[liIdx]?.drawAmount || 0}
-                                              />
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <div className="flex-1">
-                                            <Label className="text-xs font-body">Billing This Period ($)</Label>
+                                      <div className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                          <Label className="text-xs font-body">Cumulative % Complete</Label>
+                                          <div className="flex items-center gap-2 mt-1">
                                             <Input
                                               type="number"
-                                              min="0"
-                                              max={maxAllowed}
-                                              step="0.01"
-                                              placeholder="0.00"
-                                              className="mt-1 h-8 text-sm"
-                                              value={lineItems[liIdx]?.drawAmount || ''}
-                                              onChange={e => updateLineItem(liIdx, 'drawAmount', Number(e.target.value))}
+                                              min={prevPct}
+                                              max={100}
+                                              placeholder={String(prevPct)}
+                                              className="h-8 text-sm w-20 text-center font-display font-bold"
+                                              value={lineItems[liIdx]?.percentComplete || ''}
+                                              onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
                                             />
+                                            <span className="text-sm text-muted-foreground">%</span>
+                                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                              <div
+                                                className="h-full bg-primary rounded-full transition-all"
+                                                style={{ width: `${Math.min(lineItems[liIdx]?.percentComplete || 0, 100)}%` }}
+                                              />
+                                            </div>
                                           </div>
-                                        )}
-                                        <div className="flex-1">
-                                          <Label className="text-xs font-body">Remaining After</Label>
-                                          <Input
-                                            type="number"
-                                            readOnly
-                                            className="mt-1 h-8 text-sm bg-muted font-semibold"
-                                            value={Math.max(0, maxAllowed - (lineItems[liIdx]?.drawAmount || 0))}
-                                          />
+                                        </div>
+                                        <div className="text-right">
+                                          <Label className="text-xs font-body">This Period</Label>
+                                          <p className="font-display font-bold text-lg text-primary mt-0.5">
+                                            ${(lineItems[liIdx]?.drawAmount || 0).toLocaleString()}
+                                          </p>
                                         </div>
                                       </div>
-                                      {(lineItems[liIdx]?.drawAmount || 0) > maxAllowed && (
-                                        <p className="text-xs text-destructive font-semibold">
-                                          Amount exceeds remaining budget — it will be capped at ${maxAllowed.toLocaleString()}
-                                        </p>
-                                      )}
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <span>Contract: ${contractPrice.toLocaleString()}</span>
+                                        <span>·</span>
+                                        <span>Previously: {prevPct}% (${previouslyBilled.toLocaleString()})</span>
+                                        <span>·</span>
+                                        <span className="font-semibold text-foreground">
+                                          Remaining: ${Math.max(0, contractPrice - previouslyBilled - (lineItems[liIdx]?.drawAmount || 0)).toLocaleString()}
+                                        </span>
+                                      </div>
                                     </div>
-                                    );
-                                  })()}
+                                  )}
                                 </div>
                               );
                             })}
