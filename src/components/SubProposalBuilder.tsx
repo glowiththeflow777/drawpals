@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, Loader2, FileSpreadsheet, Percent } from 'lucide-react';
+import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,15 +37,43 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
 
-  // Group master items by cost group
-  const groups = useMemo(() => {
-    const map = new Map<string, typeof masterItems>();
-    masterItems.forEach(item => {
-      const group = item.cost_group || 'Ungrouped';
-      if (!map.has(group)) map.set(group, []);
-      map.get(group)!.push(item);
+  // Group master items by cost type → cost group
+  const costTypeSections = useMemo(() => {
+    const typeOrder = ['Labor', 'Subcontractor', 'Materials'];
+    const typeConfig: Record<string, { icon: typeof Hammer; label: string; color: string; bgColor: string }> = {
+      Labor: { icon: Hammer, label: 'Labor', color: 'text-blue-600', bgColor: 'bg-blue-500/10 border-blue-500/20' },
+      Subcontractor: { icon: HardHat, label: 'Subcontractor', color: 'text-amber-600', bgColor: 'bg-amber-500/10 border-amber-500/20' },
+      Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
+    };
+
+    const sections: { type: string; config: typeof typeConfig[string]; groups: Map<string, typeof masterItems> }[] = [];
+
+    typeOrder.forEach(type => {
+      const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
+      if (typeItems.length === 0) return;
+      const groups = new Map<string, typeof masterItems>();
+      typeItems.forEach(item => {
+        const group = item.cost_group || 'Ungrouped';
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group)!.push(item);
+      });
+      sections.push({ type, config: typeConfig[type] || typeConfig['Labor'], groups });
     });
-    return map;
+
+    // Catch any other cost types
+    const knownTypes = new Set(typeOrder);
+    const otherItems = masterItems.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
+    if (otherItems.length > 0) {
+      const groups = new Map<string, typeof masterItems>();
+      otherItems.forEach(item => {
+        const group = item.cost_group || 'Ungrouped';
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group)!.push(item);
+      });
+      sections.push({ type: 'Other', config: { icon: Package, label: 'Other', color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' }, groups });
+    }
+
+    return sections;
   }, [masterItems]);
 
   const getContractPrice = (item: typeof masterItems[0]) => {
@@ -216,75 +244,104 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                 No master budget items found. Import a master budget first.
               </p>
             ) : (
-              <div className="border border-border rounded-lg overflow-hidden max-h-[40vh] overflow-y-auto">
-                {Array.from(groups.entries()).map(([group, items]) => {
-                  const allGroupSelected = items.every(i => selectedIds.has(i.id));
-                  const someGroupSelected = items.some(i => selectedIds.has(i.id));
+              <div className="space-y-4">
+                {costTypeSections.map(({ type, config, groups }) => {
+                  const Icon = config.icon;
+                  const allTypeItems = Array.from(groups.values()).flat();
+                  const typeTotal = allTypeItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+                  const typeSelectedCount = allTypeItems.filter(i => selectedIds.has(i.id)).length;
 
                   return (
-                    <div key={group}>
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(items)}
-                        className="w-full flex items-center gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors sticky top-0 z-10"
-                      >
-                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                          allGroupSelected ? 'border-primary bg-primary' : someGroupSelected ? 'border-primary bg-primary/30' : 'border-muted-foreground/40'
-                        }`}>
-                          {allGroupSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                    <div key={type} className={`border rounded-lg overflow-hidden ${config.bgColor}`}>
+                      {/* Cost type header */}
+                      <div className="px-4 py-2.5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className={`w-4 h-4 ${config.color}`} />
+                          <span className={`font-display font-bold text-sm ${config.color}`}>{config.label}</span>
+                          <span className="text-xs text-muted-foreground">({allTypeItems.length} items)</span>
                         </div>
-                        <span className="font-display font-semibold text-xs flex-1 text-left">{group}</span>
-                        <span className="text-xs text-muted-foreground">{items.length} items</span>
-                      </button>
-                      {items.map(item => {
-                        const isSelected = selectedIds.has(item.id);
-                        const contractPrice = getContractPrice(item);
-                        const hasOverride = overrides.has(item.id);
+                        <div className="flex items-center gap-3">
+                          {typeSelectedCount > 0 && (
+                            <span className="text-xs font-display font-semibold">{typeSelectedCount} selected</span>
+                          )}
+                          <span className="text-xs font-display font-semibold">${typeTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
 
-                        return (
-                          <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''}`}>
-                            <button
-                              type="button"
-                              onClick={() => toggleItem(item.id)}
-                              className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                            >
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
-                              }`}>
-                                {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm font-display">
-                                  <span className="text-muted-foreground mr-1">#{item.line_item_no}</span>
-                                  {item.cost_item_name}
-                                </span>
-                              </div>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">
-                                ${Number(item.extended_cost).toLocaleString()}
-                              </span>
-                            </button>
-                            {isSelected && (
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <span className="text-xs text-muted-foreground">→</span>
-                                <Input
-                                  type="number"
-                                  className={`w-24 h-7 text-xs text-right font-display font-semibold ${hasOverride ? 'border-accent' : ''}`}
-                                  value={contractPrice}
-                                  onChange={e => {
-                                    const val = Number(e.target.value);
-                                    setOverrides(prev => {
-                                      const next = new Map(prev);
-                                      next.set(item.id, val);
-                                      return next;
-                                    });
-                                  }}
-                                  onClick={e => e.stopPropagation()}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {/* Cost groups within this type */}
+                      <div className="bg-background/80 max-h-[30vh] overflow-y-auto">
+                        {Array.from(groups.entries()).map(([group, items]) => {
+                          const allGroupSelected = items.every(i => selectedIds.has(i.id));
+                          const someGroupSelected = items.some(i => selectedIds.has(i.id));
+
+                          return (
+                            <div key={group}>
+                              <button
+                                type="button"
+                                onClick={() => toggleGroup(items)}
+                                className="w-full flex items-center gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors sticky top-0 z-10 border-t border-border/50"
+                              >
+                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                  allGroupSelected ? 'border-primary bg-primary' : someGroupSelected ? 'border-primary bg-primary/30' : 'border-muted-foreground/40'
+                                }`}>
+                                  {allGroupSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                </div>
+                                <span className="font-display font-semibold text-xs flex-1 text-left">{group}</span>
+                                <span className="text-xs text-muted-foreground">{items.length} items · ${items.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</span>
+                              </button>
+                              {items.map(item => {
+                                const isSelected = selectedIds.has(item.id);
+                                const contractPrice = getContractPrice(item);
+                                const hasOverride = overrides.has(item.id);
+
+                                return (
+                                  <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''}`}>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleItem(item.id)}
+                                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                                    >
+                                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                        isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                                      }`}>
+                                        {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <span className="text-sm font-display">
+                                          <span className="text-muted-foreground mr-1">#{item.line_item_no}</span>
+                                          {item.cost_item_name}
+                                        </span>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                                        ${Number(item.extended_cost).toLocaleString()}
+                                      </span>
+                                    </button>
+                                    {isSelected && (
+                                      <div className="flex items-center gap-1 flex-shrink-0">
+                                        <span className="text-xs text-muted-foreground">→</span>
+                                        <Input
+                                          type="number"
+                                          className={`w-24 h-7 text-xs text-right font-display font-semibold ${hasOverride ? 'border-accent' : ''}`}
+                                          value={contractPrice}
+                                          onChange={e => {
+                                            const val = Number(e.target.value);
+                                            setOverrides(prev => {
+                                              const next = new Map(prev);
+                                              next.set(item.id, val);
+                                              return next;
+                                            });
+                                          }}
+                                          onClick={e => e.stopPropagation()}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}
