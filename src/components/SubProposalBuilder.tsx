@@ -70,10 +70,20 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
     };
 
+    const q = searchQuery.toLowerCase().trim();
+    const filtered = q
+      ? masterItems.filter(i =>
+          i.cost_item_name.toLowerCase().includes(q) ||
+          i.description.toLowerCase().includes(q) ||
+          i.cost_group.toLowerCase().includes(q) ||
+          i.cost_code.toLowerCase().includes(q) ||
+          i.cost_type.toLowerCase().includes(q))
+      : masterItems;
+
     const sections: { type: string; config: typeof typeConfig[string]; groups: Map<string, typeof masterItems> }[] = [];
 
     typeOrder.forEach(type => {
-      const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
+      const typeItems = filtered.filter(i => (i.cost_type || 'Labor') === type);
       if (typeItems.length === 0) return;
       const groups = new Map<string, typeof masterItems>();
       typeItems.forEach(item => {
@@ -85,7 +95,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     });
 
     const knownTypes = new Set(typeOrder);
-    const otherItems = masterItems.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
+    const otherItems = filtered.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
     if (otherItems.length > 0) {
       const groups = new Map<string, typeof masterItems>();
       otherItems.forEach(item => {
@@ -97,7 +107,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     }
 
     return sections;
-  }, [masterItems]);
+  }, [masterItems, searchQuery]);
 
   const getContractPrice = (item: typeof masterItems[0]) => {
     if (overrides.has(item.id)) return overrides.get(item.id)!;
