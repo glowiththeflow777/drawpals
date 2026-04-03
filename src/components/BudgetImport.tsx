@@ -179,11 +179,15 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
         }
       }
 
-      // 3. Update project total budget
+      // 3. Update project total budget and master budget
       const masterTotal = masterItems.reduce((s, i) => s + i.extended_cost, 0);
-      const { data: currentProject } = await supabase.from('projects').select('total_budget').eq('id', projectId).single();
+      const { data: currentProject } = await supabase.from('projects').select('total_budget, master_budget').eq('id', projectId).single();
       const currentTotal = Number((currentProject as any)?.total_budget || 0);
-      await supabase.from('projects').update({ total_budget: currentTotal + masterTotal }).eq('id', projectId);
+      const currentMaster = Number((currentProject as any)?.master_budget || 0);
+      await supabase.from('projects').update({
+        total_budget: currentTotal + masterTotal,
+        master_budget: currentMaster + masterTotal,
+      }).eq('id', projectId);
 
       // Invalidate queries
       qc.invalidateQueries({ queryKey: ['budget_line_items'] });

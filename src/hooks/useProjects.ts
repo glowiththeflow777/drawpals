@@ -442,6 +442,8 @@ export function useDeleteSubBudget() {
     onSuccess: (projectId) => {
       qc.invalidateQueries({ queryKey: ['sub_budgets', projectId] });
       qc.invalidateQueries({ queryKey: ['sub_budget_line_items'] });
+      qc.invalidateQueries({ queryKey: ['sub_bid_total', projectId] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
@@ -450,17 +452,38 @@ export function useDeleteMasterBudgetBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, batchLabel }: { projectId: string; batchLabel: string }) => {
+      // Get the total of items being deleted so we can subtract from project totals
+      const { data: itemsToDelete } = await supabase
+        .from('budget_line_items')
+        .select('extended_cost')
+        .eq('project_id', projectId)
+        .eq('batch_label', batchLabel);
+      const deletedTotal = (itemsToDelete || []).reduce((s, i) => s + Number(i.extended_cost), 0);
+
       const { error } = await supabase
         .from('budget_line_items')
         .delete()
         .eq('project_id', projectId)
         .eq('batch_label', batchLabel);
       if (error) throw error;
+
+      // Update project total_budget and master_budget
+      if (deletedTotal > 0) {
+        const { data: proj } = await supabase.from('projects').select('total_budget, master_budget').eq('id', projectId).single();
+        if (proj) {
+          await supabase.from('projects').update({
+            total_budget: Math.max(0, Number(proj.total_budget) - deletedTotal),
+            master_budget: Math.max(0, Number(proj.master_budget) - deletedTotal),
+          }).eq('id', projectId);
+        }
+      }
+
       return projectId;
     },
     onSuccess: (projectId) => {
       qc.invalidateQueries({ queryKey: ['budget_line_items', projectId] });
       qc.invalidateQueries({ queryKey: ['budget_line_items'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }
