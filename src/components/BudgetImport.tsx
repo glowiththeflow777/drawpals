@@ -143,7 +143,7 @@ const BudgetImport: React.FC<BudgetImportProps> = ({
           const { data: subBudget, error: sbErr } = await supabase
             .from('sub_budgets')
             .upsert(
-              { project_id: projectId, team_member_id: selectedSubId, uploaded_by: currentUserId, file_name: batchLabel },
+              { project_id: projectId, team_member_id: effectiveSubId, uploaded_by: currentUserId, file_name: batchLabel },
               { onConflict: 'project_id,team_member_id' }
             )
             .select()
