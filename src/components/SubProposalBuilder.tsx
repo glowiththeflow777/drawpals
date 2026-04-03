@@ -50,7 +50,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
-
+  const [searchQuery, setSearchQuery] = useState('');
   // Step 2: details dialog for new sub
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [newSubDetails, setNewSubDetails] = useState<NewSubDetails>({
