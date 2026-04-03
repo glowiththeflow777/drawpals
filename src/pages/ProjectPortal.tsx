@@ -6,7 +6,6 @@ import ProjectDocuments from '@/components/ProjectDocuments';
 import BudgetImport from '@/components/BudgetImport';
 import FinancialDashboard from '@/components/FinancialDashboard';
 import SubcontractorBudgets from '@/components/SubcontractorBudgets';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,9 +27,8 @@ import type { Database } from '@/integrations/supabase/types';
 
 type ProjectStatus = Database['public']['Enums']['project_status'];
 
-// Parsed item type (local, before saving to DB)
-interface ParsedLineItem {
-  id: string;
+// Lightweight parsed item for Create Project flow
+interface QuickParsedItem {
   lineItemNo: number;
   costGroup: string;
   costItemName: string;
@@ -42,6 +40,56 @@ interface ParsedLineItem {
   costCode: string;
 }
 
+function parseCurrency(val: any): number {
+  if (val == null || val === '') return 0;
+  return parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
+}
+
+/** Quick parse for Create Project — auto-detects JobTread format, uses Extended Price for master */
+function quickParseFile(rows: Record<string, any>[]): QuickParsedItem[] {
+  const hasJobTreadCols = rows.length > 0 && 'Cost Item Name' in rows[0] && 'Cost Type' in rows[0];
+
+  if (hasJobTreadCols) {
+    return rows
+      .filter(row => String(row['Cost Item Name'] || '').trim() && String(row['Cost Type'] || '').trim())
+      .map((row, idx) => ({
+        lineItemNo: idx + 1,
+        costGroup: String(row['Cost Group'] || ''),
+        costItemName: String(row['Cost Item Name'] || ''),
+        description: String(row['Description'] || ''),
+        quantity: parseCurrency(row['Quantity']),
+        unit: String(row['Unit'] || 'Each'),
+        extendedCost: parseCurrency(row['Extended Price'] || row['Extended Cost']),
+        costType: String(row['Cost Type'] || 'Labor'),
+        costCode: '',
+      }));
+  }
+
+  // Generic fallback: auto-detect columns
+  const headers = Object.keys(rows[0] || {});
+  const find = (patterns: RegExp[]) => headers.find(h => patterns.some(p => p.test(h.trim())));
+  const colName = find([/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]) || '';
+  const colDesc = find([/^description$/i, /^desc\.?$/i, /^scope$/i]) || '';
+  const colCost = find([/^extended\s*(cost|price)$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]) || '';
+  const colGroup = find([/^cost\s*group$/i, /^group$/i, /^category$/i]) || '';
+  const colType = find([/^cost\s*type$/i, /^type$/i]) || '';
+  const colQty = find([/^quantity$/i, /^qty\.?$/i]) || '';
+  const colUnit = find([/^unit$/i, /^uom$/i]) || '';
+
+  return rows
+    .map((row, idx) => ({
+      lineItemNo: idx + 1,
+      costGroup: String(row[colGroup] || ''),
+      costItemName: String(row[colName] || row[colDesc] || `Item ${idx + 1}`),
+      description: String(row[colDesc] || ''),
+      quantity: parseCurrency(row[colQty]),
+      unit: String(row[colUnit] || 'Each'),
+      extendedCost: parseCurrency(row[colCost]),
+      costType: String(row[colType] || 'Labor'),
+      costCode: '',
+    }))
+    .filter(i => i.costItemName || i.extendedCost > 0);
+}
 
 const ProjectPortal = () => {
   const navigate = useNavigate();
@@ -77,10 +125,6 @@ const ProjectPortal = () => {
   const [activeTab, setActiveTab] = useState<ProjectStatus | 'all'>('active');
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedProject, setSelectedProject] = useState<DbProject | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState('');
-  const [parsedItems, setParsedItems] = useState<ParsedLineItem[]>([]);
-  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
-  const [showParsed, setShowParsed] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Edit project state
@@ -93,9 +137,12 @@ const ProjectPortal = () => {
   const [newName, setNewName] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newBudget, setNewBudget] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [quickParsedItems, setQuickParsedItems] = useState<QuickParsedItem[]>([]);
 
   const [budgetExpanded, setBudgetExpanded] = useState(false);
   const [drawMapOpen, setDrawMapOpen] = useState(false);
+
   // Quick invite dialog state
   type QuickInviteRole = 'admin' | 'project-manager' | 'subcontractor';
   const [quickInviteOpen, setQuickInviteOpen] = useState(false);
@@ -155,7 +202,6 @@ const ProjectPortal = () => {
 
       toast({ title: t('team.inviteSent'), description: t('team.inviteDesc', { email: quickInviteForm.email }) });
       setQuickInviteOpen(false);
-      // Refresh team members and assignments
       qc.invalidateQueries({ queryKey: ['team_members'] });
       qc.invalidateQueries({ queryKey: ['project_assignments'] });
     } catch (e: any) {
@@ -164,11 +210,11 @@ const ProjectPortal = () => {
       setQuickInviteSending(false);
     }
   };
+
   const filteredProjects = activeTab === 'all'
     ? projects
     : projects.filter(p => p.status === activeTab);
 
-  // Get assignments for a project
   const getProjectAssignments = (projectId: string, role?: string) => {
     return allAssignments
       .filter((a: any) => a.project_id === projectId && (!role || a.team_members?.role === role))
@@ -176,7 +222,6 @@ const ProjectPortal = () => {
       .filter(Boolean);
   };
 
-  // Get assignment record (with status) for a specific member in a project
   const getAssignmentRecord = (projectId: string, teamMemberId: string) => {
     return allAssignments.find(
       (a: any) => a.project_id === projectId && a.team_member_id === teamMemberId
@@ -230,66 +275,6 @@ const ProjectPortal = () => {
     }
   };
 
-  const parseBudgetFile = (file: File, onParsed: (items: ParsedLineItem[]) => void) => {
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-        if (rows.length === 0) { onParsed([]); return; }
-
-        const headers = Object.keys(rows[0]);
-        const fieldPatterns: [string, RegExp[]][] = [
-          ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
-          ['costGroup',  [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
-          ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
-          ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
-          ['quantity', [/^quantity$/i, /^qty\.?$/i]],
-          ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
-          ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
-          ['costType', [/^cost\s*type$/i, /^type$/i]],
-          ['costCode', [/^cost\s*code$/i, /^code$/i]],
-        ];
-        const colMap: Record<string, string> = {};
-        const usedHeaders = new Set<string>();
-        for (const [field, patterns] of fieldPatterns) {
-          for (const pattern of patterns) {
-            const matchIdx = headers.findIndex((h) => !usedHeaders.has(h) && pattern.test(h.trim()));
-            if (matchIdx !== -1) { colMap[field] = headers[matchIdx]; usedHeaders.add(headers[matchIdx]); break; }
-          }
-        }
-        const col = (field: string) => colMap[field] || '';
-        const parsed: ParsedLineItem[] = rows.map((row, idx) => {
-          const costRaw = String(row[col('extendedCost')] ?? '');
-          const cost = parseFloat(costRaw.replace(/[^0-9.-]/g, '')) || 0;
-          const lineNo = Number(row[col('lineItemNo')]);
-          return {
-            id: `parsed-${idx}`,
-            lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
-            costGroup: String(row[col('costGroup')] || ''),
-            costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
-            description: String(row[col('description')] || ''),
-            quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
-            unit: String(row[col('unit')] || 'Each'),
-            extendedCost: cost,
-            costType: String(row[col('costType')] || 'Labor'),
-            costCode: String(row[col('costCode')] || ''),
-          };
-        }).filter(item => item.costItemName || item.extendedCost > 0);
-        onParsed(parsed);
-      } catch (err) {
-        console.error('Failed to parse file:', err);
-        onParsed([]);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
-  // Budget import is now handled by BudgetImport component
-
   const updateProjectStatus = async (projectId: string, status: ProjectStatus) => {
     try {
       await updateProject.mutateAsync({ id: projectId, status });
@@ -307,99 +292,38 @@ const ProjectPortal = () => {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Streamlined file handler for Create Project
+  const handleCreateFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadedFileName(file.name);
-
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
         const data = evt.target?.result;
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-        if (rows.length === 0) { setParsedItems([]); setShowParsed(true); return; }
-
-        const headers = Object.keys(rows[0]);
-        const fieldPatterns: [string, RegExp[]][] = [
-          ['lineItemNo', [/^line\s*item\s*#?$/i, /^line\s*#?$/i, /^#$/i, /^no\.?$/i, /^number$/i]],
-          ['costGroup',  [/^cost\s*group$/i, /^group$/i, /^division$/i, /^category$/i, /^csi$/i]],
-          ['costItemName', [/^cost\s*item\s*name$/i, /^item\s*name$/i, /^name$/i, /^trade$/i]],
-          ['description', [/^description$/i, /^desc\.?$/i, /^scope$/i, /^work$/i, /^scope\s*of\s*work$/i]],
-          ['quantity', [/^quantity$/i, /^qty\.?$/i]],
-          ['unit', [/^unit$/i, /^uom$/i, /^unit\s*of\s*measure$/i]],
-          ['extendedCost', [/^extended\s*cost$/i, /^ext\.?\s*cost$/i, /^amount$/i, /^total$/i, /^cost$/i, /^price$/i]],
-          ['costType', [/^cost\s*type$/i, /^type$/i]],
-          ['costCode', [/^cost\s*code$/i, /^code$/i]],
-        ];
-
-        const colMap: Record<string, string> = {};
-        const usedHeaders = new Set<string>();
-        for (const [field, patterns] of fieldPatterns) {
-          for (const pattern of patterns) {
-            const matchIdx = headers.findIndex((h) => !usedHeaders.has(h) && pattern.test(h.trim()));
-            if (matchIdx !== -1) { colMap[field] = headers[matchIdx]; usedHeaders.add(headers[matchIdx]); break; }
-          }
+        const parsed = quickParseFile(rows);
+        setQuickParsedItems(parsed);
+        if (parsed.length === 0) {
+          toast({ title: 'No items found', description: 'Could not find valid line items in the file.', variant: 'destructive' });
         }
-        const col = (field: string) => colMap[field] || '';
-
-        const parsed: ParsedLineItem[] = rows.map((row, idx) => {
-          const costRaw = String(row[col('extendedCost')] ?? '');
-          const cost = parseFloat(costRaw.replace(/[^0-9.-]/g, '')) || 0;
-          const lineNo = Number(row[col('lineItemNo')]);
-          return {
-            id: `parsed-${idx}`,
-            lineItemNo: isNaN(lineNo) || lineNo === 0 ? idx + 1 : lineNo,
-            costGroup: String(row[col('costGroup')] || ''),
-            costItemName: String(row[col('costItemName')] || row[col('description')] || `Item ${idx + 1}`),
-            description: String(row[col('description')] || ''),
-            quantity: parseFloat(String(row[col('quantity')] ?? '').replace(/[^0-9.-]/g, '')) || 0,
-            unit: String(row[col('unit')] || 'Each'),
-            extendedCost: cost,
-            costType: String(row[col('costType')] || 'Labor'),
-            costCode: String(row[col('costCode')] || ''),
-          };
-        }).filter(item => item.costItemName || item.extendedCost > 0);
-
-        setParsedItems(parsed);
-        setSelectedItemIds(new Set(parsed.map(i => i.id)));
-        setShowParsed(true);
-      } catch (err) {
-        console.error('Failed to parse file:', err);
-        setParsedItems([]); setShowParsed(false);
+      } catch {
+        toast({ title: 'Parse error', description: 'Could not read the file.', variant: 'destructive' });
       }
     };
     reader.readAsArrayBuffer(file);
+    e.target.value = '';
   };
 
-  const selectedParsedItems = parsedItems.filter(i => selectedItemIds.has(i.id));
-
-  const toggleItem = (id: string) => {
-    setSelectedItemIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleAll = () => {
-    if (selectedItemIds.size === parsedItems.length) {
-      setSelectedItemIds(new Set());
-    } else {
-      setSelectedItemIds(new Set(parsedItems.map(i => i.id)));
-    }
-  };
+  const quickParsedTotal = useMemo(() => quickParsedItems.reduce((s, i) => s + i.extendedCost, 0), [quickParsedItems]);
 
   const handleCreateProject = async () => {
     if (!newName || !newAddress) return;
     setCreating(true);
     try {
-      const budgetTotal = selectedParsedItems.length > 0
-        ? selectedParsedItems.reduce((s, i) => s + i.extendedCost, 0)
-        : Number(newBudget) || 0;
+      const budgetTotal = quickParsedItems.length > 0 ? quickParsedTotal : Number(newBudget) || 0;
 
       const newProject = await createProject.mutateAsync({
         name: newName,
@@ -407,10 +331,10 @@ const ProjectPortal = () => {
         total_budget: budgetTotal,
       });
 
-      if (selectedParsedItems.length > 0) {
+      if (quickParsedItems.length > 0) {
         const batchName = uploadedFileName || `Budget ${new Date().toLocaleDateString()}`;
         await insertBudgetItems.mutateAsync(
-          selectedParsedItems.map(item => ({
+          quickParsedItems.map(item => ({
             project_id: newProject.id,
             line_item_no: item.lineItemNo,
             cost_group: item.costGroup,
@@ -427,10 +351,8 @@ const ProjectPortal = () => {
       }
 
       toast({ title: 'Project created!', description: `${newProject.name} has been saved.` });
-
-      // Reset form
       setNewName(''); setNewAddress(''); setNewBudget('');
-      setParsedItems([]); setShowParsed(false); setUploadedFileName('');
+      setQuickParsedItems([]); setUploadedFileName('');
       setView('list');
     } catch {
       toast({ title: 'Error', description: 'Failed to create project', variant: 'destructive' });
@@ -524,7 +446,6 @@ const ProjectPortal = () => {
                                 </div>
                               </div>
 
-                              {/* Assigned Managers Preview */}
                               {(assignedAdmins.length > 0 || assignedPMs.length > 0) && (
                                 <div className="flex flex-wrap gap-1 mb-3">
                                   {assignedAdmins.slice(0, 2).map(m => (
@@ -562,10 +483,10 @@ const ProjectPortal = () => {
             </motion.div>
           )}
 
-          {/* ===== CREATE PROJECT ===== */}
+          {/* ===== CREATE PROJECT (streamlined) ===== */}
           {view === 'create' && (
             <motion.div key="create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6 max-w-2xl">
-              <button onClick={() => { setView('list'); setParsedItems([]); setShowParsed(false); setUploadedFileName(''); }} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1">
+              <button onClick={() => { setView('list'); setQuickParsedItems([]); setUploadedFileName(''); }} className="text-muted-foreground text-sm hover:text-foreground transition-colors flex items-center gap-1">
                 <ArrowLeft className="w-4 h-4" /> Back to Projects
               </button>
 
@@ -581,74 +502,64 @@ const ProjectPortal = () => {
                   <Input id="project-address" placeholder="e.g. 7008 Beckett Dr., Austin TX" className="mt-1" value={newAddress} onChange={e => setNewAddress(e.target.value)} />
                 </div>
 
-                {/* Budget Upload */}
+                {/* Budget Upload — streamlined */}
                 <div className="space-y-3">
                   <Label className="font-display font-semibold">Upload Budget (Excel/CSV)</Label>
-                  <p className="text-xs text-muted-foreground">Upload your project budget spreadsheet and we'll automatically parse it into line items.</p>
+                  <p className="text-xs text-muted-foreground">Upload your JobTread export or any budget spreadsheet. All items will be imported automatically.</p>
                   <div className="relative">
-                    <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
-                      <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <input type="file" accept=".xlsx,.xls,.csv" onChange={handleCreateFileUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                    <div className="border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-primary/50 transition-colors">
+                      <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-1" />
                       <p className="font-body text-sm text-muted-foreground">
                         {uploadedFileName ? <span className="text-foreground font-medium">{uploadedFileName}</span> : 'Drag & drop or tap to upload'}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">.xlsx, .xls, or .csv</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Parsed Budget Items Preview */}
-                {showParsed && parsedItems.length > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                    <div className="flex items-center justify-between">
+                {/* Parsed summary (compact — no per-item selection) */}
+                {quickParsedItems.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="border border-border rounded-lg overflow-hidden">
+                    <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                        <p className="text-sm font-display font-semibold">{selectedItemIds.size} of {parsedItems.length} line items selected</p>
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                        <span className="font-display font-semibold text-sm">{quickParsedItems.length} line items detected</span>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={toggleAll} className="text-xs">
-                        {selectedItemIds.size === parsedItems.length ? 'Deselect All' : 'Select All'}
-                      </Button>
+                      <span className="font-display font-bold">${quickParsedTotal.toLocaleString()}</span>
                     </div>
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                        <table className="w-full text-sm">
-                          <thead className="sticky top-0 bg-muted">
-                            <tr>
-                              <th className="p-2 w-8"><Checkbox checked={selectedItemIds.size === parsedItems.length} onCheckedChange={toggleAll} /></th>
-                              <th className="text-left p-2 text-xs font-display">#</th>
-                              <th className="text-left p-2 text-xs font-display">Item</th>
-                              <th className="text-left p-2 text-xs font-display">Group</th>
-                              <th className="text-right p-2 text-xs font-display">Cost</th>
-                              <th className="text-left p-2 text-xs font-display">Type</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {parsedItems.map(item => {
-                              const isSelected = selectedItemIds.has(item.id);
-                              return (
-                                <tr key={item.id} className={`border-t border-border/50 cursor-pointer transition-colors ${isSelected ? '' : 'opacity-40'}`} onClick={() => toggleItem(item.id)}>
-                                  <td className="p-2" onClick={e => e.stopPropagation()}><Checkbox checked={isSelected} onCheckedChange={() => toggleItem(item.id)} /></td>
-                                  <td className="p-2 text-muted-foreground">{item.lineItemNo}</td>
-                                  <td className="p-2 font-body">{item.costItemName}</td>
-                                  <td className="p-2 text-muted-foreground text-xs">{item.costGroup}</td>
-                                  <td className="p-2 text-right font-display font-semibold">${item.extendedCost.toLocaleString()}</td>
-                                  <td className="p-2"><span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.costType}</span></td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="border-t border-border p-3 bg-muted/50 flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground font-body">Selected Total</span>
-                        <span className="font-display font-bold text-lg">${selectedParsedItems.reduce((s, i) => s + i.extendedCost, 0).toLocaleString()}</span>
-                      </div>
+                    <div className="p-3">
+                      {(() => {
+                        const types: Record<string, { count: number; total: number }> = {};
+                        quickParsedItems.forEach(i => {
+                          if (!types[i.costType]) types[i.costType] = { count: 0, total: 0 };
+                          types[i.costType].count++;
+                          types[i.costType].total += i.extendedCost;
+                        });
+                        return (
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(types).map(([type, info]) => (
+                              <span key={type} className="inline-flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1 rounded-full">
+                                <span className="font-medium">{type}</span>
+                                <span className="text-muted-foreground">{info.count} items</span>
+                                <span className="font-display font-semibold">${info.total.toLocaleString()}</span>
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                      <button
+                        type="button"
+                        onClick={() => { setQuickParsedItems([]); setUploadedFileName(''); }}
+                        className="text-xs text-muted-foreground hover:text-destructive mt-2 underline"
+                      >
+                        Remove file
+                      </button>
                     </div>
                   </motion.div>
                 )}
 
                 {/* Manual budget entry fallback */}
-                {!showParsed && (
+                {quickParsedItems.length === 0 && !uploadedFileName && (
                   <div>
                     <Label htmlFor="manual-budget" className="font-display font-semibold">Or Enter Total Budget Manually</Label>
                     <Input id="manual-budget" type="number" placeholder="e.g. 45000" className="mt-1" value={newBudget} onChange={e => setNewBudget(e.target.value)} />
@@ -703,11 +614,7 @@ const ProjectPortal = () => {
                 <div className="flex items-center gap-3">
                   {editingProject ? (
                     <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingProject(false)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setEditingProject(false)}>
                         <X className="w-4 h-4 mr-1" /> Cancel
                       </Button>
                       <Button
@@ -773,12 +680,9 @@ const ProjectPortal = () => {
               </div>
 
               {/* Financial Dashboard */}
-              <FinancialDashboard
-                projectId={selectedProject.id}
-                project={selectedProject}
-              />
+              <FinancialDashboard projectId={selectedProject.id} project={selectedProject} />
 
-              {/* Assigned Admins & Project Managers */}
+              {/* Team Assignment */}
               <div className="card-elevated p-5 space-y-5">
                 <h3 className="font-display font-semibold text-lg flex items-center gap-2">
                   <Shield className="w-5 h-5 text-muted-foreground" />
@@ -805,18 +709,10 @@ const ProjectPortal = () => {
                       return (
                         <button
                           key={member.id}
-                          onClick={() => {
-                            setSelectedMember(member);
-                            if (!isAssigned) setNewAssignStatus('invited');
-                            setMemberDetailOpen(true);
-                          }}
-                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                            isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-                          }`}
+                          onClick={() => { setSelectedMember(member); if (!isAssigned) setNewAssignStatus('invited'); setMemberDetailOpen(true); }}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'}`}
                         >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
-                            isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {member.name[0]}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -825,8 +721,7 @@ const ProjectPortal = () => {
                           </div>
                           {isAssigned && (
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
-                              <badge.icon className="w-3 h-3" />
-                              {badge.label}
+                              <badge.icon className="w-3 h-3" /> {badge.label}
                             </span>
                           )}
                         </button>
@@ -858,18 +753,10 @@ const ProjectPortal = () => {
                       return (
                         <button
                           key={member.id}
-                          onClick={() => {
-                            setSelectedMember(member);
-                            if (!isAssigned) setNewAssignStatus('invited');
-                            setMemberDetailOpen(true);
-                          }}
-                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                            isAssigned ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground/30'
-                          }`}
+                          onClick={() => { setSelectedMember(member); if (!isAssigned) setNewAssignStatus('invited'); setMemberDetailOpen(true); }}
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${isAssigned ? 'border-accent bg-accent/10' : 'border-border hover:border-muted-foreground/30'}`}
                         >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
-                            isAssigned ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'
-                          }`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${isAssigned ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground'}`}>
                             {member.name[0]}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -878,8 +765,7 @@ const ProjectPortal = () => {
                           </div>
                           {isAssigned && (
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
-                              <badge.icon className="w-3 h-3" />
-                              {badge.label}
+                              <badge.icon className="w-3 h-3" /> {badge.label}
                             </span>
                           )}
                         </button>
@@ -903,9 +789,7 @@ const ProjectPortal = () => {
                     <Plus className="w-3 h-3 mr-1" /> {t('projects.detail.inviteAndAdd')}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground font-body">
-                  {t('projects.detail.toggleSubsDesc')}
-                </p>
+                <p className="text-xs text-muted-foreground font-body">{t('projects.detail.toggleSubsDesc')}</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {teamMembers.filter(m => m.role === 'subcontractor').map(sub => {
                     const isAssigned = getProjectAssignments(selectedProject.id, 'subcontractor').some(a => a.id === sub.id);
@@ -915,18 +799,10 @@ const ProjectPortal = () => {
                     return (
                       <button
                         key={sub.id}
-                        onClick={() => {
-                          setSelectedMember(sub);
-                          if (!isAssigned) setNewAssignStatus('invited');
-                          setMemberDetailOpen(true);
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                          isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'
-                        }`}
+                        onClick={() => { setSelectedMember(sub); if (!isAssigned) setNewAssignStatus('invited'); setMemberDetailOpen(true); }}
+                        className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${isAssigned ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/30'}`}
                       >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${
-                          isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-display font-bold ${isAssigned ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
                           {sub.crew_name?.[0] || sub.name[0]}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -935,8 +811,7 @@ const ProjectPortal = () => {
                         </div>
                         {isAssigned && (
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${badge.className}`}>
-                            <badge.icon className="w-3 h-3" />
-                            {badge.label}
+                            <badge.icon className="w-3 h-3" /> {badge.label}
                           </span>
                         )}
                       </button>
@@ -987,7 +862,6 @@ const ProjectPortal = () => {
                     );
                   }
 
-                  // Get unique cost groups and their current draw categories
                   const costGroupMap = new Map<string, { total: number; drawCategory: string }>();
                   items.forEach(item => {
                     const group = item.cost_group || 'Ungrouped';
@@ -1004,7 +878,6 @@ const ProjectPortal = () => {
                     { value: 'exterior', label: 'Exterior (5%)' },
                   ];
 
-                  // Group items by batch_label
                   const batches = new Map<string, typeof items>();
                   items.forEach(item => {
                     const label = (item as any).batch_label || 'Original Budget';
@@ -1014,7 +887,6 @@ const ProjectPortal = () => {
 
                   const grandTotal = items.reduce((s, i) => s + Number(i.extended_cost), 0);
 
-                  // Build hierarchical tree from semicolon-separated cost_group
                   type SectionNode = {
                     name: string;
                     items: typeof items;
@@ -1035,14 +907,8 @@ const ProjectPortal = () => {
                       });
                       node.items.push(item);
                       node.total += Number(item.extended_cost);
-                      // propagate totals up
-                      let n2 = root;
-                      parts.forEach(part => {
-                        n2 = n2.children.get(part)!;
-                      });
                     });
 
-                    // Recalculate totals recursively
                     const calcTotal = (node: SectionNode): number => {
                       const childTotal = Array.from(node.children.values()).reduce((s, c) => s + calcTotal(c), 0);
                       node.total = node.items.reduce((s, i) => s + Number(i.extended_cost), 0) + childTotal;
@@ -1185,7 +1051,7 @@ const ProjectPortal = () => {
                           </div>
                         )}
                       </div>
-                      {Array.from(batches.entries()).map(([label, batchItems], idx) => (
+                      {Array.from(batches.entries()).map(([label, batchItems]) => (
                         <div key={label} className="border border-border rounded-lg overflow-hidden">
                           <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -1229,7 +1095,6 @@ const ProjectPortal = () => {
                         </div>
                       ))}
 
-                      {/* Grand Total across all batches */}
                       {batches.size > 1 && (
                         <div className="flex items-center justify-between p-4 bg-primary/5 border-2 border-primary/20 rounded-lg">
                           <span className="font-display font-bold text-lg">Combined Total ({items.length} items)</span>
@@ -1314,8 +1179,7 @@ const ProjectPortal = () => {
                     </div>
                     {isAssigned && (
                       <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 ${badge.className}`}>
-                        <badge.icon className="w-4 h-4" />
-                        {badge.label}
+                        <badge.icon className="w-4 h-4" /> {badge.label}
                       </span>
                     )}
                   </div>
@@ -1343,7 +1207,6 @@ const ProjectPortal = () => {
                     )}
                   </div>
 
-                  {/* Status Selector for assigned members */}
                   {isAssigned && (
                     <div className="space-y-2">
                       <Label className="font-display font-semibold text-sm">Assignment Status</Label>
@@ -1363,11 +1226,7 @@ const ProjectPortal = () => {
                                   toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
                                 }
                               }}
-                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
-                                isCurrent
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-border hover:border-muted-foreground/40'
-                              }`}
+                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${isCurrent ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/40'}`}
                             >
                               <b.icon className={`w-5 h-5 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`} />
                               <span className={`text-xs font-display font-medium capitalize ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -1380,7 +1239,6 @@ const ProjectPortal = () => {
                     </div>
                   )}
 
-                  {/* Status picker for NEW assignment */}
                   {!isAssigned && (
                     <div className="space-y-2">
                       <Label className="font-display font-semibold text-sm">Assign with Status</Label>
@@ -1392,11 +1250,7 @@ const ProjectPortal = () => {
                             <button
                               key={s}
                               onClick={() => setNewAssignStatus(s)}
-                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${
-                                isCurrent
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-border hover:border-muted-foreground/40'
-                              }`}
+                              className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all ${isCurrent ? 'border-primary bg-primary/5' : 'border-border hover:border-muted-foreground/40'}`}
                             >
                               <b.icon className={`w-5 h-5 ${isCurrent ? 'text-primary' : 'text-muted-foreground'}`} />
                               <span className={`text-xs font-display font-medium capitalize ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -1422,8 +1276,7 @@ const ProjectPortal = () => {
                     <>
                       {!confirmRemoveOpen ? (
                         <Button variant="outline" onClick={() => setConfirmRemoveOpen(true)} className="text-destructive hover:text-destructive">
-                          <X className="w-4 h-4 mr-1" />
-                          Remove from Project
+                          <X className="w-4 h-4 mr-1" /> Remove from Project
                         </Button>
                       ) : (
                         <div className="flex items-center gap-2 w-full">
@@ -1450,9 +1303,7 @@ const ProjectPortal = () => {
                         </Button>
                       )}
                       {!confirmRemoveOpen && status === 'active' && (
-                        <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>
-                          Close
-                        </Button>
+                        <Button variant="outline" onClick={() => setMemberDetailOpen(false)}>Close</Button>
                       )}
                     </>
                   ) : (
@@ -1486,7 +1337,6 @@ const ProjectPortal = () => {
           })()}
         </DialogContent>
       </Dialog>
-
     </>
   );
 };
