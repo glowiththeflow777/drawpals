@@ -374,35 +374,23 @@ const ProjectFinancials = () => {
     );
   };
 
-  // Group sub line items by subcontractor for Sub Budget view (extended_cost)
+  // Sub Budget Breakdown — same view as master budget, grouped by cost_group, showing extended_cost
   const renderSubBudgetBreakdown = () => {
-    const grouped = new Map<string, { items: any[]; subName: string }>();
-    allSubLineItems.forEach((item: any) => {
-      const key = item.sub_name + '|' + item.proposal_name;
-      if (!grouped.has(key)) grouped.set(key, { items: [], subName: item.sub_name });
-      grouped.get(key)!.items.push(item);
-    });
-
-    if (grouped.size === 0) {
+    if (allSubLineItems.length === 0) {
       return <p className="text-sm text-muted-foreground text-center py-6">No subcontractor budgets created yet.</p>;
     }
-
+    const groups = groupByCostGroup(allSubLineItems);
     return (
       <div className="space-y-4">
         <Accordion type="multiple" className="space-y-2">
-          {Array.from(grouped.entries()).map(([key, { items, subName }]) => {
-            const proposalName = items[0]?.proposal_name || 'Proposal';
-            const costTotal = items.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
+          {Object.entries(groups).map(([group, items]) => {
+            const groupTotal = items.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
             return (
-              <AccordionItem key={key} value={key} className="border border-border rounded-lg overflow-hidden">
+              <AccordionItem key={group} value={group} className="border border-border rounded-lg overflow-hidden">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                   <div className="flex items-center justify-between w-full pr-2">
-                    <div className="flex items-center gap-2">
-                      <HardHat className="w-4 h-4 text-amber-600" />
-                      <span className="font-display font-semibold">{subName}</span>
-                      <span className="text-xs text-muted-foreground">— {proposalName}</span>
-                    </div>
-                    <span className="font-display font-bold">${costTotal.toLocaleString()}</span>
+                    <span className="font-display font-semibold">{group}</span>
+                    <span className="font-display font-bold">${groupTotal.toLocaleString()}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-0 pb-0">
@@ -411,18 +399,27 @@ const ProjectFinancials = () => {
                       <TableRow>
                         <TableHead className="text-xs">#</TableHead>
                         <TableHead className="text-xs">Item</TableHead>
-                        <TableHead className="text-xs">Group</TableHead>
                         <TableHead className="text-xs">Type</TableHead>
-                        <TableHead className="text-xs text-right">Extended Cost</TableHead>
+                        <TableHead className="text-xs">Sub</TableHead>
+                        <TableHead className="text-xs text-right">Qty</TableHead>
+                        <TableHead className="text-xs text-right">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {items.map((item: any) => (
                         <TableRow key={item.id}>
                           <TableCell className="text-muted-foreground">{item.line_item_no}</TableCell>
-                          <TableCell className="text-sm font-medium">{item.cost_item_name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]">{item.cost_group}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{item.cost_type}</TableCell>
+                          <TableCell>
+                            <p className="font-medium text-sm">{item.cost_item_name}</p>
+                            {item.description && item.description !== item.cost_item_name && (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.sub_name}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">{Number(item.quantity)} {item.unit}</TableCell>
                           <TableCell className="text-right font-display font-semibold">${Number(item.extended_cost).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
@@ -441,37 +438,23 @@ const ProjectFinancials = () => {
     );
   };
 
-  // Group sub line items by subcontractor for Proposal view (contract_price)
+  // Proposal Breakdown — same view as master budget, grouped by cost_group, showing contract_price
   const renderProposalBreakdown = () => {
-    const grouped = new Map<string, { items: any[]; subName: string; bidPct: number }>();
-    allSubLineItems.forEach((item: any) => {
-      const key = item.sub_name + '|' + item.proposal_name;
-      if (!grouped.has(key)) grouped.set(key, { items: [], subName: item.sub_name, bidPct: item.bid_percentage });
-      grouped.get(key)!.items.push(item);
-    });
-
-    if (grouped.size === 0) {
+    if (allSubLineItems.length === 0) {
       return <p className="text-sm text-muted-foreground text-center py-6">No proposals created yet.</p>;
     }
-
+    const groups = groupByCostGroup(allSubLineItems);
     return (
       <div className="space-y-4">
         <Accordion type="multiple" className="space-y-2">
-          {Array.from(grouped.entries()).map(([key, { items, subName, bidPct }]) => {
-            const proposalName = items[0]?.proposal_name || 'Proposal';
-            const contractTotal = items.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
-            const costTotal = items.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
+          {Object.entries(groups).map(([group, items]) => {
+            const groupContractTotal = items.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
             return (
-              <AccordionItem key={key} value={key} className="border border-border rounded-lg overflow-hidden">
+              <AccordionItem key={group} value={group} className="border border-border rounded-lg overflow-hidden">
                 <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30">
                   <div className="flex items-center justify-between w-full pr-2">
-                    <div className="flex items-center gap-2">
-                      <ClipboardCheck className="w-4 h-4 text-violet-600" />
-                      <span className="font-display font-semibold">{subName}</span>
-                      <span className="text-xs text-muted-foreground">— {proposalName}</span>
-                      {bidPct !== 100 && <span className="text-xs font-display font-semibold text-primary">({bidPct}%)</span>}
-                    </div>
-                    <span className="font-display font-bold">${contractTotal.toLocaleString()}</span>
+                    <span className="font-display font-semibold">{group}</span>
+                    <span className="font-display font-bold">${groupContractTotal.toLocaleString()}</span>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="px-0 pb-0">
@@ -480,7 +463,8 @@ const ProjectFinancials = () => {
                       <TableRow>
                         <TableHead className="text-xs">#</TableHead>
                         <TableHead className="text-xs">Item</TableHead>
-                        <TableHead className="text-xs">Group</TableHead>
+                        <TableHead className="text-xs">Type</TableHead>
+                        <TableHead className="text-xs">Sub</TableHead>
                         <TableHead className="text-xs text-right">Cost</TableHead>
                         <TableHead className="text-xs text-right">Contract Price</TableHead>
                       </TableRow>
@@ -489,21 +473,22 @@ const ProjectFinancials = () => {
                       {items.map((item: any) => (
                         <TableRow key={item.id}>
                           <TableCell className="text-muted-foreground">{item.line_item_no}</TableCell>
-                          <TableCell className="text-sm font-medium">{item.cost_item_name}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground truncate max-w-[150px]">{item.cost_group}</TableCell>
+                          <TableCell>
+                            <p className="font-medium text-sm">{item.cost_item_name}</p>
+                            {item.description && item.description !== item.cost_item_name && (
+                              <p className="text-xs text-muted-foreground">{item.description}</p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">{item.cost_type}</span>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{item.sub_name}</TableCell>
                           <TableCell className="text-right text-muted-foreground">${Number(item.extended_cost).toLocaleString()}</TableCell>
                           <TableCell className="text-right font-display font-semibold">${Number(item.contract_price || item.extended_cost).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="border-t border-border p-3 bg-muted/50 flex justify-between text-sm">
-                    <span className="text-muted-foreground">Totals</span>
-                    <div className="flex gap-4">
-                      <span className="text-muted-foreground">Cost: ${costTotal.toLocaleString()}</span>
-                      <span className="font-display font-bold">Contract: ${contractTotal.toLocaleString()}</span>
-                    </div>
-                  </div>
                 </AccordionContent>
               </AccordionItem>
             );
@@ -518,9 +503,9 @@ const ProjectFinancials = () => {
   };
 
   const sections: { key: Section; title: string; icon: React.ElementType; color: string; render: () => React.ReactNode }[] = [
-    { key: 'budget', title: 'Total Budget Breakdown', icon: Wallet, color: 'text-primary', render: renderBudgetSection },
-    { key: 'sub_budget', title: 'Sub Budget Breakdown', icon: HardHat, color: 'text-amber-600', render: renderSubBudgetBreakdown },
-    { key: 'proposals', title: 'Proposal Breakdown', icon: ClipboardCheck, color: 'text-violet-600', render: renderProposalBreakdown },
+    { key: 'budget', title: 'Master Budget', icon: Wallet, color: 'text-primary', render: renderBudgetSection },
+    { key: 'sub_budget', title: 'Subcontractor Budget', icon: HardHat, color: 'text-amber-600', render: renderSubBudgetBreakdown },
+    { key: 'proposals', title: 'Subcontractor Proposals', icon: ClipboardCheck, color: 'text-violet-600', render: renderProposalBreakdown },
     { key: 'invoiced', title: 'Invoiced Breakdown', icon: FileText, color: 'text-amber-600', render: () => renderInvoiceSection() },
     { key: 'approved', title: 'Approved Breakdown', icon: CheckCircle2, color: 'text-emerald-600', render: () => renderInvoiceSection('approved') },
     { key: 'remaining', title: 'Remaining Budget', icon: TrendingUp, color: 'text-sky-600', render: renderRemainingSection },
