@@ -146,6 +146,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     setBidPercentage(60);
     setSelectedIds(new Set());
     setOverrides(new Map());
+    setSearchQuery('');
     setPendingBudgetId(null);
     setPendingTeamMemberId(null);
   };
