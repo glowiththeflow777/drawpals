@@ -503,9 +503,9 @@ const ProjectFinancials = () => {
   };
 
   const sections: { key: Section; title: string; icon: React.ElementType; color: string; render: () => React.ReactNode }[] = [
-    { key: 'budget', title: 'Total Budget Breakdown', icon: Wallet, color: 'text-primary', render: renderBudgetSection },
-    { key: 'sub_budget', title: 'Sub Budget Breakdown', icon: HardHat, color: 'text-amber-600', render: renderSubBudgetBreakdown },
-    { key: 'proposals', title: 'Proposal Breakdown', icon: ClipboardCheck, color: 'text-violet-600', render: renderProposalBreakdown },
+    { key: 'budget', title: 'Master Budget', icon: Wallet, color: 'text-primary', render: renderBudgetSection },
+    { key: 'sub_budget', title: 'Subcontractor Budget', icon: HardHat, color: 'text-amber-600', render: renderSubBudgetBreakdown },
+    { key: 'proposals', title: 'Subcontractor Proposals', icon: ClipboardCheck, color: 'text-violet-600', render: renderProposalBreakdown },
     { key: 'invoiced', title: 'Invoiced Breakdown', icon: FileText, color: 'text-amber-600', render: () => renderInvoiceSection() },
     { key: 'approved', title: 'Approved Breakdown', icon: CheckCircle2, color: 'text-emerald-600', render: () => renderInvoiceSection('approved') },
     { key: 'remaining', title: 'Remaining Budget', icon: TrendingUp, color: 'text-sky-600', render: renderRemainingSection },
