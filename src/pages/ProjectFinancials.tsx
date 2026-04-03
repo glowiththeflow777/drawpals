@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, DollarSign, FileText, CheckCircle2, Wallet, TrendingUp, ChevronRight, ChevronDown, Layers, PiggyBank, Award, Building2, UserCheck, Calculator } from 'lucide-react';
+import { ArrowLeft, DollarSign, FileText, CheckCircle2, Wallet, TrendingUp, ChevronRight, ChevronDown, Layers, PiggyBank, Award, Building2, UserCheck, Calculator, HardHat, ClipboardCheck } from 'lucide-react';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useProjects, useBudgetLineItems, useBillingHistory, useInvoiceLineItemsDetailed, useInvoices, usePmDrawPaymentsForProject, useSubBidTotal } from '@/hooks/useProjects';
+import { useProjects, useBudgetLineItems, useBillingHistory, useInvoiceLineItemsDetailed, useInvoices, usePmDrawPaymentsForProject, useSubBidTotal, useSubBudgets, useSubBudgetLineItems } from '@/hooks/useProjects';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
-type Section = 'budget' | 'invoiced' | 'approved' | 'remaining';
+type Section = 'budget' | 'invoiced' | 'approved' | 'remaining' | 'sub_budget' | 'proposals';
 
 const ProjectFinancials = () => {
   const { projectId } = useParams<{ projectId: string }>();
