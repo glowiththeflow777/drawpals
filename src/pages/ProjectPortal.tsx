@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as XLSX from 'xlsx';
 import { Plus, Upload, Users, FileSpreadsheet, ChevronRight, ChevronDown, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Shield, UserCog, Loader2, Pencil, X, Save, Send, HardHat, MailCheck, Clock, RefreshCw, Trash2 } from 'lucide-react';
 import ProjectDocuments from '@/components/ProjectDocuments';
+import BudgetImport from '@/components/BudgetImport';
 import FinancialDashboard from '@/components/FinancialDashboard';
 import SubcontractorBudgets from '@/components/SubcontractorBudgets';
 import { Checkbox } from '@/components/ui/checkbox';
