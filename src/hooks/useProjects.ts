@@ -101,7 +101,10 @@ export function useInsertBudgetLineItems() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['budget_line_items'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget_line_items'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
   });
 }
 
