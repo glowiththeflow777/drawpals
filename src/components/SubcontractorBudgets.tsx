@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useSubBudgets, useSubBudgetLineItems, useDeleteSubBudget } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
@@ -10,12 +11,14 @@ import SubProposalBuilder from './SubProposalBuilder';
 
 interface SubcontractorBudgetsProps {
   projectId: string;
+  projectName: string;
   assignedMembers: DbTeamMember[];
   currentUserId: string;
 }
 
 const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
   projectId,
+  projectName,
   assignedMembers,
   currentUserId,
 }) => {
@@ -58,6 +61,7 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                     isExpanded={viewingBudgetId === sb.id}
                     onToggle={() => setViewingBudgetId(prev => prev === sb.id ? null : sb.id)}
                     projectId={projectId}
+                    projectName={projectName}
                   />
                 ))}
               </div>
@@ -77,14 +81,21 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
   );
 };
 
+// Helper to build a clean filename
+function buildFileName(projectName: string, subName: string, proposalLabel: string) {
+  return `${projectName} - ${subName} - ${proposalLabel}`.replace(/[/\\?%*:|"<>]/g, '_');
+}
+
 // Sub-component to show individual proposal with expandable line items
 const SubBudgetRow: React.FC<{
   subBudget: any;
   isExpanded: boolean;
   onToggle: () => void;
   projectId: string;
-}> = ({ subBudget, isExpanded, onToggle, projectId }) => {
-  const { data: lineItems = [] } = useSubBudgetLineItems(isExpanded ? subBudget.id : undefined);
+  projectName: string;
+}> = ({ subBudget, isExpanded, onToggle, projectId, projectName }) => {
+  // Always fetch line items so we can show the total even when collapsed
+  const { data: lineItems = [] } = useSubBudgetLineItems(subBudget.id);
   const { toast } = useToast();
   const deleteSubBudget = useDeleteSubBudget();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -92,10 +103,12 @@ const SubBudgetRow: React.FC<{
   const contractTotal = lineItems.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
   const costTotal = lineItems.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
   const proposalLabel = subBudget.proposal_name || subBudget.file_name || 'Proposal';
+  const subName = sub?.crew_name || sub?.name || 'Unknown';
+  const fileName = buildFileName(projectName, subName, proposalLabel);
 
-  const handleDownload = () => {
+  const handleDownloadCSV = () => {
     if (lineItems.length === 0) {
-      toast({ title: 'No data', description: 'Expand the proposal first to load line items.' });
+      toast({ title: 'No data', description: 'No line items found for this proposal.' });
       return;
     }
     const headers = ['#', 'Cost Item Name', 'Cost Group', 'Cost Code', 'Cost Type', 'Quantity', 'Unit', 'Cost', 'Contract Price'];
@@ -112,18 +125,81 @@ const SubBudgetRow: React.FC<{
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${proposalLabel.replace(/[^a-zA-Z0-9]/g, '_')}_${sub?.name || 'sub'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(blob, `${fileName}.csv`);
+  };
+
+  const handleDownloadPDF = () => {
+    if (lineItems.length === 0) {
+      toast({ title: 'No data', description: 'No line items found for this proposal.' });
+      return;
+    }
+
+    // Build a print-friendly HTML document and trigger print-to-PDF
+    const htmlRows = lineItems.map((item: any) => `
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.line_item_no}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_item_name || ''}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_group || ''}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_code || ''}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_type || ''}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.quantity}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.unit || ''}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:12px">$${Number(item.extended_cost).toLocaleString()}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-size:12px">$${Number(item.contract_price || item.extended_cost).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html><head>
+        <title>${fileName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
+          h1 { font-size: 20px; margin-bottom: 4px; }
+          .meta { color: #666; font-size: 13px; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; }
+          th { padding: 8px; border-bottom: 2px solid #333; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
+          th:nth-child(6), th:nth-child(8), th:nth-child(9) { text-align: right; }
+          .totals { margin-top: 16px; text-align: right; font-size: 14px; }
+          .totals .label { color: #666; }
+          .totals .value { font-weight: 700; margin-left: 8px; }
+          @media print { body { margin: 20px; } }
+        </style>
+      </head><body>
+        <h1>${proposalLabel}</h1>
+        <div class="meta">
+          <strong>Project:</strong> ${projectName} &nbsp;|&nbsp;
+          <strong>Subcontractor:</strong> ${subName}
+          ${subBudget.bid_percentage && subBudget.bid_percentage !== 100 ? ` &nbsp;|&nbsp; <strong>Bid %:</strong> ${subBudget.bid_percentage}%` : ''}
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Cost Item</th><th>Group</th><th>Code</th><th>Type</th><th style="text-align:center">Qty</th><th>Unit</th><th style="text-align:right">Cost</th><th style="text-align:right">Contract</th>
+            </tr>
+          </thead>
+          <tbody>${htmlRows}</tbody>
+        </table>
+        <div class="totals">
+          <span class="label">Total Cost:</span><span class="value">$${costTotal.toLocaleString()}</span>
+          &nbsp;&nbsp;&nbsp;
+          <span class="label">Total Contract:</span><span class="value">$${contractTotal.toLocaleString()}</span>
+        </div>
+        <script>window.onload=function(){window.print()}</script>
+      </body></html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
   };
 
   const handleDelete = async () => {
     try {
       await deleteSubBudget.mutateAsync({ subBudgetId: subBudget.id, projectId });
-      toast({ title: 'Proposal deleted', description: `Proposal for ${sub?.name || 'team member'} has been removed.` });
+      toast({ title: 'Proposal deleted', description: `Proposal for ${subName} has been removed.` });
       setConfirmDelete(false);
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -138,7 +214,7 @@ const SubBudgetRow: React.FC<{
             {sub?.name?.[0] || '?'}
           </div>
           <div>
-            <p className="font-display font-medium text-sm">{sub?.crew_name || sub?.name || 'Unknown'}</p>
+            <p className="font-display font-medium text-sm">{subName}</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <FileSpreadsheet className="w-3 h-3" />
               {proposalLabel}
@@ -149,8 +225,8 @@ const SubBudgetRow: React.FC<{
           </div>
         </button>
         <div className="flex items-center gap-2">
-          <span className="font-display font-semibold text-sm">
-            {isExpanded ? `$${contractTotal.toLocaleString()}` : ''}
+          <span className="font-display font-semibold text-sm text-primary">
+            ${contractTotal.toLocaleString()}
           </span>
           {confirmDelete ? (
             <div className="flex items-center gap-1">
@@ -161,9 +237,21 @@ const SubBudgetRow: React.FC<{
             </div>
           ) : (
             <>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={handleDownload} title="Download CSV">
-                <Download className="w-3.5 h-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Download">
+                    <Download className="w-3.5 h-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleDownloadCSV} className="text-xs gap-2">
+                    <FileSpreadsheet className="w-3.5 h-3.5" /> Download CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadPDF} className="text-xs gap-2">
+                    <FileText className="w-3.5 h-3.5" /> Download PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
@@ -215,5 +303,14 @@ const SubBudgetRow: React.FC<{
     </div>
   );
 };
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default SubcontractorBudgets;
