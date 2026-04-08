@@ -52,12 +52,12 @@ function parseJobTreadCSV(rows: Record<string, any>[]): ParsedRow[] {
       costGroup: String(row['Cost Group'] || ''),
       costItemName: String(row['Cost Item Name'] || ''),
       description: String(row['Description'] || ''),
-      quantity: parseCurrency(row['Quantity']),
+      quantity: parseCurrency(row['Quantity']) || 1,
       unit: String(row['Unit'] || 'Each'),
-      extendedCost: parseCurrency(row['Extended Cost']),
-      extendedPrice: parseCurrency(row['Extended Price']),
+      extendedCost: parseCurrency(row['Cost To Complete']),
+      extendedPrice: parseCurrency(row['Approved Price']),
       costType: String(row['Cost Type'] || 'Labor'),
-      costCode: '',
+      costCode: String(row['Cost Code'] || ''),
     }));
 }
 
