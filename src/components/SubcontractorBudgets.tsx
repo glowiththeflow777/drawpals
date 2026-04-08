@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet } from 'lucide-react';
+import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
@@ -93,6 +93,33 @@ const SubBudgetRow: React.FC<{
   const costTotal = lineItems.reduce((s: number, i: any) => s + Number(i.extended_cost), 0);
   const proposalLabel = subBudget.proposal_name || subBudget.file_name || 'Proposal';
 
+  const handleDownload = () => {
+    if (lineItems.length === 0) {
+      toast({ title: 'No data', description: 'Expand the proposal first to load line items.' });
+      return;
+    }
+    const headers = ['#', 'Cost Item Name', 'Cost Group', 'Cost Code', 'Cost Type', 'Quantity', 'Unit', 'Cost', 'Contract Price'];
+    const rows = lineItems.map((item: any) => [
+      item.line_item_no,
+      `"${(item.cost_item_name || '').replace(/"/g, '""')}"`,
+      `"${(item.cost_group || '').replace(/"/g, '""')}"`,
+      `"${(item.cost_code || '').replace(/"/g, '""')}"`,
+      `"${(item.cost_type || '').replace(/"/g, '""')}"`,
+      item.quantity,
+      `"${(item.unit || '').replace(/"/g, '""')}"`,
+      Number(item.extended_cost),
+      Number(item.contract_price || item.extended_cost),
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${proposalLabel.replace(/[^a-zA-Z0-9]/g, '_')}_${sub?.name || 'sub'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDelete = async () => {
     try {
       await deleteSubBudget.mutateAsync({ subBudgetId: subBudget.id, projectId });
@@ -133,9 +160,14 @@ const SubBudgetRow: React.FC<{
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             </div>
           ) : (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={handleDownload} title="Download CSV">
+                <Download className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </>
           )}
           <button onClick={onToggle}>
             {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
