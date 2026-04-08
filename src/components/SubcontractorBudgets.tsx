@@ -160,12 +160,14 @@ const SubBudgetRow: React.FC<{
               <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             </div>
           ) : (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={handleDownload} title="Download CSV">
-              <Download className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+            <>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={handleDownload} title="Download CSV">
+                <Download className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDelete(true)}>
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </>
           )}
           <button onClick={onToggle}>
             {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
