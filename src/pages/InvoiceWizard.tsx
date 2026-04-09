@@ -102,6 +102,8 @@ const InvoiceWizard = () => {
   const [creatingNewSub, setCreatingNewSub] = useState(false);
   const [newSubForm, setNewSubForm] = useState({ name: '', email: '', phone: '', crew_name: '' });
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [searchQuery3, setSearchQuery3] = useState('');
+  const [collapsedInvoiceTypes, setCollapsedInvoiceTypes] = useState<Set<string>>(new Set());
 
   const project = dbProjects.find(p => p.id === projectId);
 
