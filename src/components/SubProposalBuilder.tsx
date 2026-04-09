@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus, Search, AlertTriangle, Pencil } from 'lucide-react';
+import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus, Search, AlertTriangle, Pencil, ChevronDown, ChevronRight, Home, TreePine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +43,23 @@ interface NewSubDetails {
   notes: string;
 }
 
+// Unique key for matching master ↔ sub items
+function itemKey(item: { cost_item_name: string; cost_group: string; line_item_no: number }) {
+  return `${item.line_item_no}|||${item.cost_item_name}|||${item.cost_group}`;
+}
+
+const DRAW_CATEGORY_CONFIG = {
+  'interior-buildout': { label: 'Interior', icon: Home, color: 'text-indigo-600', bgColor: 'bg-indigo-500/10 border-indigo-500/20' },
+  'exterior': { label: 'Exterior', icon: TreePine, color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
+  '': { label: 'Other', icon: Package, color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' },
+} as const;
+
+const COST_TYPE_CONFIG: Record<string, { icon: typeof Hammer; label: string; color: string; bgColor: string }> = {
+  Labor: { icon: Hammer, label: 'Labor', color: 'text-blue-600', bgColor: 'bg-blue-500/10 border-blue-500/20' },
+  Subcontractor: { icon: HardHat, label: 'Subcontractor', color: 'text-amber-600', bgColor: 'bg-amber-500/10 border-amber-500/20' },
+  Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
+};
+
 const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   open,
   onOpenChange,
@@ -74,6 +91,26 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [savingDetails, setSavingDetails] = useState(false);
   const [pendingBudgetId, setPendingBudgetId] = useState<string | null>(null);
   const [pendingTeamMemberId, setPendingTeamMemberId] = useState<string | null>(null);
+  // Collapsed sections: draw categories
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  // Collapsed cost type sections within a category
+  const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
+
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
+
+  const toggleTypeCollapse = (key: string) => {
+    setCollapsedTypes(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   // Populate fields when editing
   useEffect(() => {
@@ -83,20 +120,15 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       setBidPercentage(editData.bid_percentage || 60);
       setIsNewSub(false);
 
-      // Find which master budget items match by cost_item_name + cost_group
-      const editItemKeys = new Set(editData.lineItems.map((li: any) =>
-        `${li.cost_item_name}|||${li.cost_group}`
-      ));
+      const editItemKeys = new Set(editData.lineItems.map((li: any) => itemKey(li)));
       const matchedIds = new Set<string>();
       const priceOverrides = new Map<string, number>();
 
       masterItems.forEach(mi => {
-        const key = `${mi.cost_item_name}|||${mi.cost_group}`;
+        const key = itemKey(mi);
         if (editItemKeys.has(key)) {
           matchedIds.add(mi.id);
-          const editItem = editData.lineItems.find((li: any) =>
-            li.cost_item_name === mi.cost_item_name && li.cost_group === mi.cost_group
-          );
+          const editItem = editData.lineItems.find((li: any) => itemKey(li) === key);
           if (editItem) {
             priceOverrides.set(mi.id, Number(editItem.contract_price));
           }
@@ -107,17 +139,14 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     }
   }, [editData, open, masterItems]);
 
-  // Build a map of master item IDs that are already assigned in OTHER proposals
+  // Build a map of master item IDs already assigned in OTHER proposals
   const assignedItemMap = useMemo(() => {
     const map = new Map<string, { subName: string; proposalName: string; subBudgetId: string }>();
-    // Match assigned items back to master items by cost_item_name + cost_group
     allAssignedItems.forEach((item: any) => {
-      // Skip items from the proposal being edited
       if (editData && item.sub_budget_id === editData.id) return;
 
-      const matchingMaster = masterItems.find(mi =>
-        mi.cost_item_name === item.cost_item_name && mi.cost_group === item.cost_group
-      );
+      // Match using the composite key
+      const matchingMaster = masterItems.find(mi => itemKey(mi) === itemKey(item));
       if (matchingMaster) {
         const budget = item._budget;
         const subName = budget?.team_members?.crew_name || budget?.team_members?.name || 'Unknown';
@@ -128,7 +157,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     return map;
   }, [allAssignedItems, masterItems, editData]);
 
-  // Auto-generate proposal name from selected items' cost groups
+  // Auto-generate proposal name
   const autoProposalName = useMemo(() => {
     if (selectedIds.size === 0) return '';
     const groups = new Set<string>();
@@ -144,15 +173,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     return arr.slice(0, 2).join(', ') + ` +${arr.length - 2} more`;
   }, [selectedIds, masterItems]);
 
-  // Group master items by cost type → cost group
-  const costTypeSections = useMemo(() => {
-    const typeOrder = ['Labor', 'Subcontractor', 'Materials'];
-    const typeConfig: Record<string, { icon: typeof Hammer; label: string; color: string; bgColor: string }> = {
-      Labor: { icon: Hammer, label: 'Labor', color: 'text-blue-600', bgColor: 'bg-blue-500/10 border-blue-500/20' },
-      Subcontractor: { icon: HardHat, label: 'Subcontractor', color: 'text-amber-600', bgColor: 'bg-amber-500/10 border-amber-500/20' },
-      Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
-    };
-
+  // Group items: draw_category → cost_type → cost_group
+  const categorySections = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const filtered = q
       ? masterItems.filter(i =>
@@ -160,36 +182,71 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
           i.description.toLowerCase().includes(q) ||
           i.cost_group.toLowerCase().includes(q) ||
           i.cost_code.toLowerCase().includes(q) ||
-          i.cost_type.toLowerCase().includes(q))
+          i.cost_type.toLowerCase().includes(q) ||
+          i.draw_category.toLowerCase().includes(q))
       : masterItems;
 
-    const sections: { type: string; config: typeof typeConfig[string]; groups: Map<string, typeof masterItems> }[] = [];
+    const catOrder = ['interior-buildout', 'exterior', ''];
+    const typeOrder = ['Labor', 'Subcontractor', 'Materials'];
 
-    typeOrder.forEach(type => {
-      const typeItems = filtered.filter(i => (i.cost_type || 'Labor') === type);
-      if (typeItems.length === 0) return;
-      const groups = new Map<string, typeof masterItems>();
-      typeItems.forEach(item => {
-        const group = item.cost_group || 'Ungrouped';
-        if (!groups.has(group)) groups.set(group, []);
-        groups.get(group)!.push(item);
+    const result: {
+      category: string;
+      catConfig: typeof DRAW_CATEGORY_CONFIG[keyof typeof DRAW_CATEGORY_CONFIG];
+      items: typeof masterItems;
+      typeSections: {
+        type: string;
+        typeConfig: typeof COST_TYPE_CONFIG[string];
+        groups: Map<string, typeof masterItems>;
+        allItems: typeof masterItems;
+      }[];
+    }[] = [];
+
+    catOrder.forEach(cat => {
+      const catItems = filtered.filter(i => (i.draw_category || '') === cat);
+      if (catItems.length === 0) return;
+
+      const catConf = DRAW_CATEGORY_CONFIG[cat as keyof typeof DRAW_CATEGORY_CONFIG] || DRAW_CATEGORY_CONFIG[''];
+
+      const typeSections: typeof result[0]['typeSections'] = [];
+      typeOrder.forEach(type => {
+        const typeItems = catItems.filter(i => (i.cost_type || 'Labor') === type);
+        if (typeItems.length === 0) return;
+        const groups = new Map<string, typeof masterItems>();
+        typeItems.forEach(item => {
+          const group = item.cost_group || 'Ungrouped';
+          if (!groups.has(group)) groups.set(group, []);
+          groups.get(group)!.push(item);
+        });
+        typeSections.push({
+          type,
+          typeConfig: COST_TYPE_CONFIG[type] || COST_TYPE_CONFIG['Labor'],
+          groups,
+          allItems: typeItems,
+        });
       });
-      sections.push({ type, config: typeConfig[type] || typeConfig['Labor'], groups });
+
+      // Other types
+      const knownTypes = new Set(typeOrder);
+      const otherItems = catItems.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
+      if (otherItems.length > 0) {
+        const groups = new Map<string, typeof masterItems>();
+        otherItems.forEach(item => {
+          const group = item.cost_group || 'Ungrouped';
+          if (!groups.has(group)) groups.set(group, []);
+          groups.get(group)!.push(item);
+        });
+        typeSections.push({
+          type: 'Other',
+          typeConfig: { icon: Package, label: 'Other', color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' },
+          groups,
+          allItems: otherItems,
+        });
+      }
+
+      result.push({ category: cat, catConfig: catConf, items: catItems, typeSections });
     });
 
-    const knownTypes = new Set(typeOrder);
-    const otherItems = filtered.filter(i => !knownTypes.has(i.cost_type || 'Labor'));
-    if (otherItems.length > 0) {
-      const groups = new Map<string, typeof masterItems>();
-      otherItems.forEach(item => {
-        const group = item.cost_group || 'Ungrouped';
-        if (!groups.has(group)) groups.set(group, []);
-        groups.get(group)!.push(item);
-      });
-      sections.push({ type: 'Other', config: { icon: Package, label: 'Other', color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' }, groups });
-    }
-
-    return sections;
+    return result;
   }, [masterItems, searchQuery]);
 
   const getContractPrice = (item: typeof masterItems[0]) => {
@@ -203,33 +260,42 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const toggleItem = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
 
   const toggleGroup = (items: typeof masterItems) => {
-    const allSelected = items.every(i => selectedIds.has(i.id));
+    const unassignedItems = items.filter(i => !assignedItemMap.has(i.id));
+    const allSelected = unassignedItems.every(i => selectedIds.has(i.id));
     setSelectedIds(prev => {
       const next = new Set(prev);
-      items.forEach(i => {
-        if (allSelected) next.delete(i.id);
-        else next.add(i.id);
+      unassignedItems.forEach(i => {
+        if (allSelected) next.delete(i.id); else next.add(i.id);
       });
       return next;
     });
   };
 
-  // Bulk select all items of a cost type
-  const toggleAllOfType = (type: string) => {
-    const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
-    const allSelected = typeItems.every(i => selectedIds.has(i.id));
+  const toggleAllOfType = (categoryItems: typeof masterItems) => {
+    const unassignedItems = categoryItems.filter(i => !assignedItemMap.has(i.id));
+    const allSelected = unassignedItems.every(i => selectedIds.has(i.id));
     setSelectedIds(prev => {
       const next = new Set(prev);
-      typeItems.forEach(i => {
-        if (allSelected) next.delete(i.id);
-        else next.add(i.id);
+      unassignedItems.forEach(i => {
+        if (allSelected) next.delete(i.id); else next.add(i.id);
+      });
+      return next;
+    });
+  };
+
+  const toggleAllOfCategory = (items: typeof masterItems) => {
+    const unassignedItems = items.filter(i => !assignedItemMap.has(i.id));
+    const allSelected = unassignedItems.every(i => selectedIds.has(i.id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      unassignedItems.forEach(i => {
+        if (allSelected) next.delete(i.id); else next.add(i.id);
       });
       return next;
     });
@@ -246,70 +312,43 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     setSearchQuery('');
     setPendingBudgetId(null);
     setPendingTeamMemberId(null);
+    setCollapsedCategories(new Set());
+    setCollapsedTypes(new Set());
   };
 
   const handleSubChange = (val: string) => {
-    if (val === '__new__') {
-      setIsNewSub(true);
-      setSelectedSubId('');
-    } else {
-      setIsNewSub(false);
-      setSelectedSubId(val);
-    }
+    if (val === '__new__') { setIsNewSub(true); setSelectedSubId(''); }
+    else { setIsNewSub(false); setSelectedSubId(val); }
   };
 
   const createTeamMemberAndProposal = async (): Promise<{ teamMemberId: string; budgetId: string }> => {
     const { data: tm, error: tmErr } = await supabase
       .from('team_members')
       .insert({ name: newSubName.trim(), email: '', role: 'subcontractor' as any })
-      .select()
-      .single();
+      .select().single();
     if (tmErr) throw tmErr;
-
-    const teamMemberId = tm.id;
-
-    await supabase
-      .from('project_assignments')
-      .insert({ project_id: projectId, team_member_id: teamMemberId });
-
+    await supabase.from('project_assignments').insert({ project_id: projectId, team_member_id: tm.id });
     const { data: budget, error: bErr } = await supabase
       .from('sub_budgets' as any)
-      .insert({
-        project_id: projectId,
-        team_member_id: teamMemberId,
-        uploaded_by: currentUserId,
-        file_name: proposalName || 'Proposal',
-        proposal_name: proposalName,
-        bid_percentage: bidPercentage,
-      })
-      .select()
-      .single();
+      .insert({ project_id: projectId, team_member_id: tm.id, uploaded_by: currentUserId, file_name: proposalName || 'Proposal', proposal_name: proposalName, bid_percentage: bidPercentage })
+      .select().single();
     if (bErr) throw bErr;
-
-    return { teamMemberId, budgetId: (budget as any).id };
+    return { teamMemberId: tm.id, budgetId: (budget as any).id };
   };
 
   const createProposalForExisting = async (): Promise<string> => {
     const { data: budget, error: bErr } = await supabase
       .from('sub_budgets' as any)
-      .insert({
-        project_id: projectId,
-        team_member_id: selectedSubId,
-        uploaded_by: currentUserId,
-        file_name: proposalName || 'Proposal',
-        proposal_name: proposalName,
-        bid_percentage: bidPercentage,
-      })
-      .select()
-      .single();
+      .insert({ project_id: projectId, team_member_id: selectedSubId, uploaded_by: currentUserId, file_name: proposalName || 'Proposal', proposal_name: proposalName, bid_percentage: bidPercentage })
+      .select().single();
     if (bErr) throw bErr;
     return (budget as any).id;
   };
 
-  const buildLineItemRows = (budgetId: string) => {
-    return selectedItems.map((item, idx) => ({
+  const buildLineItemRows = (budgetId: string) =>
+    selectedItems.map((item, idx) => ({
       sub_budget_id: budgetId,
-      line_item_no: idx + 1,
+      line_item_no: item.line_item_no,
       cost_group: item.cost_group,
       cost_item_name: item.cost_item_name,
       description: item.description,
@@ -321,7 +360,6 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       batch_label: proposalName || 'Proposal',
       contract_price: getContractPrice(item),
     }));
-  };
 
   const insertLineItems = async (budgetId: string) => {
     const rows = buildLineItemRows(budgetId);
@@ -339,10 +377,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   };
 
   const handleSave = async () => {
-    if (isEditMode) {
-      await handleUpdate();
-      return;
-    }
+    if (isEditMode) { await handleUpdate(); return; }
     if ((!selectedSubId && !isNewSub) || selectedIds.size === 0) return;
     if (isNewSub && !newSubName.trim()) return;
     setSaving(true);
@@ -352,72 +387,43 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
         await insertLineItems(budgetId);
         setPendingBudgetId(budgetId);
         setPendingTeamMemberId(teamMemberId);
-        setNewSubDetails({
-          name: newSubName.trim(),
-          email: '', phone: '', crewName: '', companyName: '', location: '', specialties: '', notes: '',
-        });
+        setNewSubDetails({ name: newSubName.trim(), email: '', phone: '', crewName: '', companyName: '', location: '', specialties: '', notes: '' });
         invalidateCaches();
-        toast({
-          title: 'Proposal created',
-          description: `${selectedItems.length} items assigned — now add their details.`,
-        });
+        toast({ title: 'Proposal created', description: `${selectedItems.length} items assigned — now add their details.` });
         onOpenChange(false);
         setShowDetailsDialog(true);
       } else {
         const budgetId = await createProposalForExisting();
         await insertLineItems(budgetId);
-        const subName = assignedSubs.find(s => s.id === selectedSubId)?.crew_name ||
-                        assignedSubs.find(s => s.id === selectedSubId)?.name || 'team member';
-        toast({
-          title: 'Proposal created',
-          description: `${selectedItems.length} items assigned to ${subName} — $${proposalTotal.toLocaleString()} total.`,
-        });
+        const subName = assignedSubs.find(s => s.id === selectedSubId)?.crew_name || assignedSubs.find(s => s.id === selectedSubId)?.name || 'team member';
+        toast({ title: 'Proposal created', description: `${selectedItems.length} items assigned to ${subName} — $${proposalTotal.toLocaleString()} total.` });
         invalidateCaches();
         reset();
         onOpenChange(false);
       }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleUpdate = async () => {
     if (!editData || selectedIds.size === 0) return;
     setSaving(true);
     try {
-      // Update sub_budget metadata
-      await supabase
-        .from('sub_budgets' as any)
-        .update({
-          team_member_id: selectedSubId,
-          proposal_name: proposalName,
-          file_name: proposalName || 'Proposal',
-          bid_percentage: bidPercentage,
-        })
-        .eq('id', editData.id);
-
-      // Delete old line items, insert new
+      await supabase.from('sub_budgets' as any).update({ team_member_id: selectedSubId, proposal_name: proposalName, file_name: proposalName || 'Proposal', bid_percentage: bidPercentage }).eq('id', editData.id);
       await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', editData.id);
       const rows = buildLineItemRows(editData.id);
       if (rows.length > 0) {
         const { error: liErr } = await supabase.from('sub_budget_line_items' as any).insert(rows);
         if (liErr) throw liErr;
       }
-
-      toast({
-        title: 'Proposal updated',
-        description: `${selectedItems.length} items — $${proposalTotal.toLocaleString()} total.`,
-      });
+      toast({ title: 'Proposal updated', description: `${selectedItems.length} items — $${proposalTotal.toLocaleString()} total.` });
       invalidateCaches();
       reset();
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   const handleSaveDetails = async () => {
@@ -429,24 +435,15 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       if (newSubDetails.phone) updateData.phone = newSubDetails.phone;
       if (newSubDetails.crewName) updateData.crew_name = newSubDetails.crewName;
       if (newSubDetails.name) updateData.name = newSubDetails.name;
-
-      if (Object.keys(updateData).length > 0) {
-        await supabase.from('team_members').update(updateData).eq('id', pendingTeamMemberId);
-      }
-
+      if (Object.keys(updateData).length > 0) await supabase.from('team_members').update(updateData).eq('id', pendingTeamMemberId);
       if (newSubDetails.companyName.trim()) {
         await supabase.from('subcontractor_directory').insert({
-          company_name: newSubDetails.companyName.trim(),
-          contact_name: newSubDetails.name,
-          email: newSubDetails.email,
-          phone: newSubDetails.phone,
-          location: newSubDetails.location,
+          company_name: newSubDetails.companyName.trim(), contact_name: newSubDetails.name, email: newSubDetails.email,
+          phone: newSubDetails.phone, location: newSubDetails.location,
           specialties: newSubDetails.specialties ? newSubDetails.specialties.split(',').map(s => s.trim()).filter(Boolean) : [],
-          notes: newSubDetails.notes,
-          created_by: currentUserId,
+          notes: newSubDetails.notes, created_by: currentUserId,
         });
       }
-
       toast({ title: 'Subcontractor added', description: `${newSubDetails.name || 'Subcontractor'} has been added to the system.` });
       qc.invalidateQueries({ queryKey: ['team_members'] });
       qc.invalidateQueries({ queryKey: ['subcontractor_directory'] });
@@ -454,9 +451,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       reset();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    } finally {
-      setSavingDetails(false);
-    }
+    } finally { setSavingDetails(false); }
   };
 
   const handleSkipDetails = () => {
@@ -471,9 +466,9 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
 
   return (
     <TooltipProvider>
-      {/* Main Proposal Builder Dialog */}
+      {/* Main Builder — full width dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
               {isEditMode ? <Pencil className="w-5 h-5" /> : <FileSpreadsheet className="w-5 h-5" />}
@@ -482,52 +477,27 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Sub + proposal name */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Sub + proposal name + bid % in a row */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-sm font-display font-semibold">Subcontractor</Label>
                 {isEditMode ? (
                   <Select value={selectedSubId} onValueChange={setSelectedSubId}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Choose..." />
-                    </SelectTrigger>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Choose..." /></SelectTrigger>
                     <SelectContent>
-                      {assignedSubs.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.crew_name || s.name}
-                        </SelectItem>
-                      ))}
+                      {assignedSubs.map(s => <SelectItem key={s.id} value={s.id}>{s.crew_name || s.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 ) : (
                   <>
                     <Select value={isNewSub ? '__new__' : selectedSubId} onValueChange={handleSubChange}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Choose..." />
-                      </SelectTrigger>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Choose..." /></SelectTrigger>
                       <SelectContent>
-                        {assignedSubs.map(s => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.crew_name || s.name}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="__new__">
-                          <span className="flex items-center gap-1.5">
-                            <UserPlus className="w-3.5 h-3.5" />
-                            Add New Subcontractor
-                          </span>
-                        </SelectItem>
+                        {assignedSubs.map(s => <SelectItem key={s.id} value={s.id}>{s.crew_name || s.name}</SelectItem>)}
+                        <SelectItem value="__new__"><span className="flex items-center gap-1.5"><UserPlus className="w-3.5 h-3.5" />Add New Subcontractor</span></SelectItem>
                       </SelectContent>
                     </Select>
-                    {isNewSub && (
-                      <Input
-                        className="mt-2"
-                        placeholder="Subcontractor name..."
-                        value={newSubName}
-                        onChange={e => setNewSubName(e.target.value)}
-                        autoFocus
-                      />
-                    )}
+                    {isNewSub && <Input className="mt-2" placeholder="Subcontractor name..." value={newSubName} onChange={e => setNewSubName(e.target.value)} autoFocus />}
                   </>
                 )}
               </div>
@@ -535,216 +505,213 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-display font-semibold">Proposal Name</Label>
                   {!proposalName && autoProposalName && (
-                    <button
-                      type="button"
-                      className="text-xs text-primary hover:underline"
-                      onClick={() => setProposalName(autoProposalName)}
-                    >
-                      Use: {autoProposalName.length > 30 ? autoProposalName.slice(0, 30) + '…' : autoProposalName}
+                    <button type="button" className="text-xs text-primary hover:underline" onClick={() => setProposalName(autoProposalName)}>
+                      Use: {autoProposalName.length > 25 ? autoProposalName.slice(0, 25) + '…' : autoProposalName}
                     </button>
                   )}
                 </div>
-                <Input
-                  className="mt-1"
-                  placeholder="e.g. Phase 1 - Framing"
-                  value={proposalName}
-                  onChange={e => setProposalName(e.target.value)}
-                />
+                <Input className="mt-1" placeholder="e.g. Phase 1 - Framing" value={proposalName} onChange={e => setProposalName(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-sm font-display font-semibold">Bid %</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Percent className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Input
+                    type="number" min="1" max="200"
+                    className="text-center font-display font-bold"
+                    value={bidPercentage}
+                    onChange={e => { setBidPercentage(Number(e.target.value)); setOverrides(new Map()); }}
+                  />
+                  <span className="text-sm font-display text-muted-foreground">of cost</span>
+                </div>
               </div>
             </div>
 
-            {/* Batch bid percentage */}
-            <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
-              <Percent className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div className="flex-1">
-                <Label className="text-xs font-display font-semibold">Bid Percentage of Extended Cost</Label>
-                <p className="text-xs text-muted-foreground">Apply this % to all selected items' cost as the contract price</p>
-              </div>
-              <Input
-                type="number"
-                min="1"
-                max="200"
-                className="w-20 text-center font-display font-bold"
-                value={bidPercentage}
-                onChange={e => {
-                  setBidPercentage(Number(e.target.value));
-                  setOverrides(new Map());
-                }}
-              />
-              <span className="text-sm font-display">%</span>
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Search items... e.g. painting, drywall, framing" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">Clear</button>
+              )}
             </div>
 
-            {/* Master budget checklist */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-display font-semibold">
-                  Select Line Items ({selectedIds.size} of {masterItems.length} selected)
-                </Label>
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery('')} className="text-xs text-muted-foreground hover:text-foreground">
-                    Clear search
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Search items... e.g. painting, drywall, framing"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
-              {masterItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  No master budget items found. Import a master budget first.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {costTypeSections.map(({ type, config, groups }) => {
-                    const Icon = config.icon;
-                    const allTypeItems = Array.from(groups.values()).flat();
-                    const typeTotal = allTypeItems.reduce((s, i) => s + Number(i.extended_cost), 0);
-                    const typeSelectedCount = allTypeItems.filter(i => selectedIds.has(i.id)).length;
-                    const allTypeSelected = allTypeItems.length > 0 && allTypeItems.every(i => selectedIds.has(i.id));
+            {/* Item selection — Interior/Exterior collapsible sections */}
+            {masterItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No master budget items found. Import a master budget first.</p>
+            ) : (
+              <div className="space-y-3">
+                {categorySections.map(({ category, catConfig, items: catItems, typeSections }) => {
+                  const CatIcon = catConfig.icon;
+                  const isCatCollapsed = collapsedCategories.has(category);
+                  const catSelectedCount = catItems.filter(i => selectedIds.has(i.id)).length;
+                  const catTotal = catItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+                  const unassignedCatItems = catItems.filter(i => !assignedItemMap.has(i.id));
+                  const allCatSelected = unassignedCatItems.length > 0 && unassignedCatItems.every(i => selectedIds.has(i.id));
 
-                    return (
-                      <div key={type} className={`border rounded-lg overflow-hidden ${config.bgColor}`}>
-                        <div className="px-4 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleAllOfType(type)}
-                              className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                allTypeSelected ? 'border-primary bg-primary' : typeSelectedCount > 0 ? 'border-primary bg-primary/30' : 'border-muted-foreground/40 hover:border-primary/60'
-                              }`}
-                            >
-                              {allTypeSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                            </button>
-                            <Icon className={`w-4 h-4 ${config.color}`} />
-                            <span className={`font-display font-bold text-sm ${config.color}`}>{config.label}</span>
-                            <span className="text-xs text-muted-foreground">({allTypeItems.length} items)</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {typeSelectedCount > 0 && (
-                              <span className="text-xs font-display font-semibold">{typeSelectedCount} selected</span>
-                            )}
-                            <span className="text-xs font-display font-semibold">${typeTotal.toLocaleString()}</span>
-                          </div>
+                  return (
+                    <div key={category} className={`border-2 rounded-xl overflow-hidden ${catConfig.bgColor}`}>
+                      {/* Category header */}
+                      <div className="px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={(e) => { e.stopPropagation(); toggleAllOfCategory(catItems); }}
+                            className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                              allCatSelected ? 'border-primary bg-primary' : catSelectedCount > 0 ? 'border-primary bg-primary/30' : 'border-muted-foreground/40 hover:border-primary/60'
+                            }`}>
+                            {allCatSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </button>
+                          <button type="button" onClick={() => toggleCategory(category)} className="flex items-center gap-2">
+                            {isCatCollapsed ? <ChevronRight className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                            <CatIcon className={`w-5 h-5 ${catConfig.color}`} />
+                            <span className={`font-display font-bold text-base ${catConfig.color}`}>{catConfig.label}</span>
+                            <span className="text-sm text-muted-foreground">({catItems.length} items)</span>
+                          </button>
                         </div>
+                        <div className="flex items-center gap-4">
+                          {catSelectedCount > 0 && <Badge variant="secondary" className="font-display">{catSelectedCount} selected</Badge>}
+                          <span className="font-display font-bold text-sm">${catTotal.toLocaleString()}</span>
+                        </div>
+                      </div>
 
-                        <div className="bg-background/80 max-h-[30vh] overflow-y-auto">
-                          {Array.from(groups.entries()).map(([group, items]) => {
-                            const allGroupSelected = items.every(i => selectedIds.has(i.id));
-                            const someGroupSelected = items.some(i => selectedIds.has(i.id));
+                      {/* Category content */}
+                      {!isCatCollapsed && (
+                        <div className="bg-background/80 space-y-2 p-2">
+                          {typeSections.map(({ type, typeConfig, groups, allItems: typeItems }) => {
+                            const TypeIcon = typeConfig.icon;
+                            const typeKey = `${category}__${type}`;
+                            const isTypeCollapsed = collapsedTypes.has(typeKey);
+                            const typeSelectedCount = typeItems.filter(i => selectedIds.has(i.id)).length;
+                            const typeTotal = typeItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+                            const unassignedTypeItems = typeItems.filter(i => !assignedItemMap.has(i.id));
+                            const allTypeSelected = unassignedTypeItems.length > 0 && unassignedTypeItems.every(i => selectedIds.has(i.id));
 
                             return (
-                              <div key={group}>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleGroup(items)}
-                                  className="w-full flex items-center gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors sticky top-0 z-10 border-t border-border/50"
-                                >
-                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                    allGroupSelected ? 'border-primary bg-primary' : someGroupSelected ? 'border-primary bg-primary/30' : 'border-muted-foreground/40'
-                                  }`}>
-                                    {allGroupSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                              <div key={type} className={`border rounded-lg overflow-hidden ${typeConfig.bgColor}`}>
+                                <div className="px-3 py-2 flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleAllOfType(typeItems); }}
+                                      className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                        allTypeSelected ? 'border-primary bg-primary' : typeSelectedCount > 0 ? 'border-primary bg-primary/30' : 'border-muted-foreground/40 hover:border-primary/60'
+                                      }`}>
+                                      {allTypeSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                    </button>
+                                    <button type="button" onClick={() => toggleTypeCollapse(typeKey)} className="flex items-center gap-2">
+                                      {isTypeCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                      <TypeIcon className={`w-4 h-4 ${typeConfig.color}`} />
+                                      <span className={`font-display font-bold text-sm ${typeConfig.color}`}>{typeConfig.label}</span>
+                                      <span className="text-xs text-muted-foreground">({typeItems.length})</span>
+                                    </button>
                                   </div>
-                                  <span className="font-display font-semibold text-xs flex-1 text-left">{group}</span>
-                                  <span className="text-xs text-muted-foreground">{items.length} items · ${items.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</span>
-                                </button>
-                                {items.map(item => {
-                                  const isSelected = selectedIds.has(item.id);
-                                  const contractPrice = getContractPrice(item);
-                                  const hasOverride = overrides.has(item.id);
-                                  const assignment = assignedItemMap.get(item.id);
+                                  <div className="flex items-center gap-3">
+                                    {typeSelectedCount > 0 && <span className="text-xs font-display font-semibold">{typeSelectedCount} selected</span>}
+                                    <span className="text-xs font-display font-semibold">${typeTotal.toLocaleString()}</span>
+                                  </div>
+                                </div>
 
-                                  return (
-                                    <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''} ${assignment ? 'opacity-70' : ''}`}>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleItem(item.id)}
-                                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                                      >
-                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                                          isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
-                                        }`}>
-                                          {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                {!isTypeCollapsed && (
+                                  <div className="bg-background/80 max-h-[40vh] overflow-y-auto">
+                                    {Array.from(groups.entries()).map(([group, items]) => {
+                                      const unassignedGroupItems = items.filter(i => !assignedItemMap.has(i.id));
+                                      const allGroupSelected = unassignedGroupItems.length > 0 && unassignedGroupItems.every(i => selectedIds.has(i.id));
+                                      const someGroupSelected = items.some(i => selectedIds.has(i.id));
+
+                                      return (
+                                        <div key={group}>
+                                          <button type="button" onClick={() => toggleGroup(items)}
+                                            className="w-full flex items-center gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors sticky top-0 z-10 border-t border-border/50">
+                                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                              allGroupSelected ? 'border-primary bg-primary' : someGroupSelected ? 'border-primary bg-primary/30' : 'border-muted-foreground/40'
+                                            }`}>
+                                              {allGroupSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                            </div>
+                                            <span className="font-display font-semibold text-xs flex-1 text-left">{group}</span>
+                                            <span className="text-xs text-muted-foreground">{items.length} items · ${items.reduce((s, i) => s + Number(i.extended_cost), 0).toLocaleString()}</span>
+                                          </button>
+                                          {items.map(item => {
+                                            const isSelected = selectedIds.has(item.id);
+                                            const contractPrice = getContractPrice(item);
+                                            const hasOverride = overrides.has(item.id);
+                                            const assignment = assignedItemMap.get(item.id);
+
+                                            return (
+                                              <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''} ${assignment ? 'opacity-50' : ''}`}>
+                                                <button type="button"
+                                                  onClick={() => { if (!assignment) toggleItem(item.id); }}
+                                                  className={`flex items-center gap-2 flex-1 min-w-0 text-left ${assignment ? 'cursor-not-allowed' : ''}`}
+                                                  disabled={!!assignment}>
+                                                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                    assignment ? 'border-muted-foreground/20 bg-muted' :
+                                                    isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                                                  }`}>
+                                                    {isSelected && !assignment && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                                  </div>
+                                                  <div className="flex-1 min-w-0">
+                                                    <span className="text-sm font-display">
+                                                      <span className="text-muted-foreground mr-1">#{item.line_item_no}</span>
+                                                      {item.cost_item_name}
+                                                    </span>
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground flex-shrink-0">${Number(item.extended_cost).toLocaleString()}</span>
+                                                </button>
+                                                {assignment && (
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-amber-400/50 text-amber-600 gap-1 cursor-help">
+                                                        <AlertTriangle className="w-2.5 h-2.5" />
+                                                        {assignment.subName}
+                                                      </Badge>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="left" className="text-xs">
+                                                      Already in <strong>{assignment.proposalName}</strong> for <strong>{assignment.subName}</strong>
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                )}
+                                                {isSelected && !assignment && (
+                                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <span className="text-xs text-muted-foreground">→</span>
+                                                    <Input
+                                                      type="number"
+                                                      className={`w-24 h-7 text-xs text-right font-display font-semibold ${hasOverride ? 'border-accent' : ''}`}
+                                                      value={contractPrice}
+                                                      onChange={e => {
+                                                        const val = Number(e.target.value);
+                                                        setOverrides(prev => { const next = new Map(prev); next.set(item.id, val); return next; });
+                                                      }}
+                                                      onClick={e => e.stopPropagation()}
+                                                    />
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <span className="text-sm font-display">
-                                            <span className="text-muted-foreground mr-1">#{item.line_item_no}</span>
-                                            {item.cost_item_name}
-                                          </span>
-                                        </div>
-                                        <span className="text-xs text-muted-foreground flex-shrink-0">
-                                          ${Number(item.extended_cost).toLocaleString()}
-                                        </span>
-                                      </button>
-                                      {assignment && (
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-amber-400/50 text-amber-600 gap-1">
-                                              <AlertTriangle className="w-2.5 h-2.5" />
-                                              Assigned
-                                            </Badge>
-                                          </TooltipTrigger>
-                                          <TooltipContent side="left" className="text-xs">
-                                            Already in <strong>{assignment.proposalName}</strong> for <strong>{assignment.subName}</strong>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      )}
-                                      {isSelected && (
-                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                          <span className="text-xs text-muted-foreground">→</span>
-                                          <Input
-                                            type="number"
-                                            className={`w-24 h-7 text-xs text-right font-display font-semibold ${hasOverride ? 'border-accent' : ''}`}
-                                            value={contractPrice}
-                                            onChange={e => {
-                                              const val = Number(e.target.value);
-                                              setOverrides(prev => {
-                                                const next = new Map(prev);
-                                                next.set(item.id, val);
-                                                return next;
-                                              });
-                                            }}
-                                            onClick={e => e.stopPropagation()}
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })}
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Summary */}
             {selectedIds.size > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                 <span className="font-display text-sm">{selectedIds.size} items selected</span>
-                <span className="font-display font-bold text-lg">
-                  Proposal Total: ${proposalTotal.toLocaleString()}
-                </span>
+                <span className="font-display font-bold text-lg">Proposal Total: ${proposalTotal.toLocaleString()}</span>
               </div>
             )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => { reset(); onOpenChange(false); }}>Cancel</Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !canSave}
-              className="gradient-primary text-primary-foreground"
-            >
+            <Button onClick={handleSave} disabled={saving || !canSave} className="gradient-primary text-primary-foreground">
               {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : isEditMode ? <Pencil className="w-4 h-4 mr-1" /> : <Check className="w-4 h-4 mr-1" />}
               {isEditMode ? 'Update Proposal' : isNewSub ? 'Create Proposal & Add Sub' : 'Create Proposal'}
             </Button>
@@ -752,65 +719,33 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* New Sub Details Dialog (step 2) */}
+      {/* New Sub Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={(v) => { if (!v) handleSkipDetails(); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2">
-              <UserPlus className="w-5 h-5" />
-              Complete Subcontractor Profile
-            </DialogTitle>
+            <DialogTitle className="font-display flex items-center gap-2"><UserPlus className="w-5 h-5" />Complete Subcontractor Profile</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            The proposal has been saved. Fill in the rest of the details to add <strong>{newSubDetails.name}</strong> to your team and subcontractor directory.
-          </p>
-
+          <p className="text-sm text-muted-foreground">The proposal has been saved. Fill in the rest of the details to add <strong>{newSubDetails.name}</strong> to your team and subcontractor directory.</p>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-display font-semibold">Full Name</Label>
-                <Input className="mt-1" value={newSubDetails.name} onChange={e => setNewSubDetails(d => ({ ...d, name: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs font-display font-semibold">Crew Name</Label>
-                <Input className="mt-1" placeholder="e.g. Smith Painting" value={newSubDetails.crewName} onChange={e => setNewSubDetails(d => ({ ...d, crewName: e.target.value }))} />
-              </div>
+              <div><Label className="text-xs font-display font-semibold">Full Name</Label><Input className="mt-1" value={newSubDetails.name} onChange={e => setNewSubDetails(d => ({ ...d, name: e.target.value }))} /></div>
+              <div><Label className="text-xs font-display font-semibold">Crew Name</Label><Input className="mt-1" placeholder="e.g. Smith Painting" value={newSubDetails.crewName} onChange={e => setNewSubDetails(d => ({ ...d, crewName: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-display font-semibold">Email</Label>
-                <Input className="mt-1" type="email" placeholder="sub@email.com" value={newSubDetails.email} onChange={e => setNewSubDetails(d => ({ ...d, email: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs font-display font-semibold">Phone</Label>
-                <Input className="mt-1" placeholder="(555) 123-4567" value={newSubDetails.phone} onChange={e => setNewSubDetails(d => ({ ...d, phone: e.target.value }))} />
-              </div>
+              <div><Label className="text-xs font-display font-semibold">Email</Label><Input className="mt-1" type="email" placeholder="sub@email.com" value={newSubDetails.email} onChange={e => setNewSubDetails(d => ({ ...d, email: e.target.value }))} /></div>
+              <div><Label className="text-xs font-display font-semibold">Phone</Label><Input className="mt-1" placeholder="(555) 123-4567" value={newSubDetails.phone} onChange={e => setNewSubDetails(d => ({ ...d, phone: e.target.value }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-display font-semibold">Company Name</Label>
-                <Input className="mt-1" placeholder="For directory listing" value={newSubDetails.companyName} onChange={e => setNewSubDetails(d => ({ ...d, companyName: e.target.value }))} />
-              </div>
-              <div>
-                <Label className="text-xs font-display font-semibold">Location</Label>
-                <Input className="mt-1" placeholder="City, State" value={newSubDetails.location} onChange={e => setNewSubDetails(d => ({ ...d, location: e.target.value }))} />
-              </div>
+              <div><Label className="text-xs font-display font-semibold">Company Name</Label><Input className="mt-1" placeholder="For directory listing" value={newSubDetails.companyName} onChange={e => setNewSubDetails(d => ({ ...d, companyName: e.target.value }))} /></div>
+              <div><Label className="text-xs font-display font-semibold">Location</Label><Input className="mt-1" placeholder="City, State" value={newSubDetails.location} onChange={e => setNewSubDetails(d => ({ ...d, location: e.target.value }))} /></div>
             </div>
-            <div>
-              <Label className="text-xs font-display font-semibold">Specialties <span className="text-muted-foreground font-normal">(comma-separated)</span></Label>
-              <Input className="mt-1" placeholder="e.g. Painting, Drywall, Finishing" value={newSubDetails.specialties} onChange={e => setNewSubDetails(d => ({ ...d, specialties: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs font-display font-semibold">Notes</Label>
-              <Textarea className="mt-1" placeholder="Any notes about this subcontractor..." rows={2} value={newSubDetails.notes} onChange={e => setNewSubDetails(d => ({ ...d, notes: e.target.value }))} />
-            </div>
+            <div><Label className="text-xs font-display font-semibold">Specialties <span className="text-muted-foreground font-normal">(comma-separated)</span></Label><Input className="mt-1" placeholder="e.g. Painting, Drywall, Finishing" value={newSubDetails.specialties} onChange={e => setNewSubDetails(d => ({ ...d, specialties: e.target.value }))} /></div>
+            <div><Label className="text-xs font-display font-semibold">Notes</Label><Textarea className="mt-1" placeholder="Any notes about this subcontractor..." rows={2} value={newSubDetails.notes} onChange={e => setNewSubDetails(d => ({ ...d, notes: e.target.value }))} /></div>
           </div>
-
           <DialogFooter className="gap-2">
             <Button variant="ghost" onClick={handleSkipDetails}>Skip for now</Button>
             <Button onClick={handleSaveDetails} disabled={savingDetails} className="gradient-primary text-primary-foreground">
-              {savingDetails ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <UserPlus className="w-4 h-4 mr-1" />}
-              Save Details
+              {savingDetails ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <UserPlus className="w-4 h-4 mr-1" />}Save Details
             </Button>
           </DialogFooter>
         </DialogContent>
