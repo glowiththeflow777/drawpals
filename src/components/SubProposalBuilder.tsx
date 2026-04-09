@@ -477,8 +477,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Sub + proposal name + bid % in a row */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Sub + proposal name in a row */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-display font-semibold">Subcontractor</Label>
                 {isEditMode ? (
@@ -511,19 +511,6 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                   )}
                 </div>
                 <Input className="mt-1" placeholder="e.g. Phase 1 - Framing" value={proposalName} onChange={e => setProposalName(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-sm font-display font-semibold">Bid %</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Percent className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <Input
-                    type="number" min="1" max="200"
-                    className="text-center font-display font-bold"
-                    value={bidPercentage}
-                    onChange={e => { setBidPercentage(Number(e.target.value)); setOverrides(new Map()); }}
-                  />
-                  <span className="text-sm font-display text-muted-foreground">of cost</span>
-                </div>
               </div>
             </div>
 
@@ -700,13 +687,56 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
               </div>
             )}
 
-            {/* Summary */}
-            {selectedIds.size > 0 && (
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
-                <span className="font-display text-sm">{selectedIds.size} items selected</span>
-                <span className="font-display font-bold text-lg">Proposal Total: ${proposalTotal.toLocaleString()}</span>
-              </div>
-            )}
+            {/* Bid % + Summary at bottom */}
+            {selectedIds.size > 0 && (() => {
+              const costBasis = selectedItems.reduce((s, i) => s + Number(i.extended_cost), 0);
+              const hasOverrides = overrides.size > 0;
+              return (
+                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <Label className="text-sm font-display font-semibold whitespace-nowrap">Bid Pricing</Label>
+                    <div className="flex items-center gap-2">
+                      <Percent className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <Input
+                        type="number" min="1" max="200"
+                        className="w-20 h-8 text-center font-display font-bold text-sm"
+                        value={bidPercentage}
+                        onChange={e => { setBidPercentage(Number(e.target.value)); setOverrides(new Map()); }}
+                      />
+                      <span className="text-xs text-muted-foreground">of cost</span>
+                    </div>
+                    <span className="text-muted-foreground text-sm">or</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-display font-semibold text-muted-foreground">$</span>
+                      <Input
+                        type="number" min="0"
+                        className="w-32 h-8 text-right font-display font-bold text-sm"
+                        value={hasOverrides ? proposalTotal : Math.round(costBasis * bidPercentage / 100)}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          if (costBasis > 0) {
+                            const newPct = Math.round((val / costBasis) * 10000) / 100;
+                            setBidPercentage(newPct);
+                            setOverrides(new Map());
+                          }
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">total budget</span>
+                    </div>
+                  </div>
+                  {hasOverrides && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Some items have manual price overrides — dollar/% inputs will reset them.
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <span className="font-display text-sm">{selectedIds.size} items selected · Cost basis: ${costBasis.toLocaleString()}</span>
+                    <span className="font-display font-bold text-lg">Proposal Total: ${proposalTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <DialogFooter>
