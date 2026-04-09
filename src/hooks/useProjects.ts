@@ -410,7 +410,7 @@ export function useCreateSubBudget() {
       const { line_items, ...budgetData } = params;
       const { data, error } = await supabase
         .from('sub_budgets' as any)
-        .upsert(budgetData, { onConflict: 'project_id,team_member_id' })
+        .insert(budgetData)
         .select()
         .single();
       if (error) throw error;
