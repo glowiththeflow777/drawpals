@@ -500,6 +500,34 @@ export function useSubBudgetForMember(projectId?: string, teamMemberId?: string)
 }
 
 
+// All sub_budget_line_items across all proposals for a project (for assignment tracking)
+export function useAllSubBudgetLineItemsForProject(projectId?: string) {
+  return useQuery({
+    queryKey: ['all_sub_budget_line_items', projectId],
+    enabled: !!projectId,
+    queryFn: async () => {
+      const { data: budgets, error: bErr } = await supabase
+        .from('sub_budgets' as any)
+        .select('id, team_member_id, proposal_name, file_name, team_members(name, crew_name)')
+        .eq('project_id', projectId);
+      if (bErr) throw bErr;
+      if (!budgets || budgets.length === 0) return [];
+      const budgetIds = (budgets as any[]).map(b => b.id);
+      const { data, error } = await supabase
+        .from('sub_budget_line_items' as any)
+        .select('*')
+        .in('sub_budget_id', budgetIds);
+      if (error) throw error;
+      // Attach budget metadata
+      const budgetMap = new Map((budgets as any[]).map(b => [b.id, b]));
+      return (data as any[]).map(item => ({
+        ...item,
+        _budget: budgetMap.get(item.sub_budget_id),
+      }));
+    },
+  });
+}
+
 
 // PM draw payments for a project (sum of all payments across all draw sheets)
 export function usePmDrawPaymentsForProject(projectId?: string) {

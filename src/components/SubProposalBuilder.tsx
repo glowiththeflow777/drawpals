@@ -1,16 +1,27 @@
-import React, { useState, useMemo } from 'react';
-import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus, Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Check, Loader2, FileSpreadsheet, Percent, Hammer, Package, HardHat, UserPlus, Search, AlertTriangle, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
-import { useBudgetLineItems } from '@/hooks/useProjects';
+import { useBudgetLineItems, useAllSubBudgetLineItemsForProject } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+
+export interface EditProposalData {
+  id: string;
+  team_member_id: string;
+  proposal_name: string;
+  bid_percentage: number;
+  file_name: string;
+  lineItems: any[];
+}
 
 interface SubProposalBuilderProps {
   open: boolean;
@@ -18,6 +29,7 @@ interface SubProposalBuilderProps {
   projectId: string;
   currentUserId: string;
   assignedSubs: DbTeamMember[];
+  editData?: EditProposalData | null;
 }
 
 interface NewSubDetails {
@@ -37,10 +49,14 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   projectId,
   currentUserId,
   assignedSubs,
+  editData,
 }) => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { data: masterItems = [] } = useBudgetLineItems(projectId);
+  const { data: allAssignedItems = [] } = useAllSubBudgetLineItemsForProject(projectId);
+
+  const isEditMode = !!editData;
 
   const [selectedSubId, setSelectedSubId] = useState('');
   const [isNewSub, setIsNewSub] = useState(false);
@@ -51,15 +67,82 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
   const [overrides, setOverrides] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // Step 2: details dialog for new sub
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [newSubDetails, setNewSubDetails] = useState<NewSubDetails>({
     name: '', email: '', phone: '', crewName: '', companyName: '', location: '', specialties: '', notes: '',
   });
   const [savingDetails, setSavingDetails] = useState(false);
-  // Store pending data between steps
   const [pendingBudgetId, setPendingBudgetId] = useState<string | null>(null);
   const [pendingTeamMemberId, setPendingTeamMemberId] = useState<string | null>(null);
+
+  // Populate fields when editing
+  useEffect(() => {
+    if (editData && open) {
+      setSelectedSubId(editData.team_member_id);
+      setProposalName(editData.proposal_name || editData.file_name || '');
+      setBidPercentage(editData.bid_percentage || 60);
+      setIsNewSub(false);
+
+      // Find which master budget items match by cost_item_name + cost_group
+      const editItemKeys = new Set(editData.lineItems.map((li: any) =>
+        `${li.cost_item_name}|||${li.cost_group}`
+      ));
+      const matchedIds = new Set<string>();
+      const priceOverrides = new Map<string, number>();
+
+      masterItems.forEach(mi => {
+        const key = `${mi.cost_item_name}|||${mi.cost_group}`;
+        if (editItemKeys.has(key)) {
+          matchedIds.add(mi.id);
+          const editItem = editData.lineItems.find((li: any) =>
+            li.cost_item_name === mi.cost_item_name && li.cost_group === mi.cost_group
+          );
+          if (editItem) {
+            priceOverrides.set(mi.id, Number(editItem.contract_price));
+          }
+        }
+      });
+      setSelectedIds(matchedIds);
+      setOverrides(priceOverrides);
+    }
+  }, [editData, open, masterItems]);
+
+  // Build a map of master item IDs that are already assigned in OTHER proposals
+  const assignedItemMap = useMemo(() => {
+    const map = new Map<string, { subName: string; proposalName: string; subBudgetId: string }>();
+    // Match assigned items back to master items by cost_item_name + cost_group
+    allAssignedItems.forEach((item: any) => {
+      // Skip items from the proposal being edited
+      if (editData && item.sub_budget_id === editData.id) return;
+
+      const matchingMaster = masterItems.find(mi =>
+        mi.cost_item_name === item.cost_item_name && mi.cost_group === item.cost_group
+      );
+      if (matchingMaster) {
+        const budget = item._budget;
+        const subName = budget?.team_members?.crew_name || budget?.team_members?.name || 'Unknown';
+        const pName = budget?.proposal_name || budget?.file_name || 'Proposal';
+        map.set(matchingMaster.id, { subName, proposalName: pName, subBudgetId: item.sub_budget_id });
+      }
+    });
+    return map;
+  }, [allAssignedItems, masterItems, editData]);
+
+  // Auto-generate proposal name from selected items' cost groups
+  const autoProposalName = useMemo(() => {
+    if (selectedIds.size === 0) return '';
+    const groups = new Set<string>();
+    masterItems.forEach(i => {
+      if (selectedIds.has(i.id)) {
+        const topGroup = (i.cost_group || '').split(';')[0].trim();
+        if (topGroup) groups.add(topGroup);
+      }
+    });
+    if (groups.size === 0) return '';
+    const arr = Array.from(groups);
+    if (arr.length <= 3) return arr.join(', ');
+    return arr.slice(0, 2).join(', ') + ` +${arr.length - 2} more`;
+  }, [selectedIds, masterItems]);
 
   // Group master items by cost type → cost group
   const costTypeSections = useMemo(() => {
@@ -138,6 +221,20 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     });
   };
 
+  // Bulk select all items of a cost type
+  const toggleAllOfType = (type: string) => {
+    const typeItems = masterItems.filter(i => (i.cost_type || 'Labor') === type);
+    const allSelected = typeItems.every(i => selectedIds.has(i.id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      typeItems.forEach(i => {
+        if (allSelected) next.delete(i.id);
+        else next.add(i.id);
+      });
+      return next;
+    });
+  };
+
   const reset = () => {
     setSelectedSubId('');
     setIsNewSub(false);
@@ -161,9 +258,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     }
   };
 
-  // Create the team member with just a name, then create the proposal
   const createTeamMemberAndProposal = async (): Promise<{ teamMemberId: string; budgetId: string }> => {
-    // Create team_member with just the name
     const { data: tm, error: tmErr } = await supabase
       .from('team_members')
       .insert({ name: newSubName.trim(), email: '', role: 'subcontractor' as any })
@@ -173,12 +268,10 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
 
     const teamMemberId = tm.id;
 
-    // Also assign them to this project
     await supabase
       .from('project_assignments')
       .insert({ project_id: projectId, team_member_id: teamMemberId });
 
-    // Create the sub_budget (proposal)
     const { data: budget, error: bErr } = await supabase
       .from('sub_budgets' as any)
       .insert({
@@ -213,8 +306,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     return (budget as any).id;
   };
 
-  const insertLineItems = async (budgetId: string) => {
-    const rows = selectedItems.map((item, idx) => ({
+  const buildLineItemRows = (budgetId: string) => {
+    return selectedItems.map((item, idx) => ({
       sub_budget_id: budgetId,
       line_item_no: idx + 1,
       cost_group: item.cost_group,
@@ -228,7 +321,10 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       batch_label: proposalName || 'Proposal',
       contract_price: getContractPrice(item),
     }));
+  };
 
+  const insertLineItems = async (budgetId: string) => {
+    const rows = buildLineItemRows(budgetId);
     const { error: liErr } = await supabase.from('sub_budget_line_items' as any).insert(rows);
     if (liErr) throw liErr;
   };
@@ -239,9 +335,14 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     qc.invalidateQueries({ queryKey: ['sub_bid_total', projectId] });
     qc.invalidateQueries({ queryKey: ['team_members'] });
     qc.invalidateQueries({ queryKey: ['project_assignments', projectId] });
+    qc.invalidateQueries({ queryKey: ['all_sub_budget_line_items', projectId] });
   };
 
   const handleSave = async () => {
+    if (isEditMode) {
+      await handleUpdate();
+      return;
+    }
     if ((!selectedSubId && !isNewSub) || selectedIds.size === 0) return;
     if (isNewSub && !newSubName.trim()) return;
     setSaving(true);
@@ -249,37 +350,28 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       if (isNewSub) {
         const { teamMemberId, budgetId } = await createTeamMemberAndProposal();
         await insertLineItems(budgetId);
-
-        // Store pending info and open details dialog
         setPendingBudgetId(budgetId);
         setPendingTeamMemberId(teamMemberId);
         setNewSubDetails({
           name: newSubName.trim(),
           email: '', phone: '', crewName: '', companyName: '', location: '', specialties: '', notes: '',
         });
-
         invalidateCaches();
-
         toast({
           title: 'Proposal created',
           description: `${selectedItems.length} items assigned — now add their details.`,
         });
-
-        // Close proposal dialog, open details dialog
         onOpenChange(false);
         setShowDetailsDialog(true);
       } else {
         const budgetId = await createProposalForExisting();
         await insertLineItems(budgetId);
-
         const subName = assignedSubs.find(s => s.id === selectedSubId)?.crew_name ||
                         assignedSubs.find(s => s.id === selectedSubId)?.name || 'team member';
-
         toast({
           title: 'Proposal created',
           description: `${selectedItems.length} items assigned to ${subName} — $${proposalTotal.toLocaleString()} total.`,
         });
-
         invalidateCaches();
         reset();
         onOpenChange(false);
@@ -291,11 +383,47 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     }
   };
 
+  const handleUpdate = async () => {
+    if (!editData || selectedIds.size === 0) return;
+    setSaving(true);
+    try {
+      // Update sub_budget metadata
+      await supabase
+        .from('sub_budgets' as any)
+        .update({
+          team_member_id: selectedSubId,
+          proposal_name: proposalName,
+          file_name: proposalName || 'Proposal',
+          bid_percentage: bidPercentage,
+        })
+        .eq('id', editData.id);
+
+      // Delete old line items, insert new
+      await supabase.from('sub_budget_line_items' as any).delete().eq('sub_budget_id', editData.id);
+      const rows = buildLineItemRows(editData.id);
+      if (rows.length > 0) {
+        const { error: liErr } = await supabase.from('sub_budget_line_items' as any).insert(rows);
+        if (liErr) throw liErr;
+      }
+
+      toast({
+        title: 'Proposal updated',
+        description: `${selectedItems.length} items — $${proposalTotal.toLocaleString()} total.`,
+      });
+      invalidateCaches();
+      reset();
+      onOpenChange(false);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveDetails = async () => {
     if (!pendingTeamMemberId) return;
     setSavingDetails(true);
     try {
-      // Update team_member with full details
       const updateData: any = {};
       if (newSubDetails.email) updateData.email = newSubDetails.email;
       if (newSubDetails.phone) updateData.phone = newSubDetails.phone;
@@ -306,7 +434,6 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
         await supabase.from('team_members').update(updateData).eq('id', pendingTeamMemberId);
       }
 
-      // Also add to subcontractor directory if company name provided
       if (newSubDetails.companyName.trim()) {
         await supabase.from('subcontractor_directory').insert({
           company_name: newSubDetails.companyName.trim(),
@@ -321,10 +448,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
       }
 
       toast({ title: 'Subcontractor added', description: `${newSubDetails.name || 'Subcontractor'} has been added to the system.` });
-
       qc.invalidateQueries({ queryKey: ['team_members'] });
       qc.invalidateQueries({ queryKey: ['subcontractor_directory'] });
-
       setShowDetailsDialog(false);
       reset();
     } catch (e: any) {
@@ -340,17 +465,19 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
     toast({ title: 'Proposal saved', description: 'You can update the subcontractor details later from Team Management.' });
   };
 
-  const canSave = isNewSub ? (newSubName.trim().length > 0 && selectedIds.size > 0) : (selectedSubId && selectedIds.size > 0);
+  const canSave = isEditMode
+    ? (selectedSubId && selectedIds.size > 0)
+    : isNewSub ? (newSubName.trim().length > 0 && selectedIds.size > 0) : (selectedSubId && selectedIds.size > 0);
 
   return (
-    <>
+    <TooltipProvider>
       {/* Main Proposal Builder Dialog */}
       <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <FileSpreadsheet className="w-5 h-5" />
-              Create Sub Proposal
+              {isEditMode ? <Pencil className="w-5 h-5" /> : <FileSpreadsheet className="w-5 h-5" />}
+              {isEditMode ? 'Edit Proposal' : 'Create Sub Proposal'}
             </DialogTitle>
           </DialogHeader>
 
@@ -359,37 +486,64 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-display font-semibold">Subcontractor</Label>
-                <Select value={isNewSub ? '__new__' : selectedSubId} onValueChange={handleSubChange}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Choose..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignedSubs.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.crew_name || s.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="__new__">
-                      <span className="flex items-center gap-1.5">
-                        <UserPlus className="w-3.5 h-3.5" />
-                        Add New Subcontractor
-                      </span>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {isNewSub && (
-                  <Input
-                    className="mt-2"
-                    placeholder="Subcontractor name..."
-                    value={newSubName}
-                    onChange={e => setNewSubName(e.target.value)}
-                    autoFocus
-                  />
+                {isEditMode ? (
+                  <Select value={selectedSubId} onValueChange={setSelectedSubId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Choose..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {assignedSubs.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.crew_name || s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <>
+                    <Select value={isNewSub ? '__new__' : selectedSubId} onValueChange={handleSubChange}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Choose..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignedSubs.map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.crew_name || s.name}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__new__">
+                          <span className="flex items-center gap-1.5">
+                            <UserPlus className="w-3.5 h-3.5" />
+                            Add New Subcontractor
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isNewSub && (
+                      <Input
+                        className="mt-2"
+                        placeholder="Subcontractor name..."
+                        value={newSubName}
+                        onChange={e => setNewSubName(e.target.value)}
+                        autoFocus
+                      />
+                    )}
+                  </>
                 )}
               </div>
               <div>
-                <Label className="text-sm font-display font-semibold">Proposal Name</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-display font-semibold">Proposal Name</Label>
+                  {!proposalName && autoProposalName && (
+                    <button
+                      type="button"
+                      className="text-xs text-primary hover:underline"
+                      onClick={() => setProposalName(autoProposalName)}
+                    >
+                      Use: {autoProposalName.length > 30 ? autoProposalName.slice(0, 30) + '…' : autoProposalName}
+                    </button>
+                  )}
+                </div>
                 <Input
                   className="mt-1"
                   placeholder="e.g. Phase 1 - Framing"
@@ -452,11 +606,21 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                     const allTypeItems = Array.from(groups.values()).flat();
                     const typeTotal = allTypeItems.reduce((s, i) => s + Number(i.extended_cost), 0);
                     const typeSelectedCount = allTypeItems.filter(i => selectedIds.has(i.id)).length;
+                    const allTypeSelected = allTypeItems.length > 0 && allTypeItems.every(i => selectedIds.has(i.id));
 
                     return (
                       <div key={type} className={`border rounded-lg overflow-hidden ${config.bgColor}`}>
                         <div className="px-4 py-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleAllOfType(type)}
+                              className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                allTypeSelected ? 'border-primary bg-primary' : typeSelectedCount > 0 ? 'border-primary bg-primary/30' : 'border-muted-foreground/40 hover:border-primary/60'
+                              }`}
+                            >
+                              {allTypeSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                            </button>
                             <Icon className={`w-4 h-4 ${config.color}`} />
                             <span className={`font-display font-bold text-sm ${config.color}`}>{config.label}</span>
                             <span className="text-xs text-muted-foreground">({allTypeItems.length} items)</span>
@@ -493,9 +657,10 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                                   const isSelected = selectedIds.has(item.id);
                                   const contractPrice = getContractPrice(item);
                                   const hasOverride = overrides.has(item.id);
+                                  const assignment = assignedItemMap.get(item.id);
 
                                   return (
-                                    <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''}`}>
+                                    <div key={item.id} className={`flex items-center gap-2 px-4 py-2 border-t border-border/30 ${isSelected ? 'bg-primary/5' : ''} ${assignment ? 'opacity-70' : ''}`}>
                                       <button
                                         type="button"
                                         onClick={() => toggleItem(item.id)}
@@ -516,6 +681,19 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                                           ${Number(item.extended_cost).toLocaleString()}
                                         </span>
                                       </button>
+                                      {assignment && (
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0 border-amber-400/50 text-amber-600 gap-1">
+                                              <AlertTriangle className="w-2.5 h-2.5" />
+                                              Assigned
+                                            </Badge>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="left" className="text-xs">
+                                            Already in <strong>{assignment.proposalName}</strong> for <strong>{assignment.subName}</strong>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      )}
                                       {isSelected && (
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                           <span className="text-xs text-muted-foreground">→</span>
@@ -567,8 +745,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
               disabled={saving || !canSave}
               className="gradient-primary text-primary-foreground"
             >
-              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Check className="w-4 h-4 mr-1" />}
-              {isNewSub ? 'Create Proposal & Add Sub' : 'Create Proposal'}
+              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : isEditMode ? <Pencil className="w-4 h-4 mr-1" /> : <Check className="w-4 h-4 mr-1" />}
+              {isEditMode ? 'Update Proposal' : isNewSub ? 'Create Proposal & Add Sub' : 'Create Proposal'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -591,81 +769,40 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-display font-semibold">Full Name</Label>
-                <Input
-                  className="mt-1"
-                  value={newSubDetails.name}
-                  onChange={e => setNewSubDetails(d => ({ ...d, name: e.target.value }))}
-                />
+                <Input className="mt-1" value={newSubDetails.name} onChange={e => setNewSubDetails(d => ({ ...d, name: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-xs font-display font-semibold">Crew Name</Label>
-                <Input
-                  className="mt-1"
-                  placeholder="e.g. Smith Painting"
-                  value={newSubDetails.crewName}
-                  onChange={e => setNewSubDetails(d => ({ ...d, crewName: e.target.value }))}
-                />
+                <Input className="mt-1" placeholder="e.g. Smith Painting" value={newSubDetails.crewName} onChange={e => setNewSubDetails(d => ({ ...d, crewName: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-display font-semibold">Email</Label>
-                <Input
-                  className="mt-1"
-                  type="email"
-                  placeholder="sub@email.com"
-                  value={newSubDetails.email}
-                  onChange={e => setNewSubDetails(d => ({ ...d, email: e.target.value }))}
-                />
+                <Input className="mt-1" type="email" placeholder="sub@email.com" value={newSubDetails.email} onChange={e => setNewSubDetails(d => ({ ...d, email: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-xs font-display font-semibold">Phone</Label>
-                <Input
-                  className="mt-1"
-                  placeholder="(555) 123-4567"
-                  value={newSubDetails.phone}
-                  onChange={e => setNewSubDetails(d => ({ ...d, phone: e.target.value }))}
-                />
+                <Input className="mt-1" placeholder="(555) 123-4567" value={newSubDetails.phone} onChange={e => setNewSubDetails(d => ({ ...d, phone: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-display font-semibold">Company Name</Label>
-                <Input
-                  className="mt-1"
-                  placeholder="For directory listing"
-                  value={newSubDetails.companyName}
-                  onChange={e => setNewSubDetails(d => ({ ...d, companyName: e.target.value }))}
-                />
+                <Input className="mt-1" placeholder="For directory listing" value={newSubDetails.companyName} onChange={e => setNewSubDetails(d => ({ ...d, companyName: e.target.value }))} />
               </div>
               <div>
                 <Label className="text-xs font-display font-semibold">Location</Label>
-                <Input
-                  className="mt-1"
-                  placeholder="City, State"
-                  value={newSubDetails.location}
-                  onChange={e => setNewSubDetails(d => ({ ...d, location: e.target.value }))}
-                />
+                <Input className="mt-1" placeholder="City, State" value={newSubDetails.location} onChange={e => setNewSubDetails(d => ({ ...d, location: e.target.value }))} />
               </div>
             </div>
             <div>
               <Label className="text-xs font-display font-semibold">Specialties <span className="text-muted-foreground font-normal">(comma-separated)</span></Label>
-              <Input
-                className="mt-1"
-                placeholder="e.g. Painting, Drywall, Finishing"
-                value={newSubDetails.specialties}
-                onChange={e => setNewSubDetails(d => ({ ...d, specialties: e.target.value }))}
-              />
+              <Input className="mt-1" placeholder="e.g. Painting, Drywall, Finishing" value={newSubDetails.specialties} onChange={e => setNewSubDetails(d => ({ ...d, specialties: e.target.value }))} />
             </div>
             <div>
               <Label className="text-xs font-display font-semibold">Notes</Label>
-              <Textarea
-                className="mt-1"
-                placeholder="Any notes about this subcontractor..."
-                rows={2}
-                value={newSubDetails.notes}
-                onChange={e => setNewSubDetails(d => ({ ...d, notes: e.target.value }))}
-              />
+              <Textarea className="mt-1" placeholder="Any notes about this subcontractor..." rows={2} value={newSubDetails.notes} onChange={e => setNewSubDetails(d => ({ ...d, notes: e.target.value }))} />
             </div>
           </div>
 
@@ -678,7 +815,7 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 };
 
