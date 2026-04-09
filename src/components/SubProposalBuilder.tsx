@@ -477,8 +477,8 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Sub + proposal name + bid % in a row */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Sub + proposal name in a row */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-sm font-display font-semibold">Subcontractor</Label>
                 {isEditMode ? (
@@ -511,19 +511,6 @@ const SubProposalBuilder: React.FC<SubProposalBuilderProps> = ({
                   )}
                 </div>
                 <Input className="mt-1" placeholder="e.g. Phase 1 - Framing" value={proposalName} onChange={e => setProposalName(e.target.value)} />
-              </div>
-              <div>
-                <Label className="text-sm font-display font-semibold">Bid %</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Percent className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <Input
-                    type="number" min="1" max="200"
-                    className="text-center font-display font-bold"
-                    value={bidPercentage}
-                    onChange={e => { setBidPercentage(Number(e.target.value)); setOverrides(new Map()); }}
-                  />
-                  <span className="text-sm font-display text-muted-foreground">of cost</span>
-                </div>
               </div>
             </div>
 
