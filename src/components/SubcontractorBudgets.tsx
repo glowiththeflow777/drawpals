@@ -1,13 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet, Download, FileText } from 'lucide-react';
+import { ChevronRight, ChevronDown, HardHat, Loader2, Trash2, Plus, FileSpreadsheet, Download, FileText, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useSubBudgets, useSubBudgetLineItems, useDeleteSubBudget } from '@/hooks/useProjects';
 import type { DbTeamMember } from '@/hooks/useProjects';
-import SubProposalBuilder from './SubProposalBuilder';
+import SubProposalBuilder, { type EditProposalData } from './SubProposalBuilder';
 
 interface SubcontractorBudgetsProps {
   projectId: string;
@@ -26,8 +26,26 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [viewingBudgetId, setViewingBudgetId] = useState<string | null>(null);
   const [proposalOpen, setProposalOpen] = useState(false);
+  const [editData, setEditData] = useState<EditProposalData | null>(null);
 
   const subs = assignedMembers.filter(m => m.role === 'subcontractor');
+
+  const handleEdit = (sb: any, lineItems: any[]) => {
+    setEditData({
+      id: sb.id,
+      team_member_id: sb.team_member_id || sb.team_members?.id,
+      proposal_name: sb.proposal_name || '',
+      bid_percentage: sb.bid_percentage || 60,
+      file_name: sb.file_name || '',
+      lineItems,
+    });
+    setProposalOpen(true);
+  };
+
+  const handleClose = (open: boolean) => {
+    setProposalOpen(open);
+    if (!open) setEditData(null);
+  };
 
   return (
     <div className="card-elevated p-5 space-y-4">
@@ -42,7 +60,7 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
           Subcontractor Proposals
           <span className="text-sm font-normal text-muted-foreground">({subBudgets.length})</span>
         </button>
-        <Button variant="outline" size="sm" onClick={() => setProposalOpen(true)} className="text-xs font-display">
+        <Button variant="outline" size="sm" onClick={() => { setEditData(null); setProposalOpen(true); }} className="text-xs font-display">
           <Plus className="w-3 h-3 mr-1" /> Create Proposal
         </Button>
       </div>
@@ -62,6 +80,7 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
                     onToggle={() => setViewingBudgetId(prev => prev === sb.id ? null : sb.id)}
                     projectId={projectId}
                     projectName={projectName}
+                    onEdit={handleEdit}
                   />
                 ))}
               </div>
@@ -72,29 +91,28 @@ const SubcontractorBudgets: React.FC<SubcontractorBudgetsProps> = ({
 
       <SubProposalBuilder
         open={proposalOpen}
-        onOpenChange={setProposalOpen}
+        onOpenChange={handleClose}
         projectId={projectId}
         currentUserId={currentUserId}
         assignedSubs={subs}
+        editData={editData}
       />
     </div>
   );
 };
 
-// Helper to build a clean filename
 function buildFileName(projectName: string, subName: string, proposalLabel: string) {
   return `${projectName} - ${subName} - ${proposalLabel}`.replace(/[/\\?%*:|"<>]/g, '_');
 }
 
-// Sub-component to show individual proposal with expandable line items
 const SubBudgetRow: React.FC<{
   subBudget: any;
   isExpanded: boolean;
   onToggle: () => void;
   projectId: string;
   projectName: string;
-}> = ({ subBudget, isExpanded, onToggle, projectId, projectName }) => {
-  // Always fetch line items so we can show the total even when collapsed
+  onEdit: (sb: any, lineItems: any[]) => void;
+}> = ({ subBudget, isExpanded, onToggle, projectId, projectName, onEdit }) => {
   const { data: lineItems = [] } = useSubBudgetLineItems(subBudget.id);
   const { toast } = useToast();
   const deleteSubBudget = useDeleteSubBudget();
@@ -134,7 +152,6 @@ const SubBudgetRow: React.FC<{
       return;
     }
 
-    // Build a print-friendly HTML document and trigger print-to-PDF
     const htmlRows = lineItems.map((item: any) => `
       <tr>
         <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.line_item_no}</td>
@@ -237,6 +254,15 @@ const SubBudgetRow: React.FC<{
             </div>
           ) : (
             <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                title="Edit proposal"
+                onClick={() => onEdit(subBudget, lineItems)}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Download">
