@@ -463,195 +463,337 @@ const InvoiceWizard = () => {
               </div>
             )}
 
-            {step === 3 && (
-              <div className="space-y-4">
-                {/* Budget source toggle — only for admin/PM entries */}
-                {isAdminEntry && (
-                <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/50 border border-border">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm font-display font-semibold">Bill from:</Label>
-                    <Select value={budgetSource} onValueChange={(v) => {
-                      setBudgetSource(v as 'master' | 'sub');
-                      setLineItems([]);
-                    }}>
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="sub">Sub Budget</SelectItem>
-                        <SelectItem value="master">Master Budget ({projectBudgetItems.length} items)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {budgetSource === 'sub' && allSubBudgets.length > 0 && (
+            {step === 3 && (() => {
+              const COST_TYPE_CONFIG: Record<string, { icon: typeof Hammer; label: string; color: string; bgColor: string }> = {
+                Labor: { icon: Hammer, label: 'Labor', color: 'text-blue-600', bgColor: 'bg-blue-500/10 border-blue-500/20' },
+                Subcontractor: { icon: HardHat, label: 'Subcontractor', color: 'text-amber-600', bgColor: 'bg-amber-500/10 border-amber-500/20' },
+                Materials: { icon: Package, label: 'Materials', color: 'text-emerald-600', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
+              };
+
+              const selectedIds = new Set(lineItems.map(li => (li as any).budgetItemId));
+
+              // Group items: cost_type → cost_group
+              const typeOrder = ['Labor', 'Subcontractor', 'Materials'];
+              const typeSections: { type: string; config: typeof COST_TYPE_CONFIG[string]; groups: Map<string, any[]>; allItems: any[] }[] = [];
+              
+              const filteredItems = searchQuery3
+                ? activeBudgetItems.filter((i: any) =>
+                    i.cost_item_name.toLowerCase().includes(searchQuery3.toLowerCase()) ||
+                    i.description?.toLowerCase().includes(searchQuery3.toLowerCase()) ||
+                    i.cost_group?.toLowerCase().includes(searchQuery3.toLowerCase()) ||
+                    i.cost_code?.toLowerCase().includes(searchQuery3.toLowerCase()))
+                : activeBudgetItems;
+
+              typeOrder.forEach(type => {
+                const typeItems = filteredItems.filter((i: any) => (i.cost_type || 'Labor') === type);
+                if (typeItems.length === 0) return;
+                const groups = new Map<string, any[]>();
+                typeItems.forEach((item: any) => {
+                  const group = item.cost_group || 'Ungrouped';
+                  if (!groups.has(group)) groups.set(group, []);
+                  groups.get(group)!.push(item);
+                });
+                typeSections.push({
+                  type,
+                  config: COST_TYPE_CONFIG[type] || COST_TYPE_CONFIG['Labor'],
+                  groups,
+                  allItems: typeItems,
+                });
+              });
+
+              // Other types
+              const knownTypes = new Set(typeOrder);
+              const otherItems = filteredItems.filter((i: any) => !knownTypes.has(i.cost_type || 'Labor'));
+              if (otherItems.length > 0) {
+                const groups = new Map<string, any[]>();
+                otherItems.forEach((item: any) => {
+                  const group = item.cost_group || 'Ungrouped';
+                  if (!groups.has(group)) groups.set(group, []);
+                  groups.get(group)!.push(item);
+                });
+                typeSections.push({
+                  type: 'Other',
+                  config: { icon: Package, label: 'Other', color: 'text-muted-foreground', bgColor: 'bg-muted/30 border-border' },
+                  groups,
+                  allItems: otherItems,
+                });
+              }
+
+              const toggleItem = (item: any) => {
+                const contractPrice = Number(item.contract_price || item.extended_cost);
+                const previouslyBilled = billingHistory.get(item.id) || 0;
+                const prevPct = contractPrice > 0 ? Math.round((previouslyBilled / contractPrice) * 100) : 0;
+
+                if (selectedIds.has(item.id)) {
+                  setLineItems(prev => prev.filter(li => (li as any).budgetItemId !== item.id));
+                } else {
+                  setLineItems(prev => [
+                    ...prev,
+                    {
+                      budgetItemId: item.id,
+                      lineItemNo: item.line_item_no,
+                      description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
+                      contractPrice,
+                      percentComplete: prevPct,
+                      drawAmount: 0,
+                    } as any,
+                  ]);
+                }
+              };
+
+              const toggleGroupItems = (items: any[]) => {
+                const allSelected = items.every((i: any) => selectedIds.has(i.id));
+                if (allSelected) {
+                  setLineItems(prev => prev.filter(li => !items.some((i: any) => i.id === (li as any).budgetItemId)));
+                } else {
+                  const toAdd = items.filter((i: any) => !selectedIds.has(i.id));
+                  setLineItems(prev => [
+                    ...prev,
+                    ...toAdd.map((item: any) => {
+                      const contractPrice = Number(item.contract_price || item.extended_cost);
+                      const previouslyBilled = billingHistory.get(item.id) || 0;
+                      const prevPct = contractPrice > 0 ? Math.round((previouslyBilled / contractPrice) * 100) : 0;
+                      return {
+                        budgetItemId: item.id,
+                        lineItemNo: item.line_item_no,
+                        description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
+                        contractPrice,
+                        percentComplete: prevPct,
+                        drawAmount: 0,
+                      } as any;
+                    }),
+                  ]);
+                }
+              };
+
+              return (
+                <div className="space-y-4">
+                  {/* Budget source toggle — only for admin/PM entries */}
+                  {isAdminEntry && (
+                  <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/50 border border-border">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-body text-muted-foreground">Sub Budget:</Label>
-                      <Select value={selectedSubBudgetId} onValueChange={(v) => {
-                        setSelectedSubBudgetId(v);
+                      <Label className="text-sm font-display font-semibold">Bill from:</Label>
+                      <Select value={budgetSource} onValueChange={(v) => {
+                        setBudgetSource(v as 'master' | 'sub');
                         setLineItems([]);
                       }}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Select a sub budget" />
+                        <SelectTrigger className="w-48">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {allSubBudgets.map((sb: any) => (
-                            <SelectItem key={sb.id} value={sb.id}>
-                              {sb.team_members?.crew_name || sb.team_members?.name || 'Unknown'} — {sb.proposal_name || sb.file_name}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="sub">Sub Budget</SelectItem>
+                          <SelectItem value="master">Master Budget ({projectBudgetItems.length} items)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                </div>
-                )}
-
-                <p className="text-muted-foreground font-body text-sm">
-                  Select items you're billing for, then set your cumulative % complete.
-                </p>
-
-                {activeBudgetItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground font-body">
-                      {!isAdminEntry
-                        ? 'No proposal has been created for you on this project yet. Contact your project manager.'
-                        : effectiveBudgetSource === 'sub' && allSubBudgets.length === 0
-                        ? 'No proposals have been created for this project yet.'
-                        : effectiveBudgetSource === 'sub'
-                        ? 'No line items found in the selected proposal.'
-                        : 'No budget items found for this project.'}
-                    </p>
+                    {budgetSource === 'sub' && allSubBudgets.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm font-body text-muted-foreground">Sub Budget:</Label>
+                        <Select value={selectedSubBudgetId} onValueChange={(v) => {
+                          setSelectedSubBudgetId(v);
+                          setLineItems([]);
+                        }}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select a sub budget" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allSubBudgets.map((sb: any) => (
+                              <SelectItem key={sb.id} value={sb.id}>
+                                {sb.team_members?.crew_name || sb.team_members?.name || 'Unknown'} — {sb.proposal_name || sb.file_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
-                ) : (() => {
-                  // Group by cost_group
-                  const groups = new Map<string, any[]>();
-                  activeBudgetItems.forEach((item: any) => {
-                    const group = item.cost_group || 'Ungrouped';
-                    if (!groups.has(group)) groups.set(group, []);
-                    groups.get(group)!.push(item);
-                  });
+                  )}
 
-                  const selectedIds = new Set(lineItems.map(li => (li as any).budgetItemId));
+                  <p className="text-muted-foreground font-body text-sm">
+                    Select items you're billing for, then set your cumulative % complete.
+                  </p>
 
-                  return (
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input className="pl-9" placeholder="Search items..." value={searchQuery3} onChange={e => setSearchQuery3(e.target.value)} />
+                    {searchQuery3 && (
+                      <button onClick={() => setSearchQuery3('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground">Clear</button>
+                    )}
+                  </div>
+
+                  {activeBudgetItems.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground font-body">
+                        {!isAdminEntry
+                          ? 'No proposal has been created for you on this project yet. Contact your project manager.'
+                          : effectiveBudgetSource === 'sub' && allSubBudgets.length === 0
+                          ? 'No proposals have been created for this project yet.'
+                          : effectiveBudgetSource === 'sub'
+                          ? 'No line items found in the selected proposal.'
+                          : 'No budget items found for this project.'}
+                      </p>
+                    </div>
+                  ) : (
                     <div className="space-y-3">
-                      {Array.from(groups.entries()).map(([group, items]) => (
-                        <div key={group} className="border border-border rounded-lg overflow-hidden">
-                          <div className="bg-muted/30 px-4 py-2.5 flex items-center justify-between">
-                            <span className="font-display font-semibold text-sm">{group}</span>
-                            <span className="text-xs text-muted-foreground">{items.length} items</span>
-                          </div>
-                          <div className="divide-y divide-border/50">
-                            {items.map(item => {
-                              const contractPrice = Number(item.contract_price || item.extended_cost);
-                              const isSelected = selectedIds.has(item.id);
-                              const liIdx = lineItems.findIndex(li => (li as any).budgetItemId === item.id);
-                              const previouslyBilled = billingHistory.get(item.id) || 0;
-                              const prevPct = contractPrice > 0 ? Math.round((previouslyBilled / contractPrice) * 100) : 0;
+                      {typeSections.map(({ type, config, groups, allItems: typeItems }) => {
+                        const TypeIcon = config.icon;
+                        const typeSelectedCount = typeItems.filter((i: any) => selectedIds.has(i.id)).length;
+                        const typeTotal = typeItems.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
+                        const allTypeSelected = typeItems.length > 0 && typeItems.every((i: any) => selectedIds.has(i.id));
+                        const isTypeCollapsed = collapsedInvoiceTypes.has(type);
 
-                              return (
-                                <div key={item.id}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (isSelected) {
-                                        setLineItems(prev => prev.filter(li => (li as any).budgetItemId !== item.id));
-                                      } else {
-                                        setLineItems(prev => [
-                                          ...prev,
-                                          {
-                                            budgetItemId: item.id,
-                                            lineItemNo: item.line_item_no,
-                                            description: `${item.cost_item_name}${item.cost_type ? ` (${item.cost_type})` : ''}`,
-                                            contractPrice,
-                                            percentComplete: prevPct,
-                                            drawAmount: 0,
-                                          } as any,
-                                        ]);
-                                      }
-                                    }}
-                                    className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
-                                      isSelected ? 'bg-primary/10' : 'hover:bg-muted/40'
-                                    }`}
-                                  >
-                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                                      isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
-                                    }`}>
-                                      {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center justify-between">
-                                        <span className="font-display text-sm font-medium">
-                                          <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
-                                          {item.cost_item_name}
-                                        </span>
-                                        <span className="text-xs font-display font-semibold ml-2 flex-shrink-0">
-                                          ${contractPrice.toLocaleString()}
-                                        </span>
-                                      </div>
-                                      {/* Progress bar */}
-                                      {previouslyBilled > 0 && (
-                                        <div className="flex items-center gap-3 mt-1">
-                                          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(prevPct, 100)}%` }} />
-                                          </div>
-                                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                            {prevPct}% complete · ${(contractPrice - previouslyBilled).toLocaleString()} left
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </button>
+                        return (
+                          <div key={type} className={`border-2 rounded-xl overflow-hidden ${config.bgColor}`}>
+                            {/* Type header */}
+                            <div className="px-4 py-3 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); toggleGroupItems(typeItems); }}
+                                  className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                    allTypeSelected ? 'border-primary bg-primary' : typeSelectedCount > 0 ? 'border-primary bg-primary/30' : 'border-muted-foreground/40 hover:border-primary/60'
+                                  }`}>
+                                  {allTypeSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                                </button>
+                                <button type="button" onClick={() => {
+                                  setCollapsedInvoiceTypes(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(type)) next.delete(type); else next.add(type);
+                                    return next;
+                                  });
+                                }} className="flex items-center gap-2">
+                                  {isTypeCollapsed ? <ChevronRight className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                                  <TypeIcon className={`w-5 h-5 ${config.color}`} />
+                                  <span className={`font-display font-bold text-sm ${config.color}`}>{config.label}</span>
+                                  <span className="text-xs text-muted-foreground">({typeItems.length})</span>
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {typeSelectedCount > 0 && <span className="text-xs font-display font-semibold">{typeSelectedCount} selected</span>}
+                                <span className="text-xs font-display font-semibold">${typeTotal.toLocaleString()}</span>
+                              </div>
+                            </div>
 
-                                  {/* Cumulative % complete input */}
-                                  {isSelected && liIdx >= 0 && (
-                                    <div className="px-4 pb-3 pt-1 bg-primary/5 space-y-2" onClick={e => e.stopPropagation()}>
-                                      <div className="flex items-center gap-4">
-                                        <div className="flex-1">
-                                          <Label className="text-xs font-body">Cumulative % Complete</Label>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <Input
-                                              type="number"
-                                              min={prevPct}
-                                              max={100}
-                                              placeholder={String(prevPct)}
-                                              className="h-8 text-sm w-20 text-center font-display font-bold"
-                                              value={lineItems[liIdx]?.percentComplete || ''}
-                                              onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
-                                            />
-                                            <span className="text-sm text-muted-foreground">%</span>
-                                            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                                              <div
-                                                className="h-full bg-primary rounded-full transition-all"
-                                                style={{ width: `${Math.min(lineItems[liIdx]?.percentComplete || 0, 100)}%` }}
-                                              />
-                                            </div>
+                            {/* Type content */}
+                            {!isTypeCollapsed && (
+                              <div className="bg-background/80">
+                                {Array.from(groups.entries()).map(([group, items]) => {
+                                  const allGroupSelected = items.every((i: any) => selectedIds.has(i.id));
+                                  const someGroupSelected = items.some((i: any) => selectedIds.has(i.id));
+                                  const groupTotal = items.reduce((s: number, i: any) => s + Number(i.contract_price || i.extended_cost), 0);
+
+                                  return (
+                                    <div key={group}>
+                                      {/* Group header with bulk toggle */}
+                                      <button type="button" onClick={() => toggleGroupItems(items)}
+                                        className="w-full flex items-center gap-2 px-4 py-2 bg-muted/40 hover:bg-muted/60 transition-colors border-t border-border/50">
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                          allGroupSelected ? 'border-primary bg-primary' : someGroupSelected ? 'border-primary bg-primary/30' : 'border-muted-foreground/40'
+                                        }`}>
+                                          {allGroupSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                                        </div>
+                                        <span className="font-display font-semibold text-xs flex-1 text-left">{group}</span>
+                                        <span className="text-xs text-muted-foreground">{items.length} items · ${groupTotal.toLocaleString()}</span>
+                                      </button>
+
+                                      {/* Items */}
+                                      {items.map((item: any) => {
+                                        const contractPrice = Number(item.contract_price || item.extended_cost);
+                                        const isSelected = selectedIds.has(item.id);
+                                        const liIdx = lineItems.findIndex(li => (li as any).budgetItemId === item.id);
+                                        const previouslyBilled = billingHistory.get(item.id) || 0;
+                                        const prevPct = contractPrice > 0 ? Math.round((previouslyBilled / contractPrice) * 100) : 0;
+                                        const remaining = Math.max(0, contractPrice - previouslyBilled);
+
+                                        return (
+                                          <div key={item.id}>
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleItem(item)}
+                                              className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-t border-border/30 ${
+                                                isSelected ? 'bg-primary/10' : 'hover:bg-muted/40'
+                                              }`}
+                                            >
+                                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                                isSelected ? 'border-primary bg-primary' : 'border-muted-foreground/40'
+                                              }`}>
+                                                {isSelected && <Check className="w-3 h-3 text-primary-foreground" />}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between">
+                                                  <span className="font-display text-sm font-medium">
+                                                    <span className="text-muted-foreground mr-1.5">#{item.line_item_no}</span>
+                                                    {item.cost_item_name}
+                                                  </span>
+                                                </div>
+                                                {/* Always show contract price & remaining */}
+                                                <div className="flex items-center gap-3 mt-1">
+                                                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                    <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(prevPct, 100)}%` }} />
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                                    ${contractPrice.toLocaleString()}
+                                                    {previouslyBilled > 0
+                                                      ? ` · ${prevPct}% billed · $${remaining.toLocaleString()} left`
+                                                      : ` · $${remaining.toLocaleString()} left`}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </button>
+
+                                            {/* Cumulative % complete input */}
+                                            {isSelected && liIdx >= 0 && (
+                                              <div className="px-4 pb-3 pt-1 bg-primary/5 space-y-2" onClick={e => e.stopPropagation()}>
+                                                <div className="flex items-center gap-4">
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs font-body">Cumulative % Complete</Label>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                      <Input
+                                                        type="number"
+                                                        min={prevPct}
+                                                        max={100}
+                                                        placeholder={String(prevPct)}
+                                                        className="h-8 text-sm w-20 text-center font-display font-bold"
+                                                        value={lineItems[liIdx]?.percentComplete || ''}
+                                                        onChange={e => updateLineItem(liIdx, 'percentComplete', Number(e.target.value))}
+                                                      />
+                                                      <span className="text-sm text-muted-foreground">%</span>
+                                                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                                        <div
+                                                          className="h-full bg-primary rounded-full transition-all"
+                                                          style={{ width: `${Math.min(lineItems[liIdx]?.percentComplete || 0, 100)}%` }}
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="text-right">
+                                                    <Label className="text-xs font-body">This Period</Label>
+                                                    <p className="font-display font-bold text-lg text-primary mt-0.5">
+                                                      ${(lineItems[liIdx]?.drawAmount || 0).toLocaleString()}
+                                                    </p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                  <span>Contract: ${contractPrice.toLocaleString()}</span>
+                                                  <span>·</span>
+                                                  <span>Previously: {prevPct}% (${previouslyBilled.toLocaleString()})</span>
+                                                  <span>·</span>
+                                                  <span className="font-semibold text-foreground">
+                                                    Remaining: ${Math.max(0, contractPrice - previouslyBilled - (lineItems[liIdx]?.drawAmount || 0)).toLocaleString()}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
-                                        </div>
-                                        <div className="text-right">
-                                          <Label className="text-xs font-body">This Period</Label>
-                                          <p className="font-display font-bold text-lg text-primary mt-0.5">
-                                            ${(lineItems[liIdx]?.drawAmount || 0).toLocaleString()}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>Contract: ${contractPrice.toLocaleString()}</span>
-                                        <span>·</span>
-                                        <span>Previously: {prevPct}% (${previouslyBilled.toLocaleString()})</span>
-                                        <span>·</span>
-                                        <span className="font-semibold text-foreground">
-                                          Remaining: ${Math.max(0, contractPrice - previouslyBilled - (lineItems[liIdx]?.drawAmount || 0)).toLocaleString()}
-                                        </span>
-                                      </div>
+                                        );
+                                      })}
                                     </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Summary */}
                       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
@@ -661,10 +803,10 @@ const InvoiceWizard = () => {
                         <span className="font-display font-bold text-lg">{t('invoiceWizard.step3.sowTotal')}: ${sowTotal.toLocaleString()}</span>
                       </div>
                     </div>
-                  );
-                })()}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
 
             {step === 4 && (
               <div className="space-y-3">
