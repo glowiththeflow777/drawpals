@@ -187,7 +187,7 @@ const SubBudgetRow: React.FC<{
         <div class="meta">
           <strong>Project:</strong> ${projectName} &nbsp;|&nbsp;
           <strong>Subcontractor:</strong> ${subName}
-          
+          ${subBudget.bid_percentage && subBudget.bid_percentage !== 100 ? ` &nbsp;|&nbsp; <strong>Bid %:</strong> ${subBudget.bid_percentage}%` : ''}
         </div>
         <table>
           <thead>
