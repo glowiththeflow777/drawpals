@@ -124,59 +124,109 @@ const SubBudgetRow: React.FC<{
   const subName = sub?.crew_name || sub?.name || 'Unknown';
   const fileName = buildFileName(projectName, subName, proposalLabel);
 
-  const handleDownloadCSV = () => {
+  // --- Admin CSV (full detail) ---
+  const handleDownloadCSV = (view: 'admin' | 'sub') => {
     if (lineItems.length === 0) {
       toast({ title: 'No data', description: 'No line items found for this proposal.' });
       return;
     }
-    const headers = ['#', 'Cost Item Name', 'Cost Group', 'Cost Code', 'Cost Type', 'Quantity', 'Unit', 'Cost', 'Contract Price'];
-    const rows = lineItems.map((item: any) => [
-      item.line_item_no,
-      `"${(item.cost_item_name || '').replace(/"/g, '""')}"`,
-      `"${(item.cost_group || '').replace(/"/g, '""')}"`,
-      `"${(item.cost_code || '').replace(/"/g, '""')}"`,
-      `"${(item.cost_type || '').replace(/"/g, '""')}"`,
-      item.quantity,
-      `"${(item.unit || '').replace(/"/g, '""')}"`,
-      Number(item.extended_cost),
-      Number(item.contract_price || item.extended_cost),
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    triggerDownload(blob, `${fileName}.csv`);
+    if (view === 'admin') {
+      const headers = ['#', 'Cost Item Name', 'Cost Group', 'Cost Code', 'Cost Type', 'Quantity', 'Unit', 'Cost', 'Contract Price'];
+      const rows = lineItems.map((item: any) => [
+        item.line_item_no,
+        `"${(item.cost_item_name || '').replace(/"/g, '""')}"`,
+        `"${(item.cost_group || '').replace(/"/g, '""')}"`,
+        `"${(item.cost_code || '').replace(/"/g, '""')}"`,
+        `"${(item.cost_type || '').replace(/"/g, '""')}"`,
+        item.quantity,
+        `"${(item.unit || '').replace(/"/g, '""')}"`,
+        Number(item.extended_cost),
+        Number(item.contract_price || item.extended_cost),
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      triggerDownload(new Blob([csv], { type: 'text/csv' }), `${fileName} (Admin).csv`);
+    } else {
+      const headers = ['#', 'Cost Item Name', 'Cost Group', 'Quantity', 'Unit'];
+      const rows = lineItems.map((item: any) => [
+        item.line_item_no,
+        `"${(item.cost_item_name || '').replace(/"/g, '""')}"`,
+        `"${(item.cost_group || '').replace(/"/g, '""')}"`,
+        item.quantity,
+        `"${(item.unit || '').replace(/"/g, '""')}"`,
+      ]);
+      rows.push([]);
+      rows.push(['', '', '', '', '']);
+      rows.push(['', '', 'Total Contract', '', `$${contractTotal.toLocaleString()}`]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      triggerDownload(new Blob([csv], { type: 'text/csv' }), `${fileName} (Sub).csv`);
+    }
   };
 
-  const handleDownloadPDF = () => {
+  // --- PDF export ---
+  const handleDownloadPDF = (view: 'admin' | 'sub') => {
     if (lineItems.length === 0) {
       toast({ title: 'No data', description: 'No line items found for this proposal.' });
       return;
     }
 
-    const htmlRows = lineItems.map((item: any) => `
-      <tr>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.line_item_no}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_item_name || ''}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_group || ''}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_code || ''}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_type || ''}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.quantity}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.unit || ''}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:12px">$${Number(item.extended_cost).toLocaleString()}</td>
-        <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-size:12px">$${Number(item.contract_price || item.extended_cost).toLocaleString()}</td>
-      </tr>
-    `).join('');
+    const isAdmin = view === 'admin';
+
+    const htmlRows = lineItems.map((item: any) => {
+      if (isAdmin) {
+        return `<tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.line_item_no}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_item_name || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_group || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_code || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_type || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.quantity}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.unit || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:12px">$${Number(item.extended_cost).toLocaleString()}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;font-size:12px">$${Number(item.contract_price || item.extended_cost).toLocaleString()}</td>
+        </tr>`;
+      } else {
+        return `<tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.line_item_no}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_item_name || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.cost_group || ''}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${item.quantity}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;font-size:12px">${item.unit || ''}</td>
+        </tr>`;
+      }
+    }).join('');
+
+    const adminHeaders = `<th>#</th><th>Cost Item</th><th>Group</th><th>Code</th><th>Type</th><th style="text-align:center">Qty</th><th>Unit</th><th style="text-align:right">Cost</th><th style="text-align:right">Contract</th>`;
+    const subHeaders = `<th>#</th><th>Cost Item</th><th>Group</th><th style="text-align:center">Qty</th><th>Unit</th>`;
+
+    const totalsSection = isAdmin
+      ? `<div class="totals">
+          <span class="label">Total Cost:</span><span class="value">$${costTotal.toLocaleString()}</span>
+          &nbsp;&nbsp;&nbsp;
+          <span class="label">Total Contract:</span><span class="value">$${contractTotal.toLocaleString()}</span>
+        </div>`
+      : `<div class="totals">
+          <span class="label">Total Contract:</span><span class="value">$${contractTotal.toLocaleString()}</span>
+        </div>`;
+
+    const metaLine = isAdmin
+      ? `<strong>Project:</strong> ${projectName} &nbsp;|&nbsp;
+         <strong>Subcontractor:</strong> ${subName}
+         ${subBudget.bid_percentage && subBudget.bid_percentage !== 100 ? ` &nbsp;|&nbsp; <strong>Bid %:</strong> ${subBudget.bid_percentage}%` : ''}`
+      : `<strong>Project:</strong> ${projectName} &nbsp;|&nbsp;
+         <strong>Subcontractor:</strong> ${subName}`;
+
+    const viewLabel = isAdmin ? '(Admin)' : '(Sub)';
 
     const html = `
       <!DOCTYPE html>
       <html><head>
-        <title>${fileName}</title>
+        <title>${fileName} ${viewLabel}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 40px; color: #1a1a1a; }
           h1 { font-size: 20px; margin-bottom: 4px; }
           .meta { color: #666; font-size: 13px; margin-bottom: 20px; }
           table { width: 100%; border-collapse: collapse; }
           th { padding: 8px; border-bottom: 2px solid #333; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
-          th:nth-child(6), th:nth-child(8), th:nth-child(9) { text-align: right; }
           .totals { margin-top: 16px; text-align: right; font-size: 14px; }
           .totals .label { color: #666; }
           .totals .value { font-weight: 700; margin-left: 8px; }
@@ -184,24 +234,12 @@ const SubBudgetRow: React.FC<{
         </style>
       </head><body>
         <h1>${proposalLabel}</h1>
-        <div class="meta">
-          <strong>Project:</strong> ${projectName} &nbsp;|&nbsp;
-          <strong>Subcontractor:</strong> ${subName}
-          ${subBudget.bid_percentage && subBudget.bid_percentage !== 100 ? ` &nbsp;|&nbsp; <strong>Bid %:</strong> ${subBudget.bid_percentage}%` : ''}
-        </div>
+        <div class="meta">${metaLine}</div>
         <table>
-          <thead>
-            <tr>
-              <th>#</th><th>Cost Item</th><th>Group</th><th>Code</th><th>Type</th><th style="text-align:center">Qty</th><th>Unit</th><th style="text-align:right">Cost</th><th style="text-align:right">Contract</th>
-            </tr>
-          </thead>
+          <thead><tr>${isAdmin ? adminHeaders : subHeaders}</tr></thead>
           <tbody>${htmlRows}</tbody>
         </table>
-        <div class="totals">
-          <span class="label">Total Cost:</span><span class="value">$${costTotal.toLocaleString()}</span>
-          &nbsp;&nbsp;&nbsp;
-          <span class="label">Total Contract:</span><span class="value">$${contractTotal.toLocaleString()}</span>
-        </div>
+        ${totalsSection}
         <script>window.onload=function(){window.print()}</script>
       </body></html>
     `;
@@ -269,12 +307,21 @@ const SubBudgetRow: React.FC<{
                     <Download className="w-3.5 h-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleDownloadCSV} className="text-xs gap-2">
-                    <FileSpreadsheet className="w-3.5 h-3.5" /> Download CSV
+                <DropdownMenuContent align="end" className="min-w-[200px]">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Admin View (Full Detail)</div>
+                  <DropdownMenuItem onClick={() => handleDownloadCSV('admin')} className="text-xs gap-2">
+                    <FileSpreadsheet className="w-3.5 h-3.5" /> CSV — Admin
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleDownloadPDF} className="text-xs gap-2">
-                    <FileText className="w-3.5 h-3.5" /> Download PDF
+                  <DropdownMenuItem onClick={() => handleDownloadPDF('admin')} className="text-xs gap-2">
+                    <FileText className="w-3.5 h-3.5" /> PDF — Admin
+                  </DropdownMenuItem>
+                  <div className="my-1 border-t border-border" />
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Sub View (Scope Only)</div>
+                  <DropdownMenuItem onClick={() => handleDownloadCSV('sub')} className="text-xs gap-2">
+                    <FileSpreadsheet className="w-3.5 h-3.5" /> CSV — Subcontractor
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownloadPDF('sub')} className="text-xs gap-2">
+                    <FileText className="w-3.5 h-3.5" /> PDF — Subcontractor
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
